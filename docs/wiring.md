@@ -12,23 +12,23 @@ für die kniffligen Stellen (Spannungsteiler, Servo-Entkopplung).
 
 ```mermaid
 flowchart LR
-    PSU["12 V / 5 A<br/>Netzteil"] -->|+12 V| F1["🔥 F1<br/>5 A T<br/>5×20 mm Glas"]
-    F1 -->|12 V| BUS12["12 V Bus<br/>(mit 470 µF Elko)"]
-    BUS12 -->|12 V| L298N_VS["L298N V_S<br/>(Motor-12 V)"]
-    BUS12 -->|12 V| A4988_VMOT["A4988 V_MOT<br/>(100 µF Elko PFLICHT)"]
-    BUS12 -->|12 V| F3["🔥 F3<br/>500 mA F"]
-    F3 -->|12 V braun| INIT["Initiatoren<br/>LJ8A3-2-Z/BX (3×)"]
-    BUS12 -->|12 V| F2["🔥 F2<br/>1 A T"]
-    F2 -->|12 V| BUCK["Buck-Konverter<br/>LM2596 / Mini360<br/>justiert auf 5,0 V!"]
+    PSU["12 V / 5 A<br/>Netzteil"] -->|+12 V| F1["F1<br/>5 A T<br/>5x20 mm Glas"]
+    F1 -->|12 V| BUS12["12 V Bus<br/>+ 470 uF Elko"]
+    BUS12 -->|12 V| L298N_VS["L298N V_S<br/>Motor-12 V"]
+    BUS12 -->|12 V| A4988_VMOT["A4988 V_MOT<br/>100 uF Elko PFLICHT"]
+    BUS12 -->|12 V| F3["F3<br/>500 mA F"]
+    F3 -->|12 V braun| INIT["Initiatoren<br/>LJ8A3-2-Z/BX 3 Stueck"]
+    BUS12 -->|12 V| F2["F2<br/>1 A T"]
+    F2 -->|12 V| BUCK["Buck-Konverter<br/>LM2596 / Mini360<br/>auf 5,0 V justiert"]
 
-    BUCK -->|5 V ≥ 3 A| BUS5["5 V Bus"]
+    BUCK -->|5 V min. 3 A| BUS5["5 V Bus"]
     BUS5 -->|GPIO Pin 2/6| PI["Raspberry Pi<br/>Zero 2 W"]
-    BUS5 -->|VCC + 470 µF| SERVO["SG90 Servo"]
-    BUS5 -->|optional| NANO_5V["Arduino Nano<br/>(via USB vom Pi)"]
+    BUS5 -->|VCC + 470 uF| SERVO["SG90 Servo"]
+    BUS5 -->|optional| NANO_5V["Arduino Nano<br/>via USB vom Pi"]
 
     PI -->|USB Daten + 5 V| NANO["Arduino Nano"]
 
-    GND_BUS["★ GEMEINSAME GND ★<br/>Netzteil • Pi • Nano • Buck<br/>• A4988 • L298N • Servo"]
+    GND_BUS["GEMEINSAME GND<br/>Netzteil - Pi - Nano - Buck<br/>A4988 - L298N - Servo"]
     PSU -.->|GND| GND_BUS
     BUCK -.->|GND| GND_BUS
     NANO -.->|GND| GND_BUS
@@ -101,7 +101,7 @@ Nachteil: ungenauer als Schmelzsicherungen, langsamerer Trip — okay als "soft 
 
 ```mermaid
 flowchart LR
-    subgraph NANO ["Arduino Nano"]
+    subgraph NANO [Arduino Nano]
         D2["D2 STEP"]
         D3["D3 DIR"]
         D4["D4 EN"]
@@ -109,9 +109,9 @@ flowchart LR
         D6["D6 IN2"]
         D7["D7 IN3"]
         D8["D8 IN4"]
-        D9["D9 ENA (PWM)"]
-        D10["D10 ENB (PWM)"]
-        D11["D11 Servo (PWM)"]
+        D9["D9 ENA PWM"]
+        D10["D10 ENB PWM"]
+        D11["D11 Servo PWM"]
         D12["D12 Touch"]
         D13["D13 Status-LED"]
         A0["A0 Init Press"]
@@ -120,19 +120,19 @@ flowchart LR
         A5["A5 Magazin-Sensor"]
     end
 
-    D2 --> A4988["A4988<br/>STEP/DIR/EN<br/>→ NEMA 17"]
+    D2 --> A4988["A4988<br/>STEP/DIR/EN<br/>zu NEMA 17"]
     D3 --> A4988
     D4 --> A4988
 
-    D5 --> L298N_A["L298N Kanal A<br/>IN1/IN2/ENA<br/>→ DC-Motor Presse"]
+    D5 --> L298N_A["L298N Kanal A<br/>IN1/IN2/ENA<br/>zu DC-Motor Presse"]
     D6 --> L298N_A
     D9 --> L298N_A
 
-    D7 --> L298N_B["L298N Kanal B<br/>IN3/IN4/ENB<br/>→ DC-Motor Pusher"]
+    D7 --> L298N_B["L298N Kanal B<br/>IN3/IN4/ENB<br/>zu DC-Motor Pusher"]
     D8 --> L298N_B
     D10 --> L298N_B
 
-    D11 --> SERVO["SG90 Servo<br/>(Hülsen-Schieber)"]
+    D11 --> SERVO["SG90 Servo<br/>Huelsen-Schieber"]
 
     TOUCH["TTP223<br/>Touch-Button"] --> D12
 
@@ -140,11 +140,11 @@ flowchart LR
     DIV2["Spannungsteiler<br/>10 k + 7,5 k"] --> A1
     DIV3["Spannungsteiler<br/>10 k + 7,5 k"] --> A2
 
-    INIT_P["Initiator Press<br/>(LJ8A3-2-Z/BX, NPN)"] -->|schwarz Signal 12 V| DIV1
+    INIT_P["Initiator Press<br/>LJ8A3-2-Z/BX NPN"] -->|schwarz Signal 12 V| DIV1
     INIT_PF["Initiator Push-Front"] -->|schwarz| DIV2
     INIT_PR["Initiator Push-Rear"] -->|schwarz| DIV3
 
-    OPTO["Gabellichtschranke<br/>Oniissy<br/>(Magazin-Ref)"] --> A5
+    OPTO["Gabellichtschranke<br/>Oniissy<br/>Magazin-Ref"] --> A5
 ```
 
 ---
@@ -334,12 +334,12 @@ Default (active-high, momentary) lassen.
 
 ```mermaid
 flowchart LR
-    PSU["12 V Netzteil"] --> F1["🔥 F1<br/>5 A T<br/>Hauptsicherung"]
-    F1 --> SW["Pilzkopf<br/>NOTAUS<br/>(Öffner-Kontakt)"]
-    SW -->|12 V Motor-Schiene| LOAD["L298N + A4988<br/>+ Initiatoren (über F3)"]
+    PSU["12 V Netzteil"] --> F1["F1<br/>5 A T<br/>Hauptsicherung"]
+    F1 --> SW["Pilzkopf<br/>NOTAUS<br/>Oeffner-Kontakt"]
+    SW -->|12 V Motor-Schiene| LOAD["L298N + A4988<br/>+ Initiatoren ueber F3"]
 
-    F1 -.->|12 V Logik-Schiene<br/>wird NICHT unterbrochen| F2["🔥 F2<br/>1 A T"]
-    F2 --> BUCK["Buck-Konverter<br/>→ 5 V Pi/Servo/Nano"]
+    F1 -.->|12 V Logik-Schiene<br/>wird NICHT unterbrochen| F2["F2<br/>1 A T"]
+    F2 --> BUCK["Buck-Konverter<br/>5 V Pi/Servo/Nano"]
     BUCK --> NANO["Nano detektiert<br/>via Watchdog-Timeout<br/>oder dedizierten GPIO"]
 
     classDef warn fill:#ffcccc,stroke:#cc0000,stroke-width:2px;
