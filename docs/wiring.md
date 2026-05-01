@@ -105,12 +105,10 @@ flowchart LR
         D2["D2 STEP"]
         D3["D3 DIR"]
         D4["D4 EN"]
-        D5["D5 IN1"]
-        D6["D6 IN2"]
-        D7["D7 IN3"]
-        D8["D8 IN4"]
-        D9["D9 ENA PWM"]
-        D10["D10 ENB PWM"]
+        D5["D5 PRESS_IN1 PWM"]
+        D6["D6 PUSHER_IN3 PWM"]
+        D7["D7 PRESS_IN2"]
+        D8["D8 PUSHER_IN4"]
         D11["D11 Servo PWM"]
         D12["D12 Touch"]
         D13["D13 Status-LED"]
@@ -124,13 +122,11 @@ flowchart LR
     D3 --> A4988
     D4 --> A4988
 
-    D5 --> L298N_A["L298N Kanal A<br/>IN1/IN2/ENA<br/>zu DC-Motor Presse"]
-    D6 --> L298N_A
-    D9 --> L298N_A
+    D5 --> L298N_A["L298N Kanal A<br/>IN1 PWM + IN2 digital<br/>zu DC-Motor Presse"]
+    D7 --> L298N_A
 
-    D7 --> L298N_B["L298N Kanal B<br/>IN3/IN4/ENB<br/>zu DC-Motor Pusher"]
+    D6 --> L298N_B["L298N Kanal B<br/>IN3 PWM + IN4 digital<br/>zu DC-Motor Pusher"]
     D8 --> L298N_B
-    D10 --> L298N_B
 
     D11 --> SERVO["SG90 Servo<br/>Huelsen-Schieber"]
 
@@ -247,7 +243,11 @@ NEMA 17 (1,5 A nominal): Vref ≈ 0,8 V → I ≈ 1,0 A
 
 ---
 
-## 5. L298N Doppel-DC-Motor-Treiber
+## 5. L298N Mini-Modul (1,5 A je Kanal, ohne ENA/ENB)
+
+> Verwendetes Modul: kompakte 6-Pin-Variante (V_S, GND, IN1–IN4) ohne ENA/ENB.
+> Enable ist intern auf HIGH festverdrahtet. Drehzahl-Regelung läuft daher per
+> PWM direkt auf den aktiven IN-Pin ("sign-magnitude PWM").
 
 ```
               ┌──────────────────────────────────┐
@@ -256,16 +256,11 @@ NEMA 17 (1,5 A nominal): Vref ≈ 0,8 V → I ≈ 1,0 A
               │                        Out 3 │──► DC-Motor Pusher +
               │                        Out 4 │──► DC-Motor Pusher −
               │                                  │
-   D5 ──────► │ IN1 ╲                            │
-   D6 ──────► │ IN2  ╲ Kanal A → Out1/Out2       │
-   D9 ──────► │ ENA   ╱  (PWM für Drehzahl)      │
-              │      ╱                           │
-   D7 ──────► │ IN3 ╲                            │
-   D8 ──────► │ IN4  ╲ Kanal B → Out3/Out4       │
-   D10 ─────► │ ENB   ╱  (PWM für Drehzahl)      │
+   D5 ──────► │ IN1   (PWM, Presse FWD)          │
+   D7 ──────► │ IN2   (digital, Presse REV)      │
+   D6 ──────► │ IN3   (PWM, Pusher FWD)          │
+   D8 ──────► │ IN4   (digital, Pusher REV)      │
               │                                  │
-              │ +5 V ◄── (intern erzeugt, wenn   │
-              │           Jumper "5V_EN" gesteckt)│
               │ GND ──────────────────────────── │ ◄── GND Sternpunkt
               └──────────────────────────────────┘
                        │
@@ -276,17 +271,22 @@ NEMA 17 (1,5 A nominal): Vref ≈ 0,8 V → I ≈ 1,0 A
                      GND
 ```
 
-### Wahrheitstabelle
+### Wahrheitstabelle (sign-magnitude PWM)
 
-| INx | INy | ENx (PWM) | Verhalten |
-|---|---|---|---|
-| HIGH | LOW | > 0 | Motor vorwärts (`fwd`) |
-| LOW | HIGH | > 0 | Motor rückwärts (`rev`) |
-| LOW | LOW | beliebig | Motor frei (Coast) |
-| HIGH | HIGH | beliebig | Motor gebremst (Brake — selten) |
-| beliebig | beliebig | 0 | Motor aus (PWM-Stop) |
+| IN_a (PWM-Pin) | IN_b (digital) | Verhalten |
+|---|---|---|
+| `analogWrite(x)` mit x > 0 | LOW | Motor vorwärts mit Drehzahl x/255 |
+| 0 (LOW) | HIGH | Motor rückwärts mit voller Drehzahl |
+| 0 (LOW) | LOW | Motor gebremst (kurzgeschlossen gegen GND) |
+| HIGH (255) | HIGH | beide Brücken HIGH → Bremse gegen V_S |
 
-> **Jumper "5V_EN" entfernen**, sobald V_S (Motor-12 V) > 12 V. Bei genau 12 V kann er drin bleiben — der interne 78M05 erzeugt dann 5 V Logik. Wir benutzen die 5 V vom L298N **NICHT** für Servo/Pi.
+> **Coast (Freilauf) gibt es nicht** mit dieser Beschaltung — der Enable-Eingang
+> liegt intern fest auf HIGH. Stop = aktive Bremse.
+
+> **D9 und D10 sind frei** (waren bei der Standard-L298N-Variante ENA/ENB).
+> Können später für I²C-Display, zusätzliche Endschalter o. ä. genutzt werden,
+> aber **PWM** ist auf D9/D10 nicht möglich, solange `Servo.h` läuft (Servo
+> blockiert Timer1, der die PWM auf D9/D10 erzeugt).
 
 ---
 

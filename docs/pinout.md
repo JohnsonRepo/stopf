@@ -14,12 +14,12 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | D2 | `PIN_STEPPER_STEP` | Step-Impuls | A4988 STEP | gelb | jeder steigende Flanke = 1 Step |
 | D3 | `PIN_STEPPER_DIR` | Richtung | A4988 DIR | grün | HIGH/LOW = Drehrichtung |
 | D4 | `PIN_STEPPER_EN` | Enable | A4988 EN | weiß | **LOW = Treiber aktiv** (invertiert!) |
-| D5 | `PIN_PRESS_IN1` | Presse Richtung A | L298N IN1 | orange | mit IN2 Komplementär |
-| D6 | `PIN_PRESS_IN2` | Presse Richtung B | L298N IN2 | rot | |
-| D7 | `PIN_PUSHER_IN3` | Pusher Richtung A | L298N IN3 | violett | |
-| D8 | `PIN_PUSHER_IN4` | Pusher Richtung B | L298N IN4 | blau | |
-| D9 | `PIN_PRESS_ENA` | Presse Drehzahl | L298N ENA | gelb | **PWM** 0–255 |
-| D10 | `PIN_PUSHER_ENB` | Pusher Drehzahl | L298N ENB | grün | **PWM** 0–255 |
+| D5 | `PIN_PRESS_IN1` | Presse FWD (drehzahlgeregelt) | L298N IN1 | orange | **PWM** Timer0, sign-magnitude |
+| D6 | `PIN_PUSHER_IN3` | Pusher FWD (drehzahlgeregelt) | L298N IN3 | violett | **PWM** Timer0, sign-magnitude |
+| D7 | `PIN_PRESS_IN2` | Presse REV (volle Drehzahl) | L298N IN2 | rot | digital, nur HIGH/LOW |
+| D8 | `PIN_PUSHER_IN4` | Pusher REV (volle Drehzahl) | L298N IN4 | blau | digital, nur HIGH/LOW |
+| D9 | – frei – | (war ENA) | – | – | Reserve, Servo-Lib blockiert PWM |
+| D10 | – frei – | (war ENB) | – | – | Reserve, Servo-Lib blockiert PWM |
 | D11 | `PIN_SERVO` | Servo-Signal | SG90 (orange Litze) | orange | **PWM** (Servo-Library) |
 | D12 | `PIN_TOUCH` | Touch-Button | TTP223 I/O | grau | active HIGH |
 | D13 | `PIN_STATUS_LED` | Status-LED | onboard LED | – | leuchtet während aktiver Befehl |
@@ -46,21 +46,34 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 
 ---
 
-## L298N Doppel-DC-Motortreiber
+## L298N Mini-Modul (Doppel-DC-Motortreiber, 1,5 A je Kanal)
+
+> Das verwendete Mini-Modul hat **kein ENA/ENB**. Enable ist intern dauerhaft
+> aktiviert. Drehzahl-Regelung läuft per PWM auf den IN-Pins
+> ("sign-magnitude PWM").
 
 | L298N-Pin | Verbindung | Anmerkung |
 |---|---|---|
 | V_S (12 V) | 12 V Netzteil + 470 µF Elko | Motor-Versorgung |
 | GND | GND-Sternpunkt | |
-| +5 V | – nicht abgreifen für Pi/Servo | (Jumper "5V_EN" stecken lassen, wenn V_S = 12 V) |
-| IN1 | Nano D5 | Presse Richtung A |
-| IN2 | Nano D6 | Presse Richtung B |
-| IN3 | Nano D7 | Pusher Richtung A |
-| IN4 | Nano D8 | Pusher Richtung B |
-| ENA | Nano D9 (PWM) | Presse Drehzahl |
-| ENB | Nano D10 (PWM) | Pusher Drehzahl |
+| +5 V | – nicht abgreifen für Pi/Servo | wird vom Modul selbst nicht herausgeführt oder fällt unter Last ein |
+| IN1 | Nano **D5 (PWM)** | Presse vorwärts (drehzahlgeregelt) |
+| IN2 | Nano **D7 (digital)** | Presse rückwärts (volle Drehzahl) |
+| IN3 | Nano **D6 (PWM)** | Pusher vorwärts (drehzahlgeregelt) |
+| IN4 | Nano **D8 (digital)** | Pusher rückwärts (volle Drehzahl) |
 | OUT1/OUT2 | DC-Motor Presse | Polarität egal, ggf. tauschen für Drehrichtung |
 | OUT3/OUT4 | DC-Motor Pusher | dito |
+
+### PWM-Logik ("sign-magnitude")
+
+| Aktion | IN_a (PWM-Pin) | IN_b (digital) |
+|---|---|---|
+| Vorwärts mit Drehzahl x | `analogWrite(x)` | `LOW` |
+| Rückwärts (volle Drehzahl) | `0` (LOW) | `HIGH` |
+| Stop / Bremse | `0` (LOW) | `LOW` |
+
+> Coast (Freilauf) ist mit dieser Beschaltung nicht möglich, weil Enable intern fix
+> auf HIGH liegt. Stop = aktive Bremse durch Kurzschluss gegen GND.
 
 ---
 

@@ -16,6 +16,9 @@ constexpr float STEPPER_ACCEL         = 1500.0f;  // Steps/s²
 constexpr int   STEPPER_FEED_STEPS    = 400;      // Default-Tabakdosis
 
 // --- DC-Motoren (PWM 0–255) ---
+// Hinweis: PWM wird auf den IN-Pins ausgegeben (L298N-Mini ohne ENA/ENB).
+// Default-Werte gelten nur für Vorwärts-Richtung; Rückwärts läuft fix mit
+// voller Drehzahl.
 constexpr uint8_t PRESS_SPEED_DEFAULT  = 200;
 constexpr uint8_t PUSHER_SPEED_DEFAULT = 220;
 constexpr unsigned long PRESS_TIMEOUT_MS  = 4000;
