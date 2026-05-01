@@ -160,39 +160,87 @@ U_out = U_in · R2 / (R1 + R2)
 ### ASCII-Schaltbild pro Sensor (3× identisch für Press / PushFront / PushRear)
 
 ```
-  Initiator LJ8A3-2-Z/BX (NPN, 12 V)
+  Initiator LJ8A3-2-Z/BX oder LJ12A3-4-Z/BX (NPN, 12 V)
   ┌──────────────────────┐
-  │  braun  ──────────── │ ◄──── +12 V Versorgung
+  │  braun  ──────────── │ ◄──── +12 V Versorgung (über F3)
   │  blau   ──────────── │ ◄──── GND (gemeinsame Masse!)
   │  schwarz ─── Signal  │
   └──────────────┬───────┘
                  │
-                 ●  Sensor inaktiv → ~12 V
+                 ●  Sensor inaktiv → ~12 V (interne LED wirkt als Pull-up)
                  │  Sensor aktiv (Metall vor Sensor) → 0 V (zieht auf GND)
                  │
-                ┌┴┐
-                │ │  R1 = 10 kΩ  (1/4 W reicht)
-                │ │
-                └┬┘
+                 ▼  ── verdrilltes Kabel zum Nano ──
+                 ▼     (Schwarz + Blau twisten gegen EMV)
                  │
-                 ●──────► A0 / A1 / A2 am Nano
-                 │
-                ┌┴┐
-                │ │  R2 = 7,5 kΩ
-                │ │
-                └┬┘
-                 │
-                ─┴─  GND
+        ┌────────●────────┐  ◄── Spannungsteiler nahe AM NANO platzieren,
+        │                 │      nicht am Sensor (12 V auf Kabel = robust)
+       ┌┴┐                │
+       │ │ R1 = 10 kΩ     │
+       │ │ (1/4 W)        │
+       └┬┘                │
+        │                 │
+        ●─────────────────●──────► A0 / A1 / A2 am Nano
+        │                 │
+       ┌┴┐               ┌┴┐
+       │ │ R2 = 7,5 kΩ   │ │ C = 47 nF Keramik
+       │ │               │ │ (parallel zu R2 → EMV-Filter)
+       └┬┘               └┬┘
+        │                 │
+        ●─────────────────●
+        │
+       ─┴─  GND (Sternpunkt)
 ```
 
 > **Logik im Code:** `INIT_TRIGGERED_LEVEL = LOW`
 > ([`firmware/nano/src/config.h`](../firmware/nano/src/config.h))
 > Sensor "sieht" Metall → Output zieht auf GND → Spannungsteiler liefert 0 V → `digitalRead == LOW`.
 
+### Was beim Spannungsteiler beachten
+
+| Punkt | Empfehlung | Warum |
+|---|---|---|
+| **Position** | Widerstände + C **am Nano-Pin**, nicht am Sensor | 12 V-Signal auf der Leitung → besseres SNR gegen Motor-EMI |
+| **R-Werte** | 10 kΩ + 7,5 kΩ (Nano) bzw. 10 kΩ + 3,9 kΩ (ESP32) | erprobt, P_dissipation < 5 mW |
+| **R-Toleranz** | 5 % reicht (Standardwiderstand) | 1 % nur für maximalen Geiz an Genauigkeit |
+| **R-Leistung** | 1/4 W (250 mW) — billige Standardware | tatsächliche Belastung ~5 mW, 50× Reserve |
+| **Filter-C** | **47 nF Keramik parallel zu R2** | dämpft Motor-PWM-Stör­spitzen (~1–30 kHz), Sensor-Latenz nur ~3 ms |
+| **Kabel** | Sensor-Kabel verdrillen (schwarz + blau) | Common-Mode-EMI wird ausgemittelt |
+| **GND** | Sensor-GND auf den **Sternpunkt** am Netzteil, nicht "irgendwo" | sonst verschiebt Sensor-Strom den Mittenabgriff |
+| **Pull-up** | nicht zwingend (LED-Pull-up im Sensor reicht meist) | Falls "schwarz" im Leerlauf < 10 V: 4,7 kΩ extern von schwarz nach +12 V |
+
+### Test vor dem Anschluss am Nano (Pflicht-Checkliste)
+
+```
+□ 1) Sensor mit 12 V versorgen (braun an +12 V via F3, blau an GND)
+□ 2) Spannungsteiler aufbauen (R1, R2, C), GND mit Sensor-GND verbinden
+□ 3) Multimeter zwischen Mittenabgriff und GND messen
+□ 4) Sensor inaktiv: Erwartung 5,0–5,2 V (kein Metall davor)
+□ 5) Sensor aktiv: Erwartung 0,0–0,2 V (Schraubenzieher 1–2 mm davor)
+□ 6) Sensor mehrfach aktivieren, beide Werte stabil reproduzierbar
+□ 7) Optional: Funktion mit laufendem Motor in der Nähe verifizieren
+   (Stör­einflüsse vorhanden, falls C zu klein gewählt)
+□ 8) ERST DANN Verbindung zu A0/A1/A2 am Nano herstellen
+```
+
+> Wenn Schritt 4 statt 5 V dauerhaft 12 V zeigt: R1/R2 vertauscht — würde
+> den Nano-Pin sofort zerstören. **Fehler hier ist 100 % vermeidbar.**
+
+### Filter-Kondensator: Wahl der Kapazität
+
+| C-Wert | Grenzfrequenz f_c | Sensor-Latenz | Geeignet für |
+|---|---|---|---|
+| 10 nF | ~3,7 kHz | ~0,4 ms | Schnelle Sensor-Reaktion, leichte EMV |
+| **47 nF** ← Default | ~800 Hz | ~2 ms | Mittelweg, gut gegen Motor-PWM 1–30 kHz |
+| 100 nF | ~370 Hz | ~4 ms | Maximale Filterung, langsamere Reaktion |
+| 1 µF | ~37 Hz | ~40 ms | Nur wenn Polling sehr langsam (z. B. 1 Hz) |
+
+> **f_c-Berechnung:** `f_c = 1 / (2π · R_T · C)` mit `R_T = R1 ∥ R2 ≈ 4,3 kΩ`
+
 ### Für ESP32 (Übergangslösung, 3,3 V-Logik)
 
 ```
-R1 = 10 kΩ, R2 = 3,9 kΩ
+R1 = 10 kΩ, R2 = 3,9 kΩ, C = 47 nF (gleiche Wahl wie Nano)
 U_out = 12 V · 3,9 / 13,9 ≈ 3,37 V    ← innerhalb 3,3 V-Toleranz (max 3,6 V)
 ```
 

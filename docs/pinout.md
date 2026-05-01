@@ -196,6 +196,27 @@ Die anderen beiden sind intern mit ihrem Diagonalpartner verbunden.
 
 ---
 
+## Spannungsteiler für Initiatoren (Bestellliste)
+
+Pro Sensor-Eingang (3× für Press / PushFront / PushRear):
+
+| Bauteil | Wert | Anzahl | Bauform | Anmerkung |
+|---|---|---|---|---|
+| R1 | 10 kΩ, 5 %, 1/4 W | 3× (+ Reserve) | THT 0207 | Standard-Kohleschicht |
+| R2 (Nano) | 7,5 kΩ, 5 %, 1/4 W | 3× | THT 0207 | für 5 V-Logik |
+| R2 (ESP32) | 3,9 kΩ, 5 %, 1/4 W | 3× | THT 0207 | für 3,3 V-Logik |
+| C (Filter) | 47 nF Keramik | 3× | X7R, 50 V | parallel zu R2, EMV-Filter |
+
+Optionale Pull-up-Bestückung **falls** der Sensor im Leerlauf < 10 V auf Schwarz zeigt:
+
+| Bauteil | Wert | Anzahl | Anmerkung |
+|---|---|---|---|
+| R_pullup | 4,7 kΩ, 1/4 W | 3× | von "schwarz" nach +12 V, **nur wenn nötig** |
+
+> Vor dem Anschluss am Nano: Test-Checkliste in [`wiring.md` § 3](wiring.md#3-initiator-spannungsteiler-kritisch) durchgehen.
+
+---
+
 ## Sicherungen (Bestellliste)
 
 Alle 5×20 mm Glas-Schmelzsicherungen, in Schraubklemmen-Halter
