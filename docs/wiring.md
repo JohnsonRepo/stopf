@@ -12,7 +12,7 @@ für die kniffligen Stellen (Spannungsteiler, Servo-Entkopplung).
 
 ```mermaid
 flowchart LR
-    PSU["12 V / 5 A<br/>Netzteil"] -->|+12 V| F1["F1<br/>5 A T<br/>5x20 mm Glas"]
+    PSU["12 V / 5 A<br/>Netzteil"] -->|+12 V| F1["F1<br/>5 A T<br/>5x20 mm"]
     F1 -->|12 V| BUS12["12 V Bus<br/>+ 470 uF Elko"]
     BUS12 -->|12 V| L298N_VS["L298N V_S<br/>Motor-12 V"]
     BUS12 -->|12 V| A4988_VMOT["A4988 V_MOT<br/>100 uF Elko PFLICHT"]
@@ -49,7 +49,7 @@ flowchart LR
 ```
                                                                    ┌─► L298N (Motoren)
                                                                    │
-12 V Netzteil ─►【F1: 5 A T, 5×20 mm Glas】──► 12 V-Bus ────────────┼─► A4988 (Stepper)
+12 V Netzteil ─►【F1: 5 A T, 5×20 mm】──► 12 V-Bus ─────────────────┼─► A4988 (Stepper)
                   in Halter mit Schraubklemmen,                    │
                   unmittelbar nach PSU-Ausgang                     │
                                                                    ├─►【F2: 1 A T】─► Buck → Pi/Servo
@@ -59,15 +59,34 @@ flowchart LR
 
 | Sicherung | Wert | Charakteristik | Schutzobjekt | Begründung |
 |---|---|---|---|---|
-| **F1 Hauptsicherung** | 5 A T (träge) | 5×20 mm Glas | Verkabelung 12 V-Bus, gegen PSU-Ausfall der OCP | passt zum 5-A-Netzteil; *träge* wegen Motor-Anlaufstrom (NEMA + 2× DC + Buck-Cap-Ladung gleichzeitig kann kurz > 4 A ziehen) |
-| **F2 Buck-Eingang** | 1 A T | 5×20 mm Glas | Pi + Servo + Logik | Pi+Servo zieht ≤ 700 mA; trennt Logikseite, falls Motor-Pfad einen Defekt hat |
-| **F3 Initiator-Schiene** | 500 mA F (flink) | 5×20 mm Glas | Sensor-Verkabelung | 3 Sensoren ziehen je ~10 mA; flink, weil dahinter keine induktive Last hängt |
+| **F1 Hauptsicherung** | 5 A T (träge) | 5×20 mm | Verkabelung 12 V-Bus, gegen PSU-Ausfall der OCP | passt zum 5-A-Netzteil; *träge* wegen Motor-Anlaufstrom (NEMA + 2× DC + Buck-Cap-Ladung gleichzeitig kann kurz > 4 A ziehen) |
+| **F2 Buck-Eingang** | 1 A T | 5×20 mm | Pi + Servo + Logik | Pi+Servo zieht ≤ 700 mA; trennt Logikseite, falls Motor-Pfad einen Defekt hat |
+| **F3 Initiator-Schiene** | 500 mA F (flink) | 5×20 mm | Sensor-Verkabelung | 3 Sensoren ziehen je ~10 mA; flink, weil dahinter keine induktive Last hängt |
 
-### Warum **Glas**, nicht keramisch?
+### Glas oder Keramik — beides funktioniert
 
-- **U = 12 V DC**: der Lichtbogen erlischt ohnehin schnell, sobald der Sicherungsdraht durch ist. Keramik-HBC ist für 230 V AC und Kurzschluss-Ströme > 35 A relevant — bei dir nicht der Fall.
-- **I_short** ist durch das Schaltnetzteil auf ~10–25 A begrenzt → weit unter dem Glas-Abschaltvermögen (typ. 35 A @ 250 V AC).
-- **Keramik** lohnt sich erst bei: AC-Netzseite (vor dem 12-V-PSU), oder wenn du auf Bleibatterie / 4S LiPo umsteigst (Kurzschluss > 100 A möglich).
+Bei **12 V DC** sind Glas- und Keramik-Schmelzsicherungen **elektrisch
+gleichwertig**. Beides geht.
+
+| | Glas | Keramik (HBC) |
+|---|---|---|
+| Preis pro Stück | ~0,30 € | ~1–2 € |
+| Abschaltvermögen | 35 A @ 250 V AC | 1500 A @ 250 V AC |
+| Lichtbogen-Verhalten | erlischt bei 12 V DC sowieso ohne Probleme | komplett gelöscht durch Sandfüllung |
+| Verfügbarkeit | überall (Reichelt, Conrad, Amazon, Auto-Zubehör) | Spezial-Elektronik-Handel |
+| Mein-Bauteil-Box-Faktor | meist da | seltener da, aber wenn → super |
+
+- **Du hast Glas zur Hand?** Nimm Glas, völlig ausreichend.
+- **Du hast Keramik zur Hand?** Nimm Keramik, sogar ein bisschen sicherer.
+- **Beides nicht?** Bestelle Glas — günstiger, gleichwertig.
+
+> **Wichtig:** Beide Typen müssen den **gleichen Wert** und die **gleiche
+> Charakteristik** haben (T = träge, F = flink). Eine Keramik-5A-T verhält sich
+> beim Auslösen identisch zu einer Glas-5A-T.
+
+Keramik wird **zwingend** bei: AC-Netzseite (vor dem 12-V-Netzteil) oder
+Hochstrom-Versorgung (Bleibatterie / 4S LiPo > 100 A Kurzschluss). Im 12 V-DC-Pfad
+dieser Maschine ist es Wahl-Sache.
 
 ### Alternative: selbstrückstellende Polyfuses (PTC)
 

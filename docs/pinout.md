@@ -251,7 +251,7 @@ Optionale Pull-up-Bestückung **falls** der Sensor im Leerlauf < 10 V auf Schwar
 
 ## Sicherungen (Bestellliste)
 
-Alle 5×20 mm Glas-Schmelzsicherungen, in Schraubklemmen-Halter
+Alle 5×20 mm Schmelzsicherungen (Glas oder Keramik beide ok), in Schraubklemmen-Halter
 (z. B. Stelvio Kontek PTF/30 oder beliebiger Würth/Schurter-Halter).
 
 | Position | Wert | Charakteristik | Schützt | Halter-Typ |
@@ -260,9 +260,12 @@ Alle 5×20 mm Glas-Schmelzsicherungen, in Schraubklemmen-Halter
 | **F2** Buck-Eingang | 1 A | T (träge) | Pi + Servo + Nano-Logik | Schraubklemme, inline |
 | **F3** Initiator-Schiene | 500 mA | F (flink) | Sensor-Verkabelung | Schraubklemme, inline |
 
-> **Glas, nicht Keramik:** bei 12 V DC reicht Glas (Lichtbogen erlischt von selbst).
-> Keramische HBC-Sicherungen sind erst bei 230 V AC-Netzseite oder bei Bleibatterie/LiPo-
-> Versorgung mit > 100 A Kurzschlussstrom Pflicht. Details in [`wiring.md` § 1](wiring.md#1-stromversorgung-power-distribution).
+> **Glas oder Keramik — beides ok für 12 V DC.** Beide elektrisch identisch
+> (gleicher Wert, gleiche Charakteristik T/F). Glas ist günstiger (~0,30 € vs.
+> ~1–2 €), Keramik hat mehr Headroom bei Hochstrom-Fehlern. Für diese Maschine
+> Wahl-Sache. Keramik **wird** Pflicht bei AC-Netzseite (vor dem 12 V-Netzteil)
+> oder Bleibatterie/LiPo-Versorgung > 100 A Kurzschluss. Details in
+> [`wiring.md` § 1](wiring.md#1-stromversorgung-power-distribution).
 
 > **Reserve mitbestellen:** je Wert mind. 5 Stück, sind günstig (~0,30 €/Stück).
 
