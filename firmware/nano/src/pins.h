@@ -32,8 +32,11 @@ constexpr uint8_t PIN_PUSHER_IN4  = 8;    // digital (reverse)
 // --- Servo (Hülsen-Schieber) ---
 constexpr uint8_t PIN_SERVO       = 11;
 
-// --- Touch-Button (Start) ---
-constexpr uint8_t PIN_TOUCH       = 12;
+// --- Start-Taster (mechanischer Drucktaster, momentary) ---
+// Verdrahtung: Taster zwischen D12 und GND.
+// Interner Pull-up im Nano aktiviert → ungedrückt = HIGH, gedrückt = LOW.
+// Kein externer Widerstand nötig.
+constexpr uint8_t PIN_BUTTON      = 12;
 
 // --- Status-LED (interne LED auf D13) ---
 constexpr uint8_t PIN_STATUS_LED  = 13;

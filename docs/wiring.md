@@ -110,7 +110,7 @@ flowchart LR
         D7["D7 PRESS_IN2"]
         D8["D8 PUSHER_IN4"]
         D11["D11 Servo PWM"]
-        D12["D12 Touch"]
+        D12["D12 Start-Taster"]
         D13["D13 Status-LED"]
         A0["A0 Init Press"]
         A1["A1 Init PushFront"]
@@ -130,7 +130,7 @@ flowchart LR
 
     D11 --> SERVO["SG90 Servo<br/>Huelsen-Schieber"]
 
-    TOUCH["TTP223<br/>Touch-Button"] --> D12
+    BUTTON["Start-Taster<br/>mechanisch, momentary<br/>gegen GND"] --> D12
 
     DIV1["Spannungsteiler<br/>10 k + 7,5 k"] --> A0
     DIV2["Spannungsteiler<br/>10 k + 7,5 k"] --> A1
@@ -312,21 +312,48 @@ NEMA 17 (1,5 A nominal): Vref ≈ 0,8 V → I ≈ 1,0 A
 
 ---
 
-## 7. Touch-Button (TTP223)
+## 7. Start-Taster (mechanisch, momentary)
 
 ```
-                    ┌──────────────┐
-                    │  TTP223      │
-   Buck 5 V ─────► │ VCC          │
-   GND ──────────► │ GND          │
-   Nano D12 ◄──── │ I/O (HIGH bei│
-                    │     Berührung)│
-                    └──────────────┘
+                                    +5 V (intern)
+                                       │
+                                      ┌┴┐
+                                      │ │  ~30 kΩ
+                                      │ │  (interner
+                                      │ │  Pull-up im
+                                      │ │  ATmega328)
+                                      └┬┘
+                                       │
+   Nano D12 ◄──────────────────────────●──────────● Taster Pin 1
+                                                  │
+                                                 ─┤   Drucktaster
+                                                  │   (Schließer,
+                                                 ─┤    momentary)
+                                                  │
+   Nano GND ──────────────────────────────────── ● Taster Pin 2
 ```
 
-Module liefern bei Berührung typischerweise **HIGH (5 V)** → `digitalRead == HIGH`.
-Manche TTP223-Boards haben Lötbrücken für invertiert/Toggle — beim Bestücken auf
-Default (active-high, momentary) lassen.
+**Logik:**
+- **Ungedrückt:** Pin-Eingang über internen Pull-up auf HIGH gezogen (~5 V).
+- **Gedrückt:** Taster schließt → Eingang direkt an GND → LOW.
+- `digitalRead(PIN_BUTTON) == LOW` → Taster ist gedrückt.
+
+**Vorteile gegenüber TTP223:**
+- robust gegen Tabakstaub und EMI von DC-Motoren
+- kein zusätzliches Modul / keine Versorgungsleitung
+- nur zwei Kabel (Signal + GND) statt drei
+
+**Geeignete Bauarten:**
+- Mini-Tactile-Tactile-Button auf Steckbrett (für Tests)
+- Panel-Mount-Drucktaster 12 mm oder 16 mm (mit Verschraubung am Gehäuse)
+- Pilzkopf-Taster mit Schließer-Kontakt (NICHT als Notaus verwenden — der hat
+  einen Öffner und unterbricht 12 V hardwareseitig)
+
+**Software-Entprellung:** Mechanische Taster prellen ~1–10 ms beim Schließen.
+Konstante `BUTTON_DEBOUNCE_MS = 50` in [`config.h`](../firmware/nano/src/config.h)
+ist als Vorgabe für künftiges Edge-Detection im Pi reserviert. Bei reinem
+Status-Polling (alle 50 ms) ist Prellen meist unkritisch — die nächste Abfrage
+sieht schon den stabilen Zustand.
 
 ---
 

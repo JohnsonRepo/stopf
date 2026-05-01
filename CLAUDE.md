@@ -99,8 +99,8 @@ Zweischicht-Architektur mit klarer Trennung von Echtzeit-Steuerung und höherer 
     - Für **Arduino Nano (5V Logik):** 10kΩ + 7,5kΩ Spannungsteiler
     - Für **ESP32 (3,3V Logik):** 10kΩ + 3,9kΩ Spannungsteiler
 - **1× Optosensor** (Oniissy Gabellichtschranke) für Trommelmagazin-Referenz (sauberer Bereich)
-- **1× Touch-Button** (TTP223) als Start-Trigger
-- **Mikroschalter (KW12) als Backup** für staubige Bereiche
+- **1× mechanischer Drucktaster** als Start-Trigger (Schließer-Kontakt, momentary; an D12 mit internem Pull-up gegen GND verdrahtet)
+- **Mikroschalter (KW12) als Backup-Endschalter** für staubige Bereiche
 
 ### Stromversorgung
 - **12V Netzteil min. 5A** als Hauptversorgung
@@ -123,7 +123,7 @@ D8  → L298N IN4  (digital, Pusher rückwärts volle Drehzahl)
 D9  → frei       (war ENA — entfällt; PWM via Servo-Lib blockiert)
 D10 → frei       (war ENB — entfällt; PWM via Servo-Lib blockiert)
 D11 → Servo Signal (PWM)
-D12 → Touch-Button
+D12 → Start-Taster (mechanisch, INPUT_PULLUP, active LOW)
 D13 → Status-LED (onboard)
 A0  → Initiator Press (über Spannungsteiler)
 A1  → Initiator Push-Front (über Spannungsteiler)
@@ -138,7 +138,7 @@ GPIO 25 → A4988 STEP        GPIO 14 → L298N IN1
 GPIO 26 → A4988 DIR         GPIO 12 → L298N IN2
 GPIO 27 → A4988 EN          GPIO 13 → L298N IN3
 GPIO 19 → Servo             GPIO 32 → L298N IN4
-GPIO 21 → Touch-Button      GPIO 33 → L298N ENA
+GPIO 21 → Start-Taster      GPIO 33 → L298N ENA
 GPIO 34 → Initiator Press   GPIO 4  → L298N ENB
 GPIO 35 → Initiator PushFr
 GPIO 36 → Initiator PushRe
@@ -244,7 +244,7 @@ Nano → Pi:
 8. **DC-Motor 2 Pusher** mit L298N
 9. **Servo** zum Schluss
 10. **Initiatoren** mit Spannungsteilern
-11. **Touch-Button** Funktionscheck
+11. **Start-Taster** Funktionscheck
 12. **Vollintegration:** Stopfsequenz schrittweise
 
 ---
@@ -271,7 +271,7 @@ Nano → Pi:
 ### Elektronik
 - Amazon: A4988, L298N, Buck-Konverter, NEMA 17, Servo SG90, ESP32, Arduino Nano, Pi Zero 2 W
 - Initiatoren: "LJ8A3-2-Z/BX" auf Amazon (~5€/Stück)
-- Touch-Module: TTP223 (~1€/Stück)
+- Drucktaster: 12 mm Panel-Mount oder Mini-Tactile-Button (~1–3€/Stück)
 
 ### Mechanik
 - T8 Leitspindel + Mutter: Amazon Set ~6€

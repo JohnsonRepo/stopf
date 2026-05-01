@@ -29,7 +29,7 @@ Ein Befehl pro Zeile, mit `\n` (LF) terminiert. Antworten zeilenweise.
 |---|---|---|
 | `ping` | `pong` | Verbindungstest. Pi sollte das nach Connect zuerst senden. |
 | `help` | mehrzeilige Hilfe | Liste aller Befehle (für manuelles Debuggen) |
-| `status` | `status press=B push_front=B push_rear=B touch=B stepper_pos=N` | Sensor-Snapshot (`B` = `0`/`1`, `N` = signed long) |
+| `status` | `status press=B push_front=B push_rear=B button=B stepper_pos=N` | Sensor-Snapshot (`B` = `0`/`1`, `N` = signed long); `button=1` = Start-Taster gedrückt |
 
 ### Schrittmotor (Förderschnecke / Tabakdosierung)
 
@@ -82,7 +82,7 @@ err unknown_command:<text>    # Befehl nicht erkannt (Echo zur Diagnose)
 err <reason>                  # Anderer Fehler (z. B. ERROR pusher_stuck — geplant)
 warn watchdog_timeout motors_off
                               # Spontane Warnung vom Nano (KEIN Antwort-Satz)
-status press=<0|1> push_front=<0|1> push_rear=<0|1> touch=<0|1> stepper_pos=<N>
+status press=<0|1> push_front=<0|1> push_rear=<0|1> button=<0|1> stepper_pos=<N>
                               # Antwort auf "status"
 pong                          # Antwort auf "ping"
 ready firmware=<version>      # Bei Boot, einmalig
@@ -102,7 +102,7 @@ Pi → ping
 Pi ← pong
 
 Pi → status
-Pi ← status press=0 push_front=0 push_rear=1 touch=0 stepper_pos=0
+Pi ← status press=0 push_front=0 push_rear=1 button=0 stepper_pos=0
 
 # 1) Tabak dosieren
 Pi → stepper 400
@@ -113,7 +113,7 @@ Pi ← ok stepper 400
 Pi → press fwd
 Pi ← ok press fwd
 Pi → status                    (mehrfach gepollt im 50-ms-Takt)
-Pi ← status press=1 push_front=0 push_rear=1 touch=0 stepper_pos=400
+Pi ← status press=1 push_front=0 push_rear=1 button=0 stepper_pos=400
 Pi → press stop
 Pi ← ok press stop
 
@@ -127,7 +127,7 @@ Pi ← ok servo 5
 Pi → pusher fwd
 Pi ← ok pusher fwd
 Pi → status                    (Polling)
-Pi ← status press=0 push_front=1 push_rear=0 touch=0 stepper_pos=400
+Pi ← status press=0 push_front=1 push_rear=0 button=0 stepper_pos=400
 Pi → pusher stop
 Pi ← ok pusher stop
 
@@ -135,7 +135,7 @@ Pi ← ok pusher stop
 Pi → pusher rev
 Pi ← ok pusher rev
 Pi → status                    (Polling)
-Pi ← status press=0 push_front=0 push_rear=1 touch=0 stepper_pos=400
+Pi ← status press=0 push_front=0 push_rear=1 button=0 stepper_pos=400
 Pi → pusher stop
 Pi ← ok pusher stop
 ```

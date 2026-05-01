@@ -9,7 +9,7 @@
 //
 // Befehle (per Serial Monitor oder vom Pi, 115200 Baud):
 //   help              → Übersicht
-//   status            → aktuelle Sensorwerte
+//   status            → aktuelle Sensorwerte (inkl. button-Zustand)
 //   stepper <steps>   → Schrittmotor um N Steps drehen (negativ = rückwärts)
 //   press fwd|rev|stop
 //   pusher fwd|rev|stop
@@ -88,7 +88,8 @@ void readSensors() {
     bool press     = (digitalRead(PIN_INIT_PRESS)      == INIT_TRIGGERED_LEVEL);
     bool pushFront = (digitalRead(PIN_INIT_PUSH_FRONT) == INIT_TRIGGERED_LEVEL);
     bool pushRear  = (digitalRead(PIN_INIT_PUSH_REAR)  == INIT_TRIGGERED_LEVEL);
-    bool touch     = (digitalRead(PIN_TOUCH) == HIGH);
+    // Mechanischer Taster mit internem Pull-up: ungedrückt = HIGH, gedrückt = LOW.
+    bool button    = (digitalRead(PIN_BUTTON) == LOW);
 
     Serial.print("status press=");
     Serial.print(press);
@@ -96,8 +97,8 @@ void readSensors() {
     Serial.print(pushFront);
     Serial.print(" push_rear=");
     Serial.print(pushRear);
-    Serial.print(" touch=");
-    Serial.print(touch);
+    Serial.print(" button=");
+    Serial.print(button);
     Serial.print(" stepper_pos=");
     Serial.println(stepper.currentPosition());
 }
@@ -180,7 +181,7 @@ void setup() {
     pinMode(PIN_INIT_PRESS, INPUT);
     pinMode(PIN_INIT_PUSH_FRONT, INPUT);
     pinMode(PIN_INIT_PUSH_REAR, INPUT);
-    pinMode(PIN_TOUCH, INPUT);
+    pinMode(PIN_BUTTON, INPUT_PULLUP);   // Taster gegen GND, intern hochgezogen
 
     // Schrittmotor-Setup
     stepper.setMaxSpeed(STEPPER_MAX_SPEED);

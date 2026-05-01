@@ -34,5 +34,5 @@ constexpr int SERVO_MOVE_DELAY_MS = 500;
 // Wir prüfen mit digitalRead, Schwellwert ist HIGH/LOW
 constexpr bool INIT_TRIGGERED_LEVEL = LOW;
 
-// --- Touch-Button ---
-constexpr unsigned long TOUCH_DEBOUNCE_MS = 50;
+// --- Start-Taster (mechanisch, mit Software-Entprellung) ---
+constexpr unsigned long BUTTON_DEBOUNCE_MS = 50;

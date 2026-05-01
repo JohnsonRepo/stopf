@@ -21,7 +21,7 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | D9 | – frei – | (war ENA) | – | – | Reserve, Servo-Lib blockiert PWM |
 | D10 | – frei – | (war ENB) | – | – | Reserve, Servo-Lib blockiert PWM |
 | D11 | `PIN_SERVO` | Servo-Signal | SG90 (orange Litze) | orange | **PWM** (Servo-Library) |
-| D12 | `PIN_TOUCH` | Touch-Button | TTP223 I/O | grau | active HIGH |
+| D12 | `PIN_BUTTON` | Start-Taster | mechanischer Drucktaster | grau | **active LOW** (Pull-up intern) |
 | D13 | `PIN_STATUS_LED` | Status-LED | onboard LED | – | leuchtet während aktiver Befehl |
 
 ### Analoge Pins (nutzbar als digital, hier teils analog)
@@ -40,7 +40,7 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | Pin | Verbindung | Anmerkung |
 |---|---|---|
 | **VIN** | – nicht verwenden | Nano wird über USB vom Pi versorgt |
-| **5V** | optional Verbraucher (TTP223, Buck-Out) | max. 500 mA aus dem Nano-Regler |
+| **5V** | optional kleine Verbraucher (Start-Taster braucht NICHT, Buck-Out hat eigene 5 V) | max. 500 mA aus dem Nano-Regler |
 | **3V3** | – nicht verwenden | für 3,3 V-Sensoren reserviert |
 | **GND** (mehrfach) | **Sternpunkt am Netzteil** | 1× direkt zum Power-GND, 1× zum Pi |
 
@@ -130,13 +130,23 @@ Standard-Belegung (variiert pro Hersteller — mit Multimeter durchklingeln!):
 
 ---
 
-## TTP223 Touch-Button
+## Start-Taster (mechanisch, momentary)
 
-| Modul-Pin | Anschluss |
-|---|---|
-| VCC | 5 V (Buck oder Nano-5V) |
-| GND | GND |
-| I/O (Out) | Nano D12 |
+Z. B. Tactile Push-Button (Mini), Panel-Mount-Taster mit 12 mm oder 16 mm Loch,
+oder Pilzkopf-Taster (Pflicht-Schließer für Start, NICHT Notaus!).
+
+| Taster-Pin | Anschluss | Anmerkung |
+|---|---|---|
+| Pin 1 (eines der zwei Kontakte) | Nano **D12** | Signal mit internem Pull-up |
+| Pin 2 (der andere Kontakt) | **GND** | gemeinsame Masse |
+
+Bei 4-Pin-Tactile-Buttons: zwei diagonale Pins nutzen (1+3 oder 2+4).
+Die anderen beiden sind intern mit ihrem Diagonalpartner verbunden.
+
+> **Logik:** Pin-Modus `INPUT_PULLUP`. Ungedrückt = HIGH (intern hochgezogen),
+> gedrückt = LOW (Taster zieht gegen GND). Das `status`-Feld `button=1` bedeutet
+> "Taster wird gerade gedrückt". Kein externer Pull-up und kein Vorwiderstand
+> nötig — interne 20–50 kΩ vom ATmega328 reichen.
 
 ---
 
@@ -172,7 +182,7 @@ Standard-Belegung (variiert pro Hersteller — mit Multimeter durchklingeln!):
 | L298N ENA | GPIO 33 | PWM |
 | L298N ENB | GPIO 4 | PWM |
 | Servo | GPIO 19 | PWM (LEDC-Kanal) |
-| Touch-Button | GPIO 21 | |
+| Start-Taster | GPIO 21 | INPUT_PULLUP, active LOW |
 | Initiator Press | GPIO 34 | ⚠️ input-only, kein Pull-Up |
 | Initiator PushFront | GPIO 35 | ⚠️ input-only |
 | Initiator PushRear | GPIO 36 | ⚠️ input-only |
