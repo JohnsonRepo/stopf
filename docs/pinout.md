@@ -196,6 +196,38 @@ Die anderen beiden sind intern mit ihrem Diagonalpartner verbunden.
 
 ---
 
+## Elektrolytkondensatoren (Bestellliste)
+
+Zentrale Pufferkondensatoren — alle 105 °C, radial THT.
+
+| Position | Kapazität | Spannung | Typ | Anzahl | Begründung |
+|---|---|---|---|---|---|
+| **A4988 V_MOT** | ≥ 100 µF (220 µF besser) | **≥ 25 V** | **Low ESR** Pflicht | 1× | Schaltet 500 kHz, Standard-Elkos zu lahm |
+| **L298N V_S** | ≥ 470 µF (1000 µF besser) | **≥ 25 V** | Standard reicht | 1× | DC-Motor-Anlaufstrom puffern |
+| **Servo VCC** | ≥ 470 µF (bis 2200 µF) | ≥ 10 V (16 V/25 V auch ok) | Standard | 1× | Servo-Anlaufstrom 0,5–1 A |
+| **Buck-Ausgang Bulk** (optional) | 470–1000 µF | ≥ 10 V | Standard | 1× | nur falls Pi und Servo räumlich weit auseinander |
+
+> ⚠️ **Niemals 16 V-Elkos im 12 V-Pfad!** Headroom 33 % ist zu knapp gegen
+> Spannungsspikes von Motoren — Elko explodiert, Treiber stirbt mit. Mindestens
+> 25 V im 12 V-Pfad. Im 5 V-Pfad sind 10 V/16 V/25 V alle okay (alle ≥ 2× U_op).
+
+### Konkret zum Bestellen
+
+| Bauteil | Quelle | Preis |
+|---|---|---|
+| Panasonic FC 100 µF/35 V (low ESR) | Reichelt: "FC 100/35" | ~0,40 € |
+| Panasonic FC 470 µF/35 V (low ESR) | Reichelt: "FC 470/35" | ~0,80 € |
+| Standard 470 µF/25 V/105 °C | Reichelt: "RAD 470/25" | ~0,30 € |
+| Standard 1000 µF/35 V/105 °C | Reichelt: "RAD 1000/35" | ~0,80 € |
+
+### Optionale Schutzbauteile
+
+| Bauteil | Wert | Anzahl | Position |
+|---|---|---|---|
+| Schottky-Flyback-Diode | 1N5819 (1 A, 40 V) | 8× | je 4 pro DC-Motor an L298N-Ausgängen |
+
+---
+
 ## Spannungsteiler für Initiatoren (Bestellliste)
 
 Pro Sensor-Eingang (3× für Press / PushFront / PushRear):

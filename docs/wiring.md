@@ -269,12 +269,26 @@ U_out = 12 V · 3,9 / 13,9 ≈ 3,37 V    ← innerhalb 3,3 V-Toleranz (max 3,6 V
                   │ V_MOT GND ───────── │ ◄── GND (Sternpunkt!)
                   └───────────────────────┘
                          │
-                       ║ ║  100 µF Elko
+                       ║ ║  100 µF / ≥ 25 V Elko (low ESR)
                        ║ ║  zwischen V_MOT + GND
                        ─ ─  PFLICHT, < 5 cm vom IC
                         │
                        GND
 ```
+
+### Elko-Spezifikation am A4988
+
+| Parameter | Wert | Begründung |
+|---|---|---|
+| **Kapazität** | **≥ 100 µF** (220 µF besser, bis 470 µF sinnvoll) | Datenblatt-Minimum; mehr puffert besser |
+| **Spannung** | **≥ 25 V** | 12 V Betriebsspannung, Spikes bis 25 V beim Schalten — 16 V Elko ist **zu knapp** und stirbt |
+| **Typ** | Low ESR (z. B. Panasonic FC, Nichicon PW, Rubycon ZL) | A4988 schaltet intern mit 500 kHz, Standard-Elkos haben hier zu hohen ESR |
+| **Temperatur** | 105 °C | nicht 85 °C — der A4988 wird im Betrieb warm |
+| **Position** | < 5 cm vom V_MOT-Pin, **direkt auf den Treiber-Header** löten | Drahtinduktivität würde sonst die Filterwirkung neutralisieren |
+
+> ⚠️ **16 V-Elko bei 12 V V_MOT:** **NICHT verwenden**. Headroom nur 33 %, beim
+> ersten Step-Spike geht der Elko stilistisch zwischen Plopp (leise) und
+> Knall (laut) ins Nirwana und nimmt den A4988 mit. Mindestens 25 V ist Pflicht.
 
 ### Vref einstellen (vor erstem Anlauf!)
 
@@ -312,11 +326,42 @@ NEMA 17 (1,5 A nominal): Vref ≈ 0,8 V → I ≈ 1,0 A
               │ GND ──────────────────────────── │ ◄── GND Sternpunkt
               └──────────────────────────────────┘
                        │
-                     ║ ║  470 µF Elko
-                     ║ ║  an +12 V Eingang
+                     ║ ║  470 µF / ≥ 25 V Elko
+                     ║ ║  (1000 µF besser, low ESR optional)
                      ─ ─
                       │
                      GND
+```
+
+### Elko-Spezifikation am L298N
+
+| Parameter | Wert | Begründung |
+|---|---|---|
+| **Kapazität** | **≥ 470 µF** (1000 µF empfohlen) | DC-Motoren ziehen 3–5× Nennstrom beim Anfahren — Elko liefert die Spitze |
+| **Spannung** | **≥ 25 V** | Drehrichtungswechsel + Bürstenfunken können > 18 V Spikes erzeugen |
+| **Typ** | Standard-Elko reicht (PWM nur ~490 Hz) | Low ESR ist nice-to-have, nicht Pflicht wie beim A4988 |
+| **Temperatur** | 105 °C | Standard, nicht die billigen 85 °C-Typen |
+| **Position** | < 5 cm vom V_S-Pin am Modul | Drahtinduktivität reduzieren |
+
+> Auf den L298N-Mini-Modulen ist meist schon ein **kleiner Elko** (z. B. 47 µF/25 V)
+> aufgelötet — der reicht NICHT, ist nur SMD-Notbehelf. Externen 470–1000 µF
+> **parallel** dazu, am 12 V-Eingang.
+
+### Optional: Externe Flyback-Dioden 1N5819
+
+Der L298N-Chip hat **interne** Freilaufdioden, die aber langsam sind (Recovery ~1–2 µs). Bei den Mini-Modulen sparen Hersteller die externen Schottkys ein. Nachrüsten verlängert die Lebensdauer:
+
+```
+              Out1 ●────●────────● DC-Motor +
+                       │
+                      ─┴─ 1N5819     Kathode an +12 V
+                       ▲             Anode an Motor-Klemme
+                      ─┬─
+                       │
+              Out2 ●────●────────● DC-Motor −
+
+   Pro Motor: 4× 1N5819 (eine an jede der vier Brücken-Kombinationen).
+   2 Motoren = 8× 1N5819, ~5 ct/Stück.
 ```
 
 ### Wahrheitstabelle (sign-magnitude PWM)
@@ -346,7 +391,7 @@ NEMA 17 (1,5 A nominal): Vref ≈ 0,8 V → I ≈ 1,0 A
                   │           ║               ║
                 ║ ║           ║   SG90 Servo  ║
                 ║ ║ 470 µF    ║  (Hülsenschieber)║
-                ─ ─           ║               ║
+                ─ ─ ≥ 10 V    ║               ║
                   │           ║               ║
    GND ───────────●──────────╣ GND (braun)   ║
                               ║               ║
@@ -354,9 +399,22 @@ NEMA 17 (1,5 A nominal): Vref ≈ 0,8 V → I ≈ 1,0 A
                               ╚═══════════════╝
 ```
 
+### Elko-Spezifikation am Servo
+
+| Parameter | Wert | Begründung |
+|---|---|---|
+| **Kapazität** | **≥ 470 µF** (bis 2200 µF unproblematisch) | Servo-Anlaufstrom 0,5–1 A für ~5 ms |
+| **Spannung** | **≥ 10 V** (16 V oder 25 V auch fein) | 5 V Servoversorgung, Spikes klein — 10 V genügt |
+| **Typ** | Standard-Elko, kein Low ESR nötig | DC-Motor mit niedriger Schaltfrequenz |
+| **Position** | < 3 cm vom Servo-VCC-Pin, **NICHT** am Buck | Wire inductance würde lokale Versorgung neutralisieren |
+
 > Der **Elko direkt am Servo** (nicht erst am Buck) ist entscheidend — die kurze
 > Stromspitze beim Servo-Anlauf bricht sonst die 5 V-Schiene ein und der Pi
 > bootet neu.
+
+> **Bonus:** Mit 1000+ µF am Servo brauchst du keinen separaten Bulk-Cap am
+> Buck-Ausgang — der Servo-Elko puffert die ganze 5 V-Schiene mit, falls Pi
+> und Servo räumlich nahe beieinander liegen.
 
 ---
 
@@ -402,6 +460,20 @@ Konstante `BUTTON_DEBOUNCE_MS = 50` in [`config.h`](../firmware/nano/src/config.
 ist als Vorgabe für künftiges Edge-Detection im Pi reserviert. Bei reinem
 Status-Polling (alle 50 ms) ist Prellen meist unkritisch — die nächste Abfrage
 sieht schon den stabilen Zustand.
+
+### Externer Pull-up — brauche ich keinen!
+
+Der interne Pull-up des ATmega328 (~30 kΩ) ist **im Chip integriert** und wird
+per Software aktiviert (`pinMode(PIN_BUTTON, INPUT_PULLUP)`). **Kein externer
+Widerstand nötig.**
+
+Externen Pull-up nur ergänzen, wenn:
+
+- Kabel zum Taster > 1 m lang (EMV-Anfälligkeit)
+- Industrielle Umgebung mit hoher Stör­einstrahlung
+
+Dann **4,7–10 kΩ** zwischen D12 und +5 V — **kein 30 kΩ**, der wäre nur ein
+Doppel des internen Pull-ups ohne echten Mehrwert.
 
 ---
 
