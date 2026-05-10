@@ -99,6 +99,45 @@ Wenn dir Sicherungswechsel zu lästig sind:
 
 Nachteil: ungenauer als Schmelzsicherungen, langsamerer Trip — okay als "soft fuse" zusätzlich zu F1, **aber nicht als Ersatz für F1**, weil sie im Kurzschluss zu langsam sind.
 
+### Bus-Verteilung praktisch — WAGO-Klemmen
+
+Für den +12 V-Bus und vor allem den **GND-Sternpunkt** brauchst du eine
+ordentliche Verteilung. Steckbrett ist hier **kein** geeignetes Bauteil
+(Federkontakt-Widerstand 10–100 mΩ, max ~3 A, lockert sich vibrationsbedingt).
+
+**Empfohlen: WAGO 221 Hebelklemmen.**
+
+| Modell | Pole | Querschnitt | Strom | Einsatzfeld |
+|---|---|---|---|---|
+| **WAGO 221-415** | 5-fach | 0,2–4 mm² | 32 A | +12 V-Bus (passt exakt: PSU+, L298N, A4988, F2, F3) |
+| **WAGO 221-418** | 8-fach | 0,2–4 mm² | 32 A | GND-Sternpunkt (alle Verbraucher passen rein) |
+| WAGO 221-413 | 3-fach | 0,2–4 mm² | 32 A | lokale Sub-Sternpunkte (z. B. 3× Initiator-blau) |
+
+**Falls nur 5-Pin-WAGOs vorhanden:** zwei verkettet ergeben einen 8-fach-Stern.
+Drahtbrücke zwischen je einem Pin der zwei WAGOs (5 cm 1,0 mm² massiv).
+
+```
+   GND-Stern (8 Anschlüsse aus 2× 5-Pin-WAGO):
+
+   WAGO #2                            WAGO #3
+   ┌────┬────┬────┬────┬────┐         ┌────┬────┬────┬────┬────┐
+   │ 1  │ 2  │ 3  │ 4  │ 5  │ ◄────►  │ 1  │ 2  │ 3  │ 4  │ 5  │
+   └────┴────┴────┴────┴────┘    ▲    └────┴────┴────┴────┴────┘
+                                 │
+                          Brücke 1,0 mm²
+                          1× Pin pro WAGO
+```
+
+**Best Practices:**
+- WAGOs mit Klebepad (Tesa Powerstrips) oder DIN-Schiene am Gehäuse fixieren
+- Filzstift-Beschriftung pro Pin: "PSU−", "L298N", "A4988_motor", "A4988_logic", …
+- Alle GND-Drähte einzeln in **separate** Pins, **keine Daisy-Chain**
+- Querschnitt ≥ 0,75 mm² für Hochstrom-Pfade (PSU, L298N), ≥ 0,5 mm² für Logik
+
+> **Verboten:** Daisy-Chain ("PSU → Buck → Pi → L298N → A4988 → GND") — wenn der
+> Press-Motor 3 A zieht, fließen die durch alle vorgelagerten GND-Leitungen →
+> 100 mV Massepotential-Verschiebung am Pi → Logikfehler oder USB-Ausfall.
+
 ### Wichtige Regeln
 
 | Regel | Warum |
@@ -284,16 +323,54 @@ U_out = 12 V · 3,9 / 13,9 ≈ 3,37 V    ← innerhalb 3,3 V-Toleranz (max 3,6 V
                   │ SLEEP ─┤  verbinden │  ← per Kabelbrücke beide HIGH
                   │        └─ V_DD 5 V  │
                   │ V_DD ───────────── │ ◄── 5 V Logik
-                  │ GND ─────────────── │ ◄── GND
-                  │ V_MOT GND ───────── │ ◄── GND (Sternpunkt!)
+                  │ GND_logic ──────── │ ◄── GND_LOGIC zum Sternpunkt
+                  │ GND_motor ──────── │ ◄── GND_MOTOR zum Sternpunkt
                   └───────────────────────┘
                          │
                        ║ ║  100 µF / ≥ 25 V Elko (low ESR)
-                       ║ ║  zwischen V_MOT + GND
+                       ║ ║  zwischen V_MOT + GND_motor
                        ─ ─  PFLICHT, < 5 cm vom IC
                         │
                        GND
 ```
+
+### ★ Beide GND-Pins extern anschließen (kritisch!) ★
+
+Der A4988-Carrier hat **zwei separate GND-Pins** — einen neben V_MOT (Motor-GND) und einen neben V_DD (Logik-GND). Sie sind intern auf der Platine verbunden, aber **nur über einen schmalen Leiterzug**.
+
+| Pfad | Strom | Wenn nur EIN GND extern angeschlossen |
+|---|---|---|
+| Motor-Spule → GND_motor | bis 1,5 A peak | OK |
+| Logik (DIR/STEP/EN) → GND_logic | < 10 mA | OK |
+| **Beide Ströme über die interne Brücke** | 1,5 A + Spikes | ❌ Spannungsabfall ~75 mV → "Ground Bounce" → verlorene Steps oder zappelnder Stepper |
+
+→ **Beide GND-Pins per separatem Draht zum Sternpunkt führen.** Mehraufwand: ein zusätzliches Kabelstück. Nutzen: zuverlässige Step-Erzeugung ohne EMV-Probleme.
+
+### Twisted Pair für Versorgung
+
+Saubere Verkabelung zum Sternpunkt:
+
+```
+   Verdrillt:    ●── 12 V ──┐
+                 ●── GND_motor ──┘   → an A4988 V_MOT + GND_motor
+
+   Verdrillt:    ●── 5 V  ──┐
+                 ●── GND_logic ──┘   → an A4988 V_DD + GND_logic
+```
+
+Twisted Pair reduziert die Schleifenfläche → weniger ausgestrahlte EMV bei 800 Steps/Sek, weniger eingestrahlte Störung.
+
+### Gilt das für andere Treiber auch?
+
+| Treiber | GND-Pins | Beide extern anschließen? |
+|---|---|---|
+| **A4988** | GND_motor + GND_logic | ✅ ja, beide |
+| DRV8825 | GND_motor + GND_logic | ✅ ja, beide |
+| TMC2208 / TMC2209 | GND_motor + GND_logic | ✅ ja, beide |
+| **L298N** (dein Mini) | nur 1 GND-Pin | nur einen, intern simpler aufgebaut |
+| TB6612FNG | GND × 4 (alle gleich) | mindestens 2, idealerweise alle |
+
+Bei allen "Logic + Power"-Treibern ist die Trennung kritisch.
 
 ### Elko-Spezifikation am A4988
 
@@ -366,22 +443,41 @@ NEMA 17 (1,5 A nominal): Vref ≈ 0,8 V → I ≈ 1,0 A
 > aufgelötet — der reicht NICHT, ist nur SMD-Notbehelf. Externen 470–1000 µF
 > **parallel** dazu, am 12 V-Eingang.
 
-### Optional: Externe Flyback-Dioden 1N5819
+### Optional: Externe Flyback-Dioden
 
 Der L298N-Chip hat **interne** Freilaufdioden, die aber langsam sind (Recovery ~1–2 µs). Bei den Mini-Modulen sparen Hersteller die externen Schottkys ein. Nachrüsten verlängert die Lebensdauer:
 
 ```
               Out1 ●────●────────● DC-Motor +
                        │
-                      ─┴─ 1N5819     Kathode an +12 V
-                       ▲             Anode an Motor-Klemme
+                      ─┴─ Schottky      Kathode an +12 V
+                       ▲                Anode an Motor-Klemme
                       ─┬─
                        │
               Out2 ●────●────────● DC-Motor −
 
-   Pro Motor: 4× 1N5819 (eine an jede der vier Brücken-Kombinationen).
-   2 Motoren = 8× 1N5819, ~5 ct/Stück.
+   Pro Motor: 4× Dioden (eine an jede der vier Brücken-Kombinationen).
+   2 Motoren = 8× Dioden total.
 ```
+
+**Welche Dioden gehen?**
+
+| Diode | I_F | V_R | V_F | Eignung als Flyback |
+|---|---|---|---|---|
+| **1N5819** ← Standard | 1 A | 40 V | 0,45 V | ✅ Schottky, ideal, ~5 ct/Stück |
+| **1N4001–4007** | 1 A | 50–1000 V | 1,0 V | ✅ Standard-Silizium, geht problemlos |
+| 1N5400–5408 | 3 A | 50–1000 V | 1,0 V | ✅ überdimensioniert, super |
+| **SS14** (SMD) | 1 A | 40 V | 0,5 V | ✅ Schottky-SMD, wie 1N5819 |
+| MUR120 / FR107 | 1 A | 100 V | 1,0 V | ✅ Fast Recovery, klasse |
+| **1N4148** | **0,2 A** | 100 V | 0,7 V | ❌ **NICHT verwenden!** Nur 200 mA Dauerstrom — brennt durch |
+
+> ⚠️ **1N4148 ist eine Kleinsignal-Schaltdiode** für Logik-Pegel, kein
+> Leistungsbauteil. Bei 1,5 A Motorstrom wird sie in Sekunden zu heiß und
+> stirbt — entweder offen (kein Schutz mehr) oder kurzgeschlossen
+> (Out-Pin an +12 V → L298N stirbt mit). Ungeeignet.
+
+**Einschätzung:** für Test-Phase (Phase 1–6 Inbetriebnahme) reichen die
+internen L298N-Dioden. Für Dauerbetrieb 1N5819 (oder 1N4001–4007) nachrüsten.
 
 ### Wahrheitstabelle (sign-magnitude PWM)
 
