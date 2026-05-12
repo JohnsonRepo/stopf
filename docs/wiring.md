@@ -105,16 +105,100 @@ Für den +12 V-Bus und vor allem den **GND-Sternpunkt** brauchst du eine
 ordentliche Verteilung. Steckbrett ist hier **kein** geeignetes Bauteil
 (Federkontakt-Widerstand 10–100 mΩ, max ~3 A, lockert sich vibrationsbedingt).
 
-**Empfohlen: WAGO 221 Hebelklemmen.**
+**Empfohlen: WAGO 221 Hebelklemmen** (oder kompatible Hebelklemmen anderer
+Hersteller mit gleicher Pol-Anzahl).
 
-| Modell | Pole | Querschnitt | Strom | Einsatzfeld |
+| Pole | Beispiel-Modell | Querschnitt | Strom | Einsatzfeld |
 |---|---|---|---|---|
-| **WAGO 221-415** | 5-fach | 0,2–4 mm² | 32 A | +12 V-Bus (passt exakt: PSU+, L298N, A4988, F2, F3) |
-| **WAGO 221-418** | 8-fach | 0,2–4 mm² | 32 A | GND-Sternpunkt (alle Verbraucher passen rein) |
-| WAGO 221-413 | 3-fach | 0,2–4 mm² | 32 A | lokale Sub-Sternpunkte (z. B. 3× Initiator-blau) |
+| 3-fach | WAGO 221-413 | 0,2–4 mm² | 32 A | lokale Sub-Sternpunkte (z. B. 3× Initiator-blau) |
+| 5-fach | WAGO 221-415 | 0,2–4 mm² | 32 A | +12 V-Bus (passt exakt: PSU+, L298N, A4988, F2, F3) |
+| 8-fach | WAGO 221-418 | 0,2–4 mm² | 32 A | GND-Sternpunkt (8 Verbraucher) |
+| **10-fach** | div. Hebelklemmen | 0,2–4 mm² | 32 A | **Optimum** — eine Klemme für GND, eine für +12 V |
 
-**Falls nur 5-Pin-WAGOs vorhanden:** zwei verkettet ergeben einen 8-fach-Stern.
-Drahtbrücke zwischen je einem Pin der zwei WAGOs (5 cm 1,0 mm² massiv).
+### Verdrahtungsplan mit 2× 10-Pol-Klemme (empfohlen)
+
+**Eine Klemme für GND-Sternpunkt:**
+
+```
+   GND-Sternpunkt (10-Pol):
+   ┌────┬────┬────┬────┬────┬────┬────┬────┬────┬────┐
+   │ 1  │ 2  │ 3  │ 4  │ 5  │ 6  │ 7  │ 8  │ 9  │ 10 │
+   └────┴────┴────┴────┴────┴────┴────┴────┴────┴────┘
+     │    │    │    │    │    │    │    │    │    │
+     │    │    │    │    │    │    │    │    │    └─► Reserve
+     │    │    │    │    │    │    │    │    └─────► Nano (optional, kommt via USB-Pi)
+     │    │    │    │    │    │    │    └──────────► Pi GND (Pin 6)
+     │    │    │    │    │    │    └───────────────► Initiator-blau (3× gebündelt, siehe unten)
+     │    │    │    │    │    └────────────────────► Servo GND (braun)
+     │    │    │    │    └─────────────────────────► A4988 GND_logic
+     │    │    │    └──────────────────────────────► A4988 GND_motor
+     │    │    └───────────────────────────────────► L298N GND
+     │    └────────────────────────────────────────► Buck VOUT−
+     └─────────────────────────────────────────────► PSU − (+ Buck VIN−)
+```
+
+**Eine Klemme für +12 V-Bus:**
+
+```
+   +12 V-Bus (10-Pol):
+   ┌────┬────┬────┬────┬────┬────┬────┬────┬────┬────┐
+   │ 1  │ 2  │ 3  │ 4  │ 5  │ 6  │ 7  │ 8  │ 9  │ 10 │
+   └────┴────┴────┴────┴────┴────┴────┴────┴────┴────┘
+     │    │    │    │    │    │
+     │    │    │    │    │    └─► Reserve / Bulk-Cap +
+     │    │    │    │    └──────► F3 → Initiator-braun-Schiene
+     │    │    │    └───────────► F2 → Buck-Eingang +
+     │    │    └────────────────► A4988 V_MOT
+     │    └─────────────────────► L298N V_S
+     └──────────────────────────► PSU + (über F1)
+```
+
+→ Saubere Stern-Topologie, jeder Pfad ein eigener Pin, keine Daisy-Chain.
+
+### Initiator-blau bündeln (Sub-Sternpunkt)
+
+Die 3 blauen Adern der Initiatoren würden 3 Pins belegen — Lösung: **vorher
+zusammenfassen** in einem lokalen Sub-Sternpunkt nahe der Sensor-Schiene.
+
+**Variante 1 (sauber): Mini-WAGO 3-Pol als Sub-Sternpunkt**
+
+```
+   3× Initiator blau (je 0,25 mm²) → WAGO 221-413 (3-Pol)
+                                          │
+                                          └─► eine 0,5 mm²-Litze →
+                                              Haupt-GND-Klemme Pin 7
+```
+
+**Variante 2 (kompakter): 3 Litzen in eine Aderendhülse 1,5 mm²**
+
+```
+   3× Initiator blau (je 0,25 mm²) → 4× Aderendhülse 1,5 mm²
+                                       (3 Litzen zusammen, gemeinsame Hülse)
+                                       → Haupt-GND-Klemme Pin 7
+```
+
+→ Variante 1 ist sauberer und beschriftbar. Variante 2 spart das WAGO-Bauteil.
+
+### Verdrahtungsplan mit nur 1× 10-Pol-Klemme
+
+Priorisiere **GND** — wo Sterntopologie kritisch ist. Den +12 V-Bus dann als
+Daisy-Chain über die Schraubklemmen der Module, da spielen 50 mV
+Spannungsabfall keine Rolle.
+
+```
+   1× 10-Pol GND-Sternpunkt (wie oben)
+   +12 V als Daisy-Chain:
+     PSU+ ──[F1]──● L298N V_S ──● A4988 V_MOT ──● [F2] Buck+ ──● [F3] Init.+
+
+   Aderquerschnitt: 1,0 mm² Hauptlinie, fest in jede Modul-Klemme rein und gleich
+   wieder zur nächsten — kein Verteiler nötig dazwischen.
+```
+
+### Verdrahtungsplan mit 2× 5-Pol-Klemme (verkettet, Notlösung)
+
+Wenn nur kleinere Klemmen da sind: zwei 5-fach-WAGOs ergeben verkettet einen
+8-fach-Stern. Drahtbrücke zwischen je einem Pin der zwei WAGOs (5 cm
+1,0 mm² massiv).
 
 ```
    GND-Stern (8 Anschlüsse aus 2× 5-Pin-WAGO):
@@ -128,7 +212,22 @@ Drahtbrücke zwischen je einem Pin der zwei WAGOs (5 cm 1,0 mm² massiv).
                           1× Pin pro WAGO
 ```
 
-**Best Practices:**
+### Beschriftung der Klemme
+
+Mit **wasserfestem Marker** direkt auf das transparente Klemmen-Gehäuse,
+welcher Pin wozu:
+
+```
+   ┌─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┬─────┐
+   │PSU- │Buck │Buck │L298 │A4988│A4988│Serv │Init │ Pi  │Res. │
+   │     │VIN- │VOUT-│GND  │MOT  │LOG  │GND  │blau │GND  │     │
+   └─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┴─────┘
+```
+
+In 6 Monaten beim Debuggen wirst du es dir selbst danken.
+
+### Best Practices
+
 - WAGOs mit Klebepad (Tesa Powerstrips) oder DIN-Schiene am Gehäuse fixieren
 - Filzstift-Beschriftung pro Pin: "PSU−", "L298N", "A4988_motor", "A4988_logic", …
 - Alle GND-Drähte einzeln in **separate** Pins, **keine Daisy-Chain**
