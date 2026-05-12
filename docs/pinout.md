@@ -228,6 +228,89 @@ Zentrale Pufferkondensatoren — alle 105 °C, radial THT.
 
 ---
 
+## Litze / Kabel (Bestellliste)
+
+### Querschnitt pro Strecke
+
+| Strecke | Strom (peak) | Querschnitt | AWG | Farbe |
+|---|---|---|---|---|
+| **PSU 12 V → F1 → Verteiler** | bis 5 A | **1,0 mm²** | AWG 17 | rot |
+| **PSU GND → Sternpunkt** | bis 5 A | **1,0 mm²** | AWG 17 | schwarz |
+| 12 V → L298N V_S | 3 A peak | 0,75 mm² | AWG 18 | rot |
+| 12 V → A4988 V_MOT | 1 A peak | 0,5 mm² | AWG 20 | rot |
+| 12 V → Buck-Eingang | 1 A | 0,5 mm² | AWG 20 | rot |
+| 12 V → Initiatoren (braun) | 50 mA | 0,25 mm² | AWG 24 | braun |
+| Buck 5 V → Pi GPIO 2 | 700 mA | 0,5 mm² ⚠️ kurz halten | AWG 20 | gelb/orange |
+| Buck 5 V → Servo VCC | 1 A peak | 0,5 mm² ⚠️ kurz halten | AWG 20 | rot (am Servo) |
+| Buck 5 V → A4988 V_DD | 50 mA | 0,25 mm² | AWG 24 | gelb |
+| **Motor-Leitungen L298N → DC-Motor** | 1,5 A | 0,5–0,75 mm² | AWG 18–20 | blau / weiß |
+| **NEMA 17 → A4988 (4-adrig)** | 1 A pro Phase | 0,5 mm² je Ader | AWG 20 | schwarz/grün/rot/blau |
+| Logik-Signale (STEP, DIR, EN, IN1–4) | < 50 mA | 0,14–0,25 mm² | AWG 26–24 | beliebig |
+| Servo-Signal (PWM von Nano) | < 20 mA | 0,14 mm² | AWG 26 | orange |
+| Start-Taster | < 20 mA | 0,14 mm² | AWG 26 | grau |
+| Initiator-Signal (schwarz) | < 20 mA | 0,25 mm² | AWG 24 | schwarz/grün |
+| GND-Rückleitungen | **wie Hinweg!** | gleicher Querschnitt | – | schwarz |
+
+> ★ **GND-Litze immer mindestens so dick wie die +Leitung.**
+> Wer hier spart, bekommt Massepotential-Probleme.
+
+### Spannungsabfall-Überlegung
+
+Faustformel: `U_drop = I · ρ · L / A` mit `ρ_Kupfer = 0,017 Ω·mm²/m`
+
+Toleranz:
+- **5 V-Schiene**: max. **100 mV** Drop (sonst Pi-Brownout)
+- **12 V-Schiene**: max. **500 mV** Drop (sonst spüren's die Treiber)
+
+Beispiele:
+| Pfad | I | L | A | U_drop |
+|---|---|---|---|---|
+| PSU → Verteiler | 5 A | 0,3 m | 1,0 mm² | 25 mV ✅ |
+| PSU → Verteiler | 5 A | 0,3 m | 0,5 mm² | 51 mV ⚠️ |
+| Buck → Pi | 0,7 A | 0,5 m | 0,5 mm² | 12 mV ✅ |
+| Buck → Pi | 0,7 A | 1,0 m | 0,25 mm² | 48 mV ⚠️ |
+
+### Litze vs. Massivdraht
+
+| | **Litze** (stranded) | Massivdraht (solid) |
+|---|---|---|
+| Mechanik | flexibel, vibrationsfest | bricht bei wiederholtem Biegen |
+| WAGO 221 | ✅ direkt | ✅ direkt |
+| Schraubklemme | nur mit **Aderendhülse** | ohne Hülse |
+| Empfehlung Stopfmaschine | ✅ **Litze** wegen Vibrationen | nur für kurze Drahtbrücken |
+
+### Aderendhülsen — wann nötig?
+
+| Klemmen-Typ | Aderendhülse? |
+|---|---|
+| WAGO 221 (Hebelklemme) | ❌ NICHT nötig |
+| Schraubklemme (z. B. an L298N, A4988) | ✅ **PFLICHT** |
+| Lüsterklemme | ✅ Pflicht |
+| Crimp-Stecker (Dupont, JST) | — wird direkt vercrimpt |
+| Federzugklemme (Phoenix) | ❌ direkt |
+
+Aderendhülsen-Set 0,14–2,5 mm² mit Crimpzange: ~15–25 €
+(Amazon "Knipex-Set" oder Generic).
+
+### Wenn du nur EINE Litze kaufst
+
+→ **0,5 mm² (AWG 20) ist der universelle DIY-Kompromiss.**
+Geht für alle 5 V-Leitungen, Treiber-Versorgungen, Motoren, Sensor-Stromversorgung.
+Reicht **nicht** für die Hauptzuleitung PSU → Verteiler (zu hoher Spannungsabfall bei 5 A).
+
+### Konkretes Bestell-Paket
+
+| Querschnitt | Menge | Farben | Quelle |
+|---|---|---|---|
+| 1,0 mm² | 1 m rot + 1 m schwarz | – | Reichelt: "LIY 1,00 RT/SW" |
+| 0,5 mm² | 2–3 m rot + schwarz + 2 andere | rot/schwarz/blau/gelb | "LIY 0,50 …" |
+| 0,25 mm² | je 1 m in 4–6 Farben | gemischt | "LIY 0,25 …" |
+| **Set-Alternative** | 5 m × 10 Farben × 0,25 mm² | gemischt | Amazon: "Litze Sortiment 24 AWG 10 Farben" ~12 € |
+
+**Gesamtbudget für komplette Verkabelung: ~15–25 €**
+
+---
+
 ## Spannungsteiler für Initiatoren (Bestellliste)
 
 Pro Sensor-Eingang (3× für Press / PushFront / PushRear):
