@@ -5,6 +5,8 @@ DIY vollautomatische Zigarettenstopfmaschine mit zweischichtiger Architektur:
 
 ## Repo-Struktur
 
+Legende: Dateien ohne Marker existieren; **(geplant)** = noch nicht angelegt.
+
 ```
 stopfmaschine/
 ├── CLAUDE.md              # Projekt-Kontext für Claude Code
@@ -14,37 +16,38 @@ stopfmaschine/
 ├── firmware/
 │   └── nano/              # Arduino Nano Firmware
 │       ├── src/
-│       │   ├── main.cpp           # Einstiegspunkt
+│       │   ├── main.cpp           # Einstiegspunkt (Test-Firmware v0.1)
 │       │   ├── pins.h             # Pin-Belegung zentral
-│       │   ├── config.h           # Konstanten (Speeds, Timeouts)
-│       │   ├── commands.cpp/.h    # Serial-Befehlsparser
-│       │   ├── motors.cpp/.h      # Motor-Steuerung
-│       │   ├── sensors.cpp/.h     # Initiator-Auslesung
-│       │   └── statemachine.cpp/.h # Stopfsequenz-Logik
+│       │   └── config.h           # Konstanten (Speeds, Timeouts)
+│       │   # (geplant) commands.*, motors.*, sensors.*, statemachine.*
 │       └── platformio.ini
 │
 ├── backend/
 │   └── pi/                # Raspberry Pi Brain (Python/FastAPI)
 │       ├── app/
-│       │   ├── main.py            # FastAPI Entry
-│       │   ├── nano_client.py     # Serial-Kommunikation
-│       │   ├── api/               # REST-Endpunkte
-│       │   ├── models/            # Pydantic-Models
-│       │   └── db/                # SQLite-Stats
+│       │   ├── __init__.py
+│       │   ├── main.py            # FastAPI Entry + Endpoints
+│       │   └── nano_client.py     # Serial-Kommunikation
+│       │   # (geplant) api/, models/, db/
 │       ├── requirements.txt
-│       └── tests/
+│       └── # (geplant) tests/
 │
-├── app/                   # Mobile App (Flutter primär)
-│   └── ...
+├── cad/                   # CAD-Quellen & Fertigungsdateien
+│   ├── README.md          # CAD-Doku & Bauteilübersicht
+│   ├── source/            # Master-DXFs (Fraens-Originale)
+│   ├── drawings/
+│   │   └── acryl_parts/   # Laser-Cut-DXFs (4 mm PMMA)
+│   ├── reference/
+│   │   └── metal_parts/   # Metallteile-Zeichnungen (DXF + PDF)
+│   ├── stl/               # 3D-Druck-Dateien (PETG/PLA)
+│   └── scad/              # OpenSCAD-Quellen (Platzhalter)
 │
-├── cad/                   # Onshape-Exports, STL, DXF
-│   └── ...
+├── docs/                  # Schaltpläne & Referenzen
+│   ├── wiring.md          # Schaltpläne (Mermaid + ASCII-Detail)
+│   ├── pinout.md          # Pin-/Verdrahtungstabellen + Bestelllisten
+│   └── protocol.md        # Serial-Protokoll Pi ↔ Nano
 │
-└── docs/                  # Schaltpläne, Notizen, Referenzen
-    ├── pinout.md
-    ├── protocol.md
-    ├── circuit-diagram.pdf
-    └── fraens-reference.pdf
+└── app/                   # Mobile App (Flutter primär) — (geplant)
 ```
 
 ## Schnellstart

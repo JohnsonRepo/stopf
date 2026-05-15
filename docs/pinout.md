@@ -128,13 +128,17 @@ Standard-Belegung (variiert pro Hersteller — mit Multimeter durchklingeln!):
 
 ---
 
-## Initiatoren LJ8A3-2-Z/BX (3 Stück)
+## Initiatoren LJ8A3-2-Z/BX oder LJ12A3-4-Z/BX (3 Stück)
 
 | Litzenfarbe | Funktion | Anschluss |
 |---|---|---|
 | braun | +12 V | 12 V Bus |
 | blau | GND | GND-Sternpunkt |
 | schwarz | Signal (NPN, 12 V active LOW) | Spannungsteiler 10 k + 7,5 k → A0 / A1 / A2 |
+
+> **LJ8 vs. LJ12:** elektrisch identisch (NPN, active LOW, gleicher Spannungsteiler,
+> gleicher Code). Unterschied nur mechanisch: LJ8 = M8/2 mm Schaltabstand,
+> LJ12 = M12/4 mm (größere Bohrung, Target ≥ 12×12 mm). Beide verwendbar.
 
 ---
 

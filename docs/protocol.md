@@ -49,12 +49,15 @@ stepper 0        → no-op (aber Watchdog wird "gefüttert")
 
 | Befehl | Antwort | Beschreibung |
 |---|---|---|
-| `press fwd` | `ok press fwd` | Presse vorwärts mit `PRESS_SPEED_DEFAULT` |
-| `press rev` | `ok press rev` | Presse rückwärts |
+| `press fwd` | `ok press fwd` | Presse vorwärts mit `PRESS_SPEED_DEFAULT` (PWM via ENA) |
+| `press rev` | `ok press rev` | Presse rückwärts, ebenfalls drehzahlgeregelt (ENA-PWM) |
 | `press stop` | `ok press stop` | Presse aus |
-| `pusher fwd` | `ok pusher fwd` | Pusher vorwärts |
-| `pusher rev` | `ok pusher rev` | Pusher rückwärts |
+| `pusher fwd` | `ok pusher fwd` | Pusher vorwärts mit `PUSHER_SPEED_DEFAULT` (PWM via ENB) |
+| `pusher rev` | `ok pusher rev` | Pusher rückwärts, ebenfalls drehzahlgeregelt (ENB-PWM) |
 | `pusher stop` | `ok pusher stop` | Pusher aus |
+
+> Mit dem großen L298N (ENA/ENB) ist die Drehzahl in **beide** Richtungen
+> geregelt — anders als beim Mini-Modul, wo Rückwärts fix volle Drehzahl war.
 
 ### Servo (Hülsen-Schieber)
 

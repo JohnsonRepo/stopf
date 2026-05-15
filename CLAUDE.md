@@ -93,7 +93,8 @@ Zweischicht-Architektur mit klarer Trennung von Echtzeit-Steuerung und höherer 
 - 1× kleiner Vibrationsmotor (Hülsenmagazin, später)
 
 ### Sensoren
-- **3× induktive Initiatoren** (LJ8A3-2-Z/BX oder ähnlich, NPN, 12V): Press-Position, Push-Front, Push-Rear
+- **3× induktive Initiatoren** (LJ8A3-2-Z/BX **oder LJ12A3-4-Z/BX**, NPN, 12V): Press-Position, Push-Front, Push-Rear
+  - LJ8 (M8, 2 mm Schaltabstand) und LJ12 (M12, 4 mm) sind elektrisch identisch — Code/Spannungsteiler gleich. LJ12 nur größere Bohrung + Target ≥ 12×12 mm
   - Verkabelung: braun=12V, blau=GND, schwarz=Signal
   - **WICHTIG: Spannungsteiler nötig!** Initiator gibt 12V Signal aus.
     - Für **Arduino Nano (5V Logik):** 10kΩ + 7,5kΩ Spannungsteiler
@@ -110,6 +111,9 @@ Zweischicht-Architektur mit klarer Trennung von Echtzeit-Steuerung und höherer 
 - **470µF Elko direkt am Servo** zwischen VCC und GND
 
 ### Pin-Belegung Arduino Nano
+**Timer-Hinweis:** ENA/ENB MÜSSEN auf D5/D6 (Timer0-PWM) — `Servo.h` belegt
+Timer1 und deaktiviert PWM auf D9/D10. IN1–IN4 sind reine digitale
+Richtungspins, daher auf D7–D10 unkritisch.
 ```
 D2  → A4988 STEP
 D3  → A4988 DIR
@@ -120,7 +124,6 @@ D7  → L298N IN1 (Presse Richtung A, digital)
 D8  → L298N IN2 (Presse Richtung B, digital)
 D9  → L298N IN3 (Pusher Richtung A, digital)
 D10 → L298N IN4 (Pusher Richtung B, digital)
-# Hinweis: ENA/ENB MÜSSEN auf D5/D6 (Timer0) — Servo.h killt PWM auf D9/D10 (Timer1)
 D11 → Servo Signal (PWM)
 D12 → Start-Taster (mechanisch, INPUT_PULLUP, active LOW)
 D13 → Status-LED (onboard)
@@ -132,6 +135,9 @@ A3, A4 → Reserve (z.B. I2C-Display)
 ```
 
 ### Pin-Belegung ESP-WROOM-32 (Übergangslösung)
+**Hinweis:** Beim ESP32 ist die ENA/ENB-Platzierung **frei** — der ESP32 nutzt
+das LEDC-Peripherie für PWM und Servo (kein Timer1-Konflikt wie beim Nano).
+Daher andere Zuordnung als beim Nano, das ist beabsichtigt und unkritisch.
 ```
 GPIO 25 → A4988 STEP        GPIO 14 → L298N IN1
 GPIO 26 → A4988 DIR         GPIO 12 → L298N IN2

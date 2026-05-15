@@ -644,8 +644,8 @@ internen L298N-Dioden. Für Dauerbetrieb 1N5819 (oder 1N4001–4007) nachrüsten
 |---|---|---|
 | **Kapazität** | **≥ 470 µF** (bis 2200 µF unproblematisch) | Servo-Anlaufstrom 0,5–1 A für ~5 ms |
 | **Spannung** | **≥ 10 V** (16 V oder 25 V auch fein) | 5 V Servoversorgung, Spikes klein — 10 V genügt |
-| **Typ** | Standard-Elko, kein Low ESR nötig | DC-Motor mit niedriger Schaltfrequenz |
-| **Position** | < 3 cm vom Servo-VCC-Pin, **NICHT** am Buck | Wire inductance würde lokale Versorgung neutralisieren |
+| **Typ** | Standard-Elko, kein Low ESR nötig | Servo zieht nur kurze Strompulse, keine hochfrequente Schaltlast |
+| **Position** | < 3 cm vom Servo-VCC-Pin, **NICHT** am Buck | Leitungsinduktivität würde die lokale Pufferwirkung neutralisieren |
 
 > Der **Elko direkt am Servo** (nicht erst am Buck) ist entscheidend — die kurze
 > Stromspitze beim Servo-Anlauf bricht sonst die 5 V-Schiene ein und der Pi
