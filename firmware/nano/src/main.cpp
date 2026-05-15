@@ -35,51 +35,55 @@ bool watchdogTripped = false;
 // --- Hilfsfunktionen ---
 void allMotorsOff() {
     digitalWrite(PIN_STEPPER_EN, HIGH);  // EN HIGH = Treiber aus
-    // Beide IN-Pins LOW → Bremse (Motor kurzgeschlossen gegen GND)
-    // Wegen "PWM-on-IN" muss analogWrite(0) für die PWM-Pins reichen,
-    // digitalWrite LOW für die Direction-Pins.
-    analogWrite(PIN_PRESS_IN1, 0);
+    digitalWrite(PIN_PRESS_IN1, LOW);
     digitalWrite(PIN_PRESS_IN2, LOW);
-    analogWrite(PIN_PUSHER_IN3, 0);
+    digitalWrite(PIN_PUSHER_IN3, LOW);
     digitalWrite(PIN_PUSHER_IN4, LOW);
+    analogWrite(PIN_PRESS_ENA, 0);
+    analogWrite(PIN_PUSHER_ENB, 0);
 }
 
 void enableStepper() {
     digitalWrite(PIN_STEPPER_EN, LOW);   // LOW = aktiv
 }
 
-// L298N Mini-Modul ohne ENA/ENB:
-//   FWD = PWM auf IN_a (Timer0-Pin), IN_b LOW          → drehzahlgeregelt
-//   REV = IN_a LOW, IN_b HIGH (digital, volle Drehzahl) → Retraction
-//   Stop = beide LOW                                    → Bremse
+// L298N Standard-Modul mit ENA/ENB:
+//   Richtung über IN1/IN2 bzw. IN3/IN4, Drehzahl über ENA/ENB (PWM).
+//   Drehzahl-Regelung funktioniert in BEIDE Richtungen.
 void setPressMotor(const String& dir) {
     if (dir == "fwd") {
+        digitalWrite(PIN_PRESS_IN1, HIGH);
         digitalWrite(PIN_PRESS_IN2, LOW);
-        analogWrite(PIN_PRESS_IN1, PRESS_SPEED_DEFAULT);
+        analogWrite(PIN_PRESS_ENA, PRESS_SPEED_DEFAULT);
         Serial.println("ok press fwd");
     } else if (dir == "rev") {
-        analogWrite(PIN_PRESS_IN1, 0);          // PWM aus
-        digitalWrite(PIN_PRESS_IN2, HIGH);      // volle Drehzahl rückwärts
+        digitalWrite(PIN_PRESS_IN1, LOW);
+        digitalWrite(PIN_PRESS_IN2, HIGH);
+        analogWrite(PIN_PRESS_ENA, PRESS_SPEED_DEFAULT);
         Serial.println("ok press rev");
     } else {
-        analogWrite(PIN_PRESS_IN1, 0);
+        digitalWrite(PIN_PRESS_IN1, LOW);
         digitalWrite(PIN_PRESS_IN2, LOW);
+        analogWrite(PIN_PRESS_ENA, 0);
         Serial.println("ok press stop");
     }
 }
 
 void setPusherMotor(const String& dir) {
     if (dir == "fwd") {
+        digitalWrite(PIN_PUSHER_IN3, HIGH);
         digitalWrite(PIN_PUSHER_IN4, LOW);
-        analogWrite(PIN_PUSHER_IN3, PUSHER_SPEED_DEFAULT);
+        analogWrite(PIN_PUSHER_ENB, PUSHER_SPEED_DEFAULT);
         Serial.println("ok pusher fwd");
     } else if (dir == "rev") {
-        analogWrite(PIN_PUSHER_IN3, 0);
+        digitalWrite(PIN_PUSHER_IN3, LOW);
         digitalWrite(PIN_PUSHER_IN4, HIGH);
+        analogWrite(PIN_PUSHER_ENB, PUSHER_SPEED_DEFAULT);
         Serial.println("ok pusher rev");
     } else {
-        analogWrite(PIN_PUSHER_IN3, 0);
+        digitalWrite(PIN_PUSHER_IN3, LOW);
         digitalWrite(PIN_PUSHER_IN4, LOW);
+        analogWrite(PIN_PUSHER_ENB, 0);
         Serial.println("ok pusher stop");
     }
 }
@@ -172,10 +176,12 @@ void setup() {
 
     // Pin-Modi
     pinMode(PIN_STEPPER_EN, OUTPUT);
-    pinMode(PIN_PRESS_IN1, OUTPUT);   // PWM
-    pinMode(PIN_PRESS_IN2, OUTPUT);   // digital
-    pinMode(PIN_PUSHER_IN3, OUTPUT);  // PWM
-    pinMode(PIN_PUSHER_IN4, OUTPUT);  // digital
+    pinMode(PIN_PRESS_IN1, OUTPUT);
+    pinMode(PIN_PRESS_IN2, OUTPUT);
+    pinMode(PIN_PUSHER_IN3, OUTPUT);
+    pinMode(PIN_PUSHER_IN4, OUTPUT);
+    pinMode(PIN_PRESS_ENA, OUTPUT);   // PWM
+    pinMode(PIN_PUSHER_ENB, OUTPUT);  // PWM
     pinMode(PIN_STATUS_LED, OUTPUT);
 
     pinMode(PIN_INIT_PRESS, INPUT);

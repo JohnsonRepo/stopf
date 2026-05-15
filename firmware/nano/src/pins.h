@@ -10,24 +10,27 @@ constexpr uint8_t PIN_STEPPER_STEP = 2;
 constexpr uint8_t PIN_STEPPER_DIR  = 3;
 constexpr uint8_t PIN_STEPPER_EN   = 4;   // EN ist invertiert: LOW = aktiv
 
-// --- L298N Mini-Modul (DC-Motoren: Presse + Pusher) ---
-// HINWEIS: Verwendetes Modul hat KEIN ENA/ENB (intern auf "always enabled" verdrahtet).
-// Drehzahl-Regelung läuft daher via PWM direkt auf dem aktiven IN-Pin
-// ("sign-magnitude PWM"). Vorwärts = PWM auf IN1/IN3, Rückwärts = digital HIGH
-// auf IN2/IN4 (volle Drehzahl, da Retraction in der Stopfsequenz unkritisch).
+// --- L298N Standard-Modul (DC-Motoren: Presse + Pusher) ---
+// Großes Modul mit Kühlkörper, Schraubklemmen und ENA/ENB.
+// Drehzahl-Regelung über separate Enable-Pins (echtes PWM in beide Richtungen).
 //
-// Pin-Wahl: PRESS_IN1 und PUSHER_IN3 müssen PWM-fähig sein (Timer0: D5, D6).
-// Servo nutzt Timer1 → D9/D10 PWM ist blockiert → daher Pusher NICHT auf D9/D10.
+// WICHTIG (Timer-Konflikt): Servo.h belegt auf dem ATmega328 Timer1 und
+// deaktiviert damit PWM (analogWrite) auf D9/D10. ENA/ENB MÜSSEN deshalb auf
+// Timer0-PWM-Pins (D5/D6) liegen. Die IN-Pins sind reine digitale
+// Richtungspins — die dürfen auf D7–D10 (kein PWM nötig).
 //
-//   D5 (Timer0 PWM) ──► L298N IN1   (Presse FWD, drehzahlgeregelt)
-//   D7              ──► L298N IN2   (Presse REV, volle Drehzahl)
-//   D6 (Timer0 PWM) ──► L298N IN3   (Pusher FWD, drehzahlgeregelt)
-//   D8              ──► L298N IN4   (Pusher REV, volle Drehzahl)
-constexpr uint8_t PIN_PRESS_IN1   = 5;    // PWM (forward, Timer0)
-constexpr uint8_t PIN_PRESS_IN2   = 7;    // digital (reverse)
-constexpr uint8_t PIN_PUSHER_IN3  = 6;    // PWM (forward, Timer0)
-constexpr uint8_t PIN_PUSHER_IN4  = 8;    // digital (reverse)
-// D9, D10 sind frei (entfallen ENA/ENB) — Reserve für I²C-Display, Endschalter, etc.
+//   D5  ──► L298N ENA  (PWM Timer0, Presse Drehzahl)
+//   D6  ──► L298N ENB  (PWM Timer0, Pusher Drehzahl)
+//   D7  ──► L298N IN1  (Presse Richtung A, digital)
+//   D8  ──► L298N IN2  (Presse Richtung B, digital)
+//   D9  ──► L298N IN3  (Pusher Richtung A, digital)
+//   D10 ──► L298N IN4  (Pusher Richtung B, digital)
+constexpr uint8_t PIN_PRESS_ENA   = 5;    // PWM (Timer0, Servo-unabhängig)
+constexpr uint8_t PIN_PUSHER_ENB  = 6;    // PWM (Timer0, Servo-unabhängig)
+constexpr uint8_t PIN_PRESS_IN1   = 7;    // digital
+constexpr uint8_t PIN_PRESS_IN2   = 8;    // digital
+constexpr uint8_t PIN_PUSHER_IN3  = 9;    // digital (Servo killt hier nur PWM)
+constexpr uint8_t PIN_PUSHER_IN4  = 10;   // digital
 
 // --- Servo (Hülsen-Schieber) ---
 constexpr uint8_t PIN_SERVO       = 11;

@@ -262,10 +262,12 @@ flowchart LR
         D2["D2 STEP"]
         D3["D3 DIR"]
         D4["D4 EN"]
-        D5["D5 PRESS_IN1 PWM"]
-        D6["D6 PUSHER_IN3 PWM"]
-        D7["D7 PRESS_IN2"]
-        D8["D8 PUSHER_IN4"]
+        D5["D5 PRESS_ENA PWM"]
+        D6["D6 PUSHER_ENB PWM"]
+        D7["D7 PRESS_IN1"]
+        D8["D8 PRESS_IN2"]
+        D9["D9 PUSHER_IN3"]
+        D10["D10 PUSHER_IN4"]
         D11["D11 Servo PWM"]
         D12["D12 Start-Taster"]
         D13["D13 Status-LED"]
@@ -279,11 +281,13 @@ flowchart LR
     D3 --> A4988
     D4 --> A4988
 
-    D5 --> L298N_A["L298N Kanal A<br/>IN1 PWM + IN2 digital<br/>zu DC-Motor Presse"]
+    D5 --> L298N_A["L298N Kanal A<br/>ENA PWM + IN1/IN2 Richtung<br/>zu DC-Motor Presse"]
     D7 --> L298N_A
+    D8 --> L298N_A
 
-    D6 --> L298N_B["L298N Kanal B<br/>IN3 PWM + IN4 digital<br/>zu DC-Motor Pusher"]
-    D8 --> L298N_B
+    D6 --> L298N_B["L298N Kanal B<br/>ENB PWM + IN3/IN4 Richtung<br/>zu DC-Motor Pusher"]
+    D9 --> L298N_B
+    D10 --> L298N_B
 
     D11 --> SERVO["SG90 Servo<br/>Huelsen-Schieber"]
 
@@ -466,7 +470,7 @@ Twisted Pair reduziert die Schleifenfläche → weniger ausgestrahlte EMV bei 80
 | **A4988** | GND_motor + GND_logic | ✅ ja, beide |
 | DRV8825 | GND_motor + GND_logic | ✅ ja, beide |
 | TMC2208 / TMC2209 | GND_motor + GND_logic | ✅ ja, beide |
-| **L298N** (dein Mini) | nur 1 GND-Pin | nur einen, intern simpler aufgebaut |
+| **L298N** (Standard-Modul) | 1 GND-Schraubklemme | nur eine, intern simpler aufgebaut |
 | TB6612FNG | GND × 4 (alle gleich) | mindestens 2, idealerweise alle |
 
 Bei allen "Logic + Power"-Treibern ist die Trennung kritisch.
@@ -500,33 +504,43 @@ NEMA 17 (1,5 A nominal): Vref ≈ 0,8 V → I ≈ 1,0 A
 
 ---
 
-## 5. L298N Mini-Modul (1,5 A je Kanal, ohne ENA/ENB)
+## 5. L298N Standard-Modul (großes Board mit Kühlkörper + ENA/ENB)
 
-> Verwendetes Modul: kompakte 6-Pin-Variante (V_S, GND, IN1–IN4) ohne ENA/ENB.
-> Enable ist intern auf HIGH festverdrahtet. Drehzahl-Regelung läuft daher per
-> PWM direkt auf den aktiven IN-Pin ("sign-magnitude PWM").
+> Großes Modul mit Schraubklemmen für Motor/Power und Pin-Header für die
+> Logik-Eingänge. ENA/ENB erlauben echte Drehzahl-Regelung in **beide**
+> Richtungen. Dicke Litze passt direkt in die Schraubklemmen.
 
 ```
               ┌──────────────────────────────────┐
-   12 V ────► │ +12 V                  Out 1 │──► DC-Motor Presse +
-              │                        Out 2 │──► DC-Motor Presse −
-              │                        Out 3 │──► DC-Motor Pusher +
-              │                        Out 4 │──► DC-Motor Pusher −
+   12 V ════► │ +12 V (Schraubkl.)     Out 1 │═══► DC-Motor Presse +
+              │                        Out 2 │═══► DC-Motor Presse −
+              │                        Out 3 │═══► DC-Motor Pusher +
+              │                        Out 4 │═══► DC-Motor Pusher −
               │                                  │
-   D5 ──────► │ IN1   (PWM, Presse FWD)          │
-   D7 ──────► │ IN2   (digital, Presse REV)      │
-   D6 ──────► │ IN3   (PWM, Pusher FWD)          │
-   D8 ──────► │ IN4   (digital, Pusher REV)      │
+   D5 ──────► │ ENA   (PWM Timer0, Presse Drehz.) │
+   D6 ──────► │ ENB   (PWM Timer0, Pusher Drehz.) │
+   D7 ──────► │ IN1   (Presse Richtung A)        │
+   D8 ──────► │ IN2   (Presse Richtung B)        │
+   D9 ──────► │ IN3   (Pusher Richtung A)        │
+   D10 ─────► │ IN4   (Pusher Richtung B)        │
               │                                  │
-              │ GND ──────────────────────────── │ ◄── GND Sternpunkt
+              │ +5 V ◄── Jumper "5V_EN" stecken  │  (interner Regler, wenn V_S = 12 V)
+              │ GND (Schraubkl.) ─────────────── │ ◄── GND Sternpunkt
               └──────────────────────────────────┘
                        │
                      ║ ║  470 µF / ≥ 25 V Elko
                      ║ ║  (1000 µF besser, low ESR optional)
-                     ─ ─
+                     ─ ─  an der +12 V-Schraubklemme
                       │
                      GND
+
+   ══►  = Schraubklemme (dicke Litze 0,5–0,75 mm²)
+   ──►  = Pin-Header (dünne Dupont/Litze, Logik-Signal)
 ```
+
+> **Jumper "5V_EN":** bei V_S = 12 V stecken lassen (interner 78M05 erzeugt 5 V
+> Logik). Bei V_S > 12 V abziehen und 5 V extern einspeisen. Die 5 V vom L298N
+> **NICHT** für Servo/Pi nutzen — bricht unter Motorlast ein.
 
 ### Elko-Spezifikation am L298N
 
@@ -538,13 +552,13 @@ NEMA 17 (1,5 A nominal): Vref ≈ 0,8 V → I ≈ 1,0 A
 | **Temperatur** | 105 °C | Standard, nicht die billigen 85 °C-Typen |
 | **Position** | < 5 cm vom V_S-Pin am Modul | Drahtinduktivität reduzieren |
 
-> Auf den L298N-Mini-Modulen ist meist schon ein **kleiner Elko** (z. B. 47 µF/25 V)
-> aufgelötet — der reicht NICHT, ist nur SMD-Notbehelf. Externen 470–1000 µF
-> **parallel** dazu, am 12 V-Eingang.
+> Auf vielen L298N-Modulen ist schon ein **kleiner Elko** (z. B. 47 µF/25 V)
+> aufgelötet — der reicht NICHT als alleiniger Puffer. Externen 470–1000 µF
+> **parallel** dazu, an der +12 V-Schraubklemme.
 
 ### Optional: Externe Flyback-Dioden
 
-Der L298N-Chip hat **interne** Freilaufdioden, die aber langsam sind (Recovery ~1–2 µs). Bei den Mini-Modulen sparen Hersteller die externen Schottkys ein. Nachrüsten verlängert die Lebensdauer:
+Der L298N-Chip hat **interne** Freilaufdioden, die aber langsam sind (Recovery ~1–2 µs). Viele Module sparen die externen Schottkys ein. Nachrüsten verlängert die Lebensdauer:
 
 ```
               Out1 ●────●────────● DC-Motor +
@@ -578,22 +592,33 @@ Der L298N-Chip hat **interne** Freilaufdioden, die aber langsam sind (Recovery ~
 **Einschätzung:** für Test-Phase (Phase 1–6 Inbetriebnahme) reichen die
 internen L298N-Dioden. Für Dauerbetrieb 1N5819 (oder 1N4001–4007) nachrüsten.
 
-### Wahrheitstabelle (sign-magnitude PWM)
+### Wahrheitstabelle (mit ENA/ENB)
 
-| IN_a (PWM-Pin) | IN_b (digital) | Verhalten |
-|---|---|---|
-| `analogWrite(x)` mit x > 0 | LOW | Motor vorwärts mit Drehzahl x/255 |
-| 0 (LOW) | HIGH | Motor rückwärts mit voller Drehzahl |
-| 0 (LOW) | LOW | Motor gebremst (kurzgeschlossen gegen GND) |
-| HIGH (255) | HIGH | beide Brücken HIGH → Bremse gegen V_S |
+| INx | INy | ENx (PWM) | Verhalten |
+|---|---|---|---|
+| HIGH | LOW | > 0 | Motor vorwärts (`fwd`) mit Drehzahl |
+| LOW | HIGH | > 0 | Motor rückwärts (`rev`) mit Drehzahl |
+| LOW | LOW | beliebig | Motor frei (Coast) |
+| HIGH | HIGH | beliebig | Motor gebremst (Brake) |
+| beliebig | beliebig | 0 | Motor aus (PWM-Stop) |
 
-> **Coast (Freilauf) gibt es nicht** mit dieser Beschaltung — der Enable-Eingang
-> liegt intern fest auf HIGH. Stop = aktive Bremse.
+> **Vorteil ggü. Mini-Modul:** Drehzahl-Regelung in **beide** Richtungen (ENA/ENB
+> PWM unabhängig von der Richtungslogik), echtes Coast (Freilauf) möglich.
 
-> **D9 und D10 sind frei** (waren bei der Standard-L298N-Variante ENA/ENB).
-> Können später für I²C-Display, zusätzliche Endschalter o. ä. genutzt werden,
-> aber **PWM** ist auf D9/D10 nicht möglich, solange `Servo.h` läuft (Servo
-> blockiert Timer1, der die PWM auf D9/D10 erzeugt).
+> ⚠️ **Timer-Konflikt — ENA/ENB MÜSSEN auf D5/D6:**
+> Die Standard-`Servo.h` belegt auf dem ATmega328 **Timer1** und deaktiviert
+> damit `analogWrite()` (PWM) auf **D9 und D10** — offiziell dokumentiertes
+> Arduino-Verhalten. Würde man ENA/ENB auf D9/D10 legen (wie es der ursprüngliche
+> Starter tat), wäre die Drehzahl-Regelung **tot** (Motor liefe voll oder gar
+> nicht).
+>
+> **Lösung in diesem Projekt:** ENA/ENB liegen auf **D5/D6 (Timer0-PWM)** —
+> davon unbeeinflusst. Die IN-Pins (D7–D10) sind reine **digitale**
+> Richtungspins; dass Servo.h auf D9/D10 das PWM killt, ist hier egal, weil
+> dort kein PWM gebraucht wird. Kein Library-Wechsel nötig.
+>
+> Timer0-PWM läuft mit ~976 Hz (statt 490 Hz) — für DC-Motor-Drehzahl sogar
+> besser (weniger hörbares Pfeifen). `millis()`/`delay()` bleiben funktionsfähig.
 
 ---
 

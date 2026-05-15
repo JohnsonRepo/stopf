@@ -84,7 +84,7 @@ Zweischicht-Architektur mit klarer Trennung von Echtzeit-Steuerung und höherer 
 
 ### Motortreiber
 - **A4988** (Schrittmotor): 100µF Elko zwischen VMOT und GND PFLICHT, sonst stirbt der Treiber. Vref auf 0,7-1,0V einstellen vor erstem Anlauf.
-- **L298N Mini-Modul** (DC-Motoren, 1,5 A je Kanal, ohne ENA/ENB): 470µF Elko an 12V-Eingang. Drehzahl-Regelung via PWM auf den IN-Pins (sign-magnitude PWM, nur in Vorwärtsrichtung).
+- **L298N Standard-Modul** (großes Board mit Kühlkörper, Schraubklemmen, ENA/ENB): 470µF Elko an 12V-Eingang. ENA/ENB für PWM-Drehzahlsteuerung in beide Richtungen.
 
 ### Motoren
 - 1× NEMA 17 Schrittmotor (Förderschnecke)
@@ -110,18 +110,17 @@ Zweischicht-Architektur mit klarer Trennung von Echtzeit-Steuerung und höherer 
 - **470µF Elko direkt am Servo** zwischen VCC und GND
 
 ### Pin-Belegung Arduino Nano
-**Hinweis:** Verwendetes L298N-Mini-Modul hat KEIN ENA/ENB (Enable intern fix HIGH).
-Drehzahlregelung läuft via PWM direkt auf den IN-Pins ("sign-magnitude PWM").
 ```
 D2  → A4988 STEP
 D3  → A4988 DIR
 D4  → A4988 EN
-D5  → L298N IN1  (PWM, Presse vorwärts mit Drehzahlregelung)
-D6  → L298N IN3  (PWM, Pusher vorwärts mit Drehzahlregelung)
-D7  → L298N IN2  (digital, Presse rückwärts volle Drehzahl)
-D8  → L298N IN4  (digital, Pusher rückwärts volle Drehzahl)
-D9  → frei       (war ENA — entfällt; PWM via Servo-Lib blockiert)
-D10 → frei       (war ENB — entfällt; PWM via Servo-Lib blockiert)
+D5  → L298N ENA (PWM Timer0, Presse Drehzahl)
+D6  → L298N ENB (PWM Timer0, Pusher Drehzahl)
+D7  → L298N IN1 (Presse Richtung A, digital)
+D8  → L298N IN2 (Presse Richtung B, digital)
+D9  → L298N IN3 (Pusher Richtung A, digital)
+D10 → L298N IN4 (Pusher Richtung B, digital)
+# Hinweis: ENA/ENB MÜSSEN auf D5/D6 (Timer0) — Servo.h killt PWM auf D9/D10 (Timer1)
 D11 → Servo Signal (PWM)
 D12 → Start-Taster (mechanisch, INPUT_PULLUP, active LOW)
 D13 → Status-LED (onboard)
