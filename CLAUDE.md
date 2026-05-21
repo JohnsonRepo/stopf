@@ -175,10 +175,12 @@ GPIO 39 → Magazin-Sensor
 ## Software-Architektur
 
 ### Arduino Nano (Echtzeit)
-- **Sprache:** C++ (Arduino IDE oder PlatformIO empfohlen)
+- **Sprache:** C++ (PlatformIO Standard, Arduino IDE als Alternative)
 - **Aufgabe:** Stupide, robuste Befehlsausführung. KEINE eigene Logik, keine UI.
 - **Watchdog:** Wenn 5s kein Befehl vom Pi → alle Motoren AUS, sicherer Zustand
 - **Bibliotheken:** AccelStepper, Servo, ggf. PID
+- **Code-Portabilität:** `config.h` setzt `SERIAL_BAUD` und `FIRMWARE_VERSION` via `#ifndef`-Fallback → kompiliert in PlatformIO (Build-Flags aus `platformio.ini`) UND in Arduino IDE (Fallback-Werte aus config.h)
+- **CH340-Clone-Nano:** brauchen oft den alten Bootloader (57600 Baud). In `platformio.ini` ist `upload_speed = 57600` gesetzt. Arduino IDE: „Werkzeuge → Prozessor → ATmega328P (Old Bootloader)" wählen. Bei „stk500_getsync: not in sync"-Fehler: manueller Reset-Trick (Reset-Taste genau bei „Uploading" drücken)
 
 ### Raspberry Pi Zero 2 W (Brain)
 - **OS:** Raspberry Pi OS Lite (headless)
@@ -262,6 +264,10 @@ Nano → Pi:
 - **Glattes Stopfrohr für Vollautomatik** (keine Widerhaken — die sind nur für Hand-Stopfer)
 - **Slip-on Tube Außendurchmesser ~7,3mm ideal** für 7,5mm Hülsen-ID; bei 7mm OD: Schrumpfschlauch oder 3D-Druck-Trichter ergänzen
 - **Alle GNDs müssen verbunden sein!** Pi, Nano, A4988, L298N, Buck, Netzteil, Servo — sonst funktionieren Steuersignale nicht zuverlässig
+- **Pi Zero 2 W hat nur EINE LED** (grün, ACT) — keine rote PWR-LED wie die großen Pis. Aktivität der grünen LED bei Einschalten ohne SD-Karte ist normal (kein Defekt)
+- **Initiator-Target idealerweise aus Stahl**, nicht Edelstahl V2A — V2A reduziert den Schaltabstand auf 70–85 % des Nominalwerts
+- **Sensor-LED ist die beste Diagnose** bei Initiator-Problemen — leuchtet unabhängig von Spannungsteiler/Nano, isoliert das Sensor-Problem vom Schaltungsproblem
+- **WAGO 221 Hebelklemmen** (oder vergleichbar) für GND-Stern und +12V-Bus — Steckbrett ist NICHT geeignet für Power-Verteilung (Federkontakte zu hochohmig + nicht vibrationsfest)
 
 ---
 

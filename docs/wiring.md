@@ -405,6 +405,90 @@ R1 = 10 kΩ, R2 = 3,9 kΩ, C = 47 nF (gleiche Wahl wie Nano)
 U_out = 12 V · 3,9 / 13,9 ≈ 3,37 V    ← innerhalb 3,3 V-Toleranz (max 3,6 V)
 ```
 
+### Ersatzwerte falls 7,5 kΩ nicht vorrätig
+
+7,5 kΩ ist Standard, aber nicht in jedem Basis-Sortiment. Diese Alternativen funktionieren ebenfalls (Ziel: U_out zwischen 3,5 V und 5,4 V):
+
+| R1 | R2 | U_out | Bewertung |
+|---|---|---|---|
+| 10 kΩ | **6,8 kΩ** | 4,86 V | ✅ idealer Ersatz (Standardwert, etwas mehr Reserve) |
+| 10 kΩ | 7,5 kΩ | 5,14 V | ✅ Standard |
+| 10 kΩ | **5,6 kΩ + 2 kΩ in Reihe** = 7,6 kΩ | 5,18 V | ✅ Reihenschaltung addiert, falls Einzelwerte fehlen |
+| 10 kΩ | 8,2 kΩ | 5,41 V | ⚠️ knapp unter 5,5 V max — geht, aber wenig Reserve |
+| 10 kΩ | 10 kΩ | 6,00 V | ❌ zu hoch für 5 V-Nano |
+
+> **Reihenschaltung addiert** (R_gesamt = R1 + R2 + …), **Parallelschaltung verkleinert** (1/R_gesamt = 1/R1 + 1/R2 + …). Für R2-Ersatz brauchst du **Reihe**.
+
+### Physischer Aufbau auf Lochraster / Steckbrett
+
+| Verbindung | Wie |
+|---|---|
+| Widerstand ↔ Widerstand (z. B. 5,6k + 2k) | **direkt Bein-an-Bein verlöten**, Beine vorab haken, dann Schrumpfschlauch drüber. Keine Litze dazwischen — weniger Lötstellen = robuster |
+| Sensor schwarz → R1 | Litze (langer Weg zum Sensor) |
+| Abgriff (R1↔R2-Knoten) → Nano A0 | Litze |
+| C (47 nF) → GND und R2 → GND | **lokal an einem Punkt** zusammenführen (kurze Lötbrücke), **dann EIN Draht** zum Sternpunkt |
+| Aufbauort | Test-Phase: Steckbrett (Signal-mA → unkritisch). Final: kleine Lochrasterplatine **nahe am Nano** |
+
+> ⚠️ **C-GND und R2-GND müssen lokal zusammen.** Wenn beide auf separaten langen Drähten zum Sternpunkt laufen, wird die Filterschleife groß → der 47-nF-Kondensator filtert nichts mehr. Gleiches Prinzip wie beim Elko: lokal puffern, dann **ein** sauberer Draht zur Masse.
+
+### Mechanische Montage der Initiatoren
+
+| Sensor | Gewinde | Bohrung in Halterung |
+|---|---|---|
+| LJ8A3-2-Z/BX | **M8×1 Feingewinde** | **8,5 mm Durchgangsloch** (kein Gewinde schneiden) |
+| LJ12A3-4-Z/BX | **M12×1 Feingewinde** | **12,5 mm Durchgangsloch** |
+
+> ⚠️ **Feingewinde (×1), nicht Regelgewinde** (M12 Regel wäre ×1,75). Falls du Muttern separat kaufst: **M8×1 / M12×1 fein** verlangen.
+
+**Montage in 4 mm Acryl (PMMA):**
+- 2 Sechskant-Kontermuttern liegen dem Sensor i. d. R. bei
+- **Unterlegscheiben** unter beide Muttern (PMMA verteilt Druck schlecht, sonst Risse)
+- **Handfest + ¼ Umdrehung** — nicht überdrehen
+- **Kein Gewinde ins Acryl schneiden** — hält in 4 mm nicht
+- Vorteil Durchgangsloch + Kontermutter: Schaltabstand bleibt nachjustierbar
+
+**Montage in 3D-Druck:**
+- 12,5 mm Durchgangsloch + Sechskant-Mutter-Tasche im Druck
+- Oder M12×1-Gewinde direkt mit drucken (geht, aber Mutter-Variante haltbarer)
+
+### Sensor-Test mit der Sensor-eigenen LED (schnellste Diagnose)
+
+Vor jeder Multimeter-/Nano-Diagnose: **die LED am Sensor selbst beobachten.**
+Die meisten LJ-Sensoren haben eine kleine rote/gelbe LED, die bei Detektion leuchtet — **unabhängig vom Nano und vom Spannungsteiler**.
+
+```
+12 V an Sensor (braun=+12V, blau=GND), Sensor sonst nirgendwo angeschlossen
+[große Stahl-Schraube direkt auf die Sensor-Stirnfläche]
+   LED an?  → Sensor funktioniert. Problem liegt im Spannungsteiler/Signal-Pfad
+   LED aus? → Sensor erkennt nicht. Material/Abstand/Größe prüfen (Tabelle unten)
+```
+
+### Target-Material und -Größe (oft unterschätzt!)
+
+Der Schaltabstand Sn (LJ8: 2 mm, LJ12: 4 mm) gilt für **Stahl-Target ≥ 3× Sn Kantenlänge** (LJ8: ≥ 6×6 mm, LJ12: ≥ 12×12 mm). Real:
+
+| Target-Material | Anteil von Sn | Beispiel |
+|---|---|---|
+| Stahl / Eisen | 100 % | M8-Schraubenkopf flach ✅ |
+| **Edelstahl V2A** | **70–85 %** | dein Standard-Pusher-Target — Sn LJ12 real nur ~3 mm |
+| Aluminium | 30–40 % | praktisch nicht brauchbar |
+| Messing / Kupfer | 30–40 % | praktisch nicht brauchbar |
+| Plastik / Holz | 0 % | kein Signal |
+
+> **Konsequenz:** Pusher-Target am besten aus **mildem Stahl**, nicht V2A — bringt vollen Schaltabstand und Reserve gegen Verschmutzung.
+
+### Initiator-Troubleshooting
+
+| Symptom | Wahrscheinliche Ursache | Behebung |
+|---|---|---|
+| **Abgriff zeigt ~12 V statt 5 V** | Multimeter steht VOR R1 ODER R1 nicht in Reihe ODER R2 fehlt | Topologie mit Ohm-Messung prüfen: 10 kΩ über R1, 7,5 kΩ über R2. Sofort vom Nano abklemmen wenn 12 V! |
+| Abgriff zeigt 0 V (egal ob Metall) | schwarze Litze lose / Kurzschluss zu GND | Verbindung schwarz → R1 prüfen |
+| Sensor-LED reagiert nicht | falsches Metall (Alu, Kupfer), zu weit weg, Target zu klein, Sensor unversorgt | Test mit dicker Stahl-Schraube direkt auf Sensorfläche; 12 V zwischen braun/blau messen |
+| Sensor-LED leuchtet, A0 trotzdem auf 5 V | Signal-Strecke (schwarz → R1 → A0) unterbrochen | Durchgang prüfen, Lötstelle nachsehen |
+| Wert flackert / springt | Motor-EMV ohne Filter | 47 nF Filter-C nachrüsten, Twisted Pair Sensor↔Teiler |
+| Sensor löst immer aus (auch ohne Metall) | Fremdmetall in der Nähe (Schraube, Spindel, Rahmen) | Sensor freistellen, ≥ 3× Sn Abstand zu Fremdmetall |
+| 11,6 V statt 12 V auf schwarz | normal! NPN-Sensor in Idle gibt V_S minus 0,4 V aus | kein Defekt, vor dem Teiler ist das richtig |
+
 ---
 
 ## 4. A4988 Schrittmotor-Treiber (NEMA 17)
@@ -654,6 +738,38 @@ internen L298N-Dioden. Für Dauerbetrieb 1N5819 (oder 1N4001–4007) nachrüsten
 > **Bonus:** Mit 1000+ µF am Servo brauchst du keinen separaten Bulk-Cap am
 > Buck-Ausgang — der Servo-Elko puffert die ganze 5 V-Schiene mit, falls Pi
 > und Servo räumlich nahe beieinander liegen.
+
+### Wenn Elko nicht direkt am Servo sitzen kann (langes Kabel)
+
+Wenn zwischen Buck/Verteiler und Servo ein längeres Kabel liegt und der große Elko dort verbleiben muss: **Zwei-Kondensator-Strategie**.
+
+```
+   Buck 5 V ───●────[langes Kabel]────●─── Servo VCC
+               │                      │
+             ║ ║ großer Elko        ║ ║ kleiner Elko
+             ║ ║ (2200 µF)          ║ ║ 220–470 µF
+             ─ ─ bleibt am Buck     ─ ─  + 100 nF Keramik
+               │                      │   DIREKT am Servo-Stecker
+   GND ────────●──────────────────────●─── Servo GND
+```
+
+| Kondensator | Wert | Position | Aufgabe |
+|---|---|---|---|
+| **Bulk** | 470–2200 µF | wo's passt (Buck/WAGO) | langsame Energie, Gesamt-Puffer |
+| **Lokal** | 220–470 µF + 100 nF Keramik | **direkt am Servo-Stecker** | fängt schnelle Anlaufspitze ab |
+
+Den **kleinen lokalen Elko** an die Servo-eigene Pigtail-Litze löten (rot=VCC, braun=GND, am Stecker-Ende) — Kostet ~10 ct, macht die Kabellänge praktisch egal.
+
+**Faustwerte Spannungsabfall** bei 1 A Servo-Anlauf:
+
+| Kabellänge hin+zurück | 0,5 mm² | 0,25 mm² |
+|---|---|---|
+| 20 cm | 7 mV | 14 mV | ✅ unkritisch |
+| 50 cm | 17 mV | 34 mV | ✅ ok |
+| 1 m | 34 mV | 68 mV | ⚠️ spürbar |
+| 2 m | 68 mV | 136 mV | ❌ Servo zittert |
+
+→ Ab ~50 cm Kabellänge zum Servo: lokalen kleinen Elko **immer** einbauen.
 
 ---
 

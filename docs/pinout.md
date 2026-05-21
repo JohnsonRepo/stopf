@@ -330,7 +330,9 @@ Pro Sensor-Eingang (3× für Press / PushFront / PushRear):
 | Bauteil | Wert | Anzahl | Bauform | Anmerkung |
 |---|---|---|---|---|
 | R1 | 10 kΩ, 5 %, 1/4 W | 3× (+ Reserve) | THT 0207 | Standard-Kohleschicht |
-| R2 (Nano) | 7,5 kΩ, 5 %, 1/4 W | 3× | THT 0207 | für 5 V-Logik |
+| R2 (Nano) | 7,5 kΩ, 5 %, 1/4 W | 3× | THT 0207 | für 5 V-Logik (Standard) |
+| R2 Ersatz #1 | **6,8 kΩ** statt 7,5 kΩ | 3× | THT 0207 | häufiger lagernd, U_out 4,86 V |
+| R2 Ersatz #2 | **5,6 kΩ + 2 kΩ in Reihe** | je 3× | THT 0207 | falls 7,5/6,8 fehlen — Reihe addiert zu 7,6 kΩ |
 | R2 (ESP32) | 3,9 kΩ, 5 %, 1/4 W | 3× | THT 0207 | für 3,3 V-Logik |
 | C (Filter) | 47 nF Keramik | 3× | X7R, 50 V | parallel zu R2, EMV-Filter |
 

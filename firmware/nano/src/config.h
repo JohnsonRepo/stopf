@@ -5,6 +5,18 @@
 // =====================================================
 #pragma once
 
+// --- Build-Portabilität (PlatformIO vs. Arduino IDE) ---
+// In PlatformIO kommen diese aus platformio.ini (-D SERIAL_BAUD=... etc.).
+// Die Arduino IDE liest platformio.ini NICHT → hier Fallback-Defaults,
+// damit der Code in BEIDEN Umgebungen kompiliert. Die #ifndef-Guards
+// verhindern Doppel-Definitionen wenn das Build-Flag schon gesetzt ist.
+#ifndef SERIAL_BAUD
+#define SERIAL_BAUD 115200
+#endif
+#ifndef FIRMWARE_VERSION
+#define FIRMWARE_VERSION "0.1.0"
+#endif
+
 // --- Watchdog / Sicherheit ---
 constexpr unsigned long WATCHDOG_TIMEOUT_MS = 5000;  // ohne Pi-Befehl → Stop
 constexpr unsigned long COMMAND_TIMEOUT_MS  = 30000; // max. Dauer für eine Aktion
