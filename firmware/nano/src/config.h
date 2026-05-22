@@ -44,5 +44,13 @@ constexpr int SERVO_MOVE_DELAY_MS = 500;
 // Wir prüfen mit digitalRead, Schwellwert ist HIGH/LOW
 constexpr bool INIT_TRIGGERED_LEVEL = LOW;
 
+// --- Magazin-Lichtschranke (Logik) ---
+// Module-abhängig — typisch: Flagge im Schlitz blockiert IR-Licht →
+// Phototransistor sperrt → DO-Pin via Pull-up auf HIGH.
+// Falls dein Modul invertiert ist (Comparator): auf HIGH ändern.
+// Test: status anzeigen, Flagge in den Schlitz halten, beobachten welcher
+// Wert "blockiert" entspricht.
+constexpr bool MAGAZIN_TRIGGERED_LEVEL = HIGH;
+
 // --- Start-Taster (mechanisch, mit Software-Entprellung) ---
 constexpr unsigned long BUTTON_DEBOUNCE_MS = 50;

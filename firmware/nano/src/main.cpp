@@ -94,6 +94,10 @@ void readSensors() {
     bool pushRear  = (digitalRead(PIN_INIT_PUSH_REAR)  == INIT_TRIGGERED_LEVEL);
     // Mechanischer Taster mit internem Pull-up: ungedrückt = HIGH, gedrückt = LOW.
     bool button    = (digitalRead(PIN_BUTTON) == LOW);
+    // Magazin-Gabellichtschranke (Index-Sensor an Stepper-Pulley/Trommel)
+    bool magazin   = (digitalRead(PIN_MAGAZIN_SENSOR) == MAGAZIN_TRIGGERED_LEVEL);
+    // Roher Pegel zusätzlich — hilft beim Kalibrieren der Polarität
+    int  magazinRaw = digitalRead(PIN_MAGAZIN_SENSOR);
 
     Serial.print("status press=");
     Serial.print(press);
@@ -103,6 +107,10 @@ void readSensors() {
     Serial.print(pushRear);
     Serial.print(" button=");
     Serial.print(button);
+    Serial.print(" magazin=");
+    Serial.print(magazin);
+    Serial.print(" magazin_raw=");
+    Serial.print(magazinRaw);
     Serial.print(" stepper_pos=");
     Serial.println(stepper.currentPosition());
 }
@@ -187,7 +195,8 @@ void setup() {
     pinMode(PIN_INIT_PRESS, INPUT);
     pinMode(PIN_INIT_PUSH_FRONT, INPUT);
     pinMode(PIN_INIT_PUSH_REAR, INPUT);
-    pinMode(PIN_BUTTON, INPUT_PULLUP);   // Taster gegen GND, intern hochgezogen
+    pinMode(PIN_BUTTON, INPUT_PULLUP);          // Taster gegen GND, intern hochgezogen
+    pinMode(PIN_MAGAZIN_SENSOR, INPUT_PULLUP);  // Opto-Modul mit Open-Collector profitiert; eigener Pull-up des Moduls dominiert wenn vorhanden
 
     // Schrittmotor-Setup
     stepper.setMaxSpeed(STEPPER_MAX_SPEED);

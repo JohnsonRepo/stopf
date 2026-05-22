@@ -29,7 +29,7 @@ Ein Befehl pro Zeile, mit `\n` (LF) terminiert. Antworten zeilenweise.
 |---|---|---|
 | `ping` | `pong` | Verbindungstest. Pi sollte das nach Connect zuerst senden. |
 | `help` | mehrzeilige Hilfe | Liste aller Befehle (für manuelles Debuggen) |
-| `status` | `status press=B push_front=B push_rear=B button=B stepper_pos=N` | Sensor-Snapshot (`B` = `0`/`1`, `N` = signed long); `button=1` = Start-Taster gedrückt |
+| `status` | `status press=B push_front=B push_rear=B button=B magazin=B magazin_raw=B stepper_pos=N` | Sensor-Snapshot (`B` = `0`/`1`, `N` = signed long); `button=1` = Start-Taster gedrückt |
 
 ### Schrittmotor (Förderschnecke / Tabakdosierung)
 
