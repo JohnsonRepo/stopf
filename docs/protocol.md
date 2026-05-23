@@ -31,7 +31,7 @@ Ein Befehl pro Zeile, mit `\n` (LF) terminiert. Antworten zeilenweise.
 | `help` | mehrzeilige Hilfe | Liste aller Befehle (für manuelles Debuggen) |
 | `status` | `status press=B push_front=B push_rear=B button=B magazin=B magazin_raw=B stepper_pos=N` | Sensor-Snapshot (`B` = `0`/`1`, `N` = signed long); `button=1` = Start-Taster gedrückt |
 
-### Schrittmotor (Förderschnecke / Tabakdosierung)
+### Schrittmotor (Trommelmagazin-Drehung)
 
 | Befehl | Antwort | Beschreibung |
 |---|---|---|
@@ -170,11 +170,16 @@ Folgende Befehle stehen in [`../CLAUDE.md`](../CLAUDE.md) und sind **geplant**:
 
 | Befehl | Zweck | Status |
 |---|---|---|
-| `STUFF` | komplette Stopfsequenz | 🔲 wenn `statemachine.cpp/.h` existiert |
-| `HOME` | Referenzfahrt | 🔲 |
-| `SET_PRESS_TIME <ms>` | Presszeit zur Laufzeit setzen | 🔲 |
-| `SET_PUSH_SPEED <pwm>` | Pusher-Geschwindigkeit setzen | 🔲 |
-| `TEST_MOTOR press|push|feed|servo` | Einzeltest mit Standard-Profil | 🔲 |
+| `home` | Referenzfahrt Trommel via Magazin-Lichtschranke | 🔲 |
+| `stuff [<n>]` | komplette Stopfsequenz (1 oder n Zigaretten) | 🔲 wenn `statemachine.cpp/.h` existiert |
+| `knock [<cycles>]` | Tabak-Dosier-Zyklus: Servo schwenkt + Solenoide pulsen | 🔲 |
+| `tabak_servo <angle>` | Tabak-Tilt-Servo manuell positionieren (Justage) | 🔲 |
+| `solenoid 1\|2 on\|off\|pulse <ms>` | Einzeln Solenoid testen | 🔲 |
+| `set_press_time <ms>` | Presszeit zur Laufzeit setzen | 🔲 |
+| `set_push_speed <pwm>` | Pusher-Geschwindigkeit setzen | 🔲 |
+| `set_knock_cycles <n>` | Anzahl Knock-Wiederholungen pro Dose | 🔲 |
+| `test_motor press\|push\|stepper\|servo\|solenoid` | Einzeltest mit Standard-Profil | 🔲 |
+| `abort` | sequenz sauber abbrechen, alle Aktoren in safe state | 🔲 |
 
 Bis diese existieren, baut der Pi die Sequenz aus den **bestehenden** Befehlen
 (`stepper`, `press fwd/stop`, `servo`, `pusher fwd/rev/stop`) zusammen.

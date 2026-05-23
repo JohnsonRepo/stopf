@@ -20,9 +20,9 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | D8 | `PIN_PRESS_IN2` | Presse Richtung B | L298N IN2 | rot | digital |
 | D9 | `PIN_PUSHER_IN3` | Pusher Richtung A | L298N IN3 | violett | digital (Servo killt hier nur PWM) |
 | D10 | `PIN_PUSHER_IN4` | Pusher Richtung B | L298N IN4 | blau | digital |
-| D11 | `PIN_SERVO` | Servo-Signal | SG90 (orange Litze) | orange | **PWM** (Servo-Library) |
+| D11 | `PIN_SERVO` | Servo-Signal Hülsen-Schieber | SG90 (orange Litze) | orange | **PWM** (Servo-Library) |
 | D12 | `PIN_BUTTON` | Start-Taster | mechanischer Drucktaster | grau | **active LOW** (Pull-up intern) |
-| D13 | `PIN_STATUS_LED` | Status-LED | onboard LED | – | leuchtet während aktiver Befehl |
+| D13 | `PIN_SOLENOID_2` | Hubmagnet #2 (Top-Druck) | L298N-Mini IN3 | weiß | digital ON/OFF (Status-LED umgewidmet) |
 
 ### Analoge Pins (nutzbar als digital, hier teils analog)
 
@@ -31,9 +31,9 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | A0 | `PIN_INIT_PRESS` | Initiator Press | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k Spannungsteiler | active LOW |
 | A1 | `PIN_INIT_PUSH_FRONT` | Initiator Pusher vorne | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
 | A2 | `PIN_INIT_PUSH_REAR` | Initiator Pusher hinten | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
-| A3 | `PIN_RESERVE_A3` | Reserve | – | – | z. B. I²C SDA für Display |
-| A4 | `PIN_RESERVE_A4` | Reserve | – | – | z. B. I²C SCL für Display |
-| A5 | `PIN_MAGAZIN_SENSOR` | Magazin-Optosensor | Oniissy Gabellichtschranke | direkt 5 V-Logik | für später |
+| A3 | `PIN_TABAK_SERVO` | Servo Tabak-Tilt-Schwenkwand | SG90/Tiny-S (Signal) | Servo-Lib, analog-pin als digital genutzt |
+| A4 | `PIN_SOLENOID_1` | Hubmagnet #1 (Front-Knock) | L298N-Mini IN1 | digital ON/OFF (Heschen HS-0530B via L298N-Mini) |
+| A5 | `PIN_MAGAZIN_SENSOR` | Magazin-Gabellichtschranke | Oniissy / Standard-Opto | direkt 5 V-Logik, kein Spannungsteiler |
 
 ### Versorgungs-Pins
 
@@ -118,13 +118,57 @@ Standard-Belegung (variiert pro Hersteller — mit Multimeter durchklingeln!):
 
 ---
 
-## SG90 Servo
+## SG90 Servo (Hülsen-Schieber UND Tabak-Tilt)
+
+Zwei Servo-Instanzen:
+
+| Funktion | Pin | Anschluss-Hinweis |
+|---|---|---|
+| Hülsen-Schieber | **Nano D11** | Standard-Servo-Pin (PWM via Servo-Lib Timer1) |
+| Tabak-Tilt-Schwenkwand | **Nano A3** | Analog-Pin als digital nutzbar — Servo-Lib generiert Signal selbst |
+
+Belegung beider Servos (Litzenfarben identisch):
 
 | Litzenfarbe | Funktion | Anschluss |
 |---|---|---|
-| rot | VCC 5 V | Buck-Out + 470 µF Elko |
+| rot | VCC 5 V | Buck-Out + 470 µF Elko (Hülsen-Servo lokal, Tabak-Servo ggf. eigener Bulk) |
 | braun / schwarz | GND | GND-Sternpunkt |
-| orange / gelb | Signal (PWM) | Nano D11 |
+| orange / gelb | Signal (PWM) | Nano D11 (Hülse) bzw. A3 (Tabak) |
+
+---
+
+## Hubmagnete Heschen HS-0530B (2 Stück, Tabak-Dosierung)
+
+12V Push/Pull-Solenoid, ~5 mm Hub, ~3–5 N Zugkraft, ~0,5 A pro Solenoid, ~14×30 mm.
+Intermittierender Betrieb (kurze Pulse 50–150 ms), nicht für Dauer-ON ausgelegt.
+
+| Litze | Funktion | Anschluss |
+|---|---|---|
+| Solenoid #1 (Front-Knock) +/− | DC-Pulse 12 V | L298N-Mini Out1 / Out2 |
+| Solenoid #2 (Top-Druck) +/− | DC-Pulse 12 V | L298N-Mini Out3 / Out4 |
+
+Steuerung via **L298N Mini-Modul** (2-Kanal):
+
+| L298N-Mini Pin | Anschluss | Anmerkung |
+|---|---|---|
+| V_S (12 V) | 12 V-Bus über F4 (siehe Sicherungs-Liste) | +470 µF Elko parallel |
+| GND | GND-Sternpunkt | |
+| IN1 | Nano **A4** (`PIN_SOLENOID_1`) | Solenoid #1 EIN/AUS |
+| IN2 | **hardwire an GND** | statisch LOW (Solenoid braucht keine Drehrichtung) |
+| IN3 | Nano **D13** (`PIN_SOLENOID_2`) | Solenoid #2 EIN/AUS |
+| IN4 | **hardwire an GND** | statisch LOW |
+| Out1 / Out2 | Solenoid #1 | Polung egal (Coil), aber konsistent anschließen |
+| Out3 / Out4 | Solenoid #2 | dito |
+
+> **Spannungsabfall L298N:** ~2,5 V intern → 12 V → ~9,5 V am Solenoid → ~63 %
+> Nennkraft. Für Knock-Anwendung ausreichend.
+
+> **Polung:** DC-Solenoide haben technisch keine Polarität (Spule), aber für
+> einheitliche Verkabelung: rot/+ an Out_a, schwarz/− an Out_b.
+
+> **Flyback-Diode optional:** L298N hat interne Freilaufdioden. Externe 1N5819
+> oder 1N4007 parallel zum Solenoid (Kathode an +12 V) nur, falls die internen
+> zu langsam werden — bei Knock-Pulsen meist unproblematisch.
 
 ---
 

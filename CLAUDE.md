@@ -60,12 +60,26 @@ Zweischicht-Architektur mit klarer Trennung von Echtzeit-Steuerung und höherer 
 - **Selbsthemmend** — Pusher bleibt bei Motorstillstand auch unter Druck stehen
 - Bei 200-Step NEMA17 → 0,01mm Auflösung pro Step
 
-### Förderschnecke
-- **Welle:** 4mm Eisenwelle
-- **Wendel:** Druckfeder als Auger (Federstahl, nicht Kupfer — Kupfer verformt sich)
-- **Maße der Feder:** ~6,5mm OD, ~4mm ID, 3-5mm Steigung
-- **Befestigung:** Beide Enden festschweißen/-kleben oder Splint durch letztes Auge in die Welle
-- **Antrieb:** NEMA 17 Schrittmotor
+### Tabak-Dosierung (Tilt-Schwenkwand + 2 Hubmagnete)
+**Mechanismus der vollautomatischen Fraens-Maschine** (anders als die teil-automatische
+Variante mit Förderschnecke — die wäre falsch hier). Drei Aktoren arbeiten gemeinsam in
+der „Knocking"-Phase:
+
+- **Servo-Schwenkwand** im Acryl-Trog — Mini-Servo (Tabak-Servo) schwenkt eine Wand vor/zurück
+  → mischt und führt den Tabak in Richtung Auslass
+- **Hubmagnet #1 (Front-Knock)** — schlägt seitlich gegen den Trog → bricht Brücken im Vorrat
+- **Hubmagnet #2 (Top-Druck)** — schlägt von oben → drückt Tabak in Stopfrohr-Position
+- **Zyklus:** ~8× Knocking-Wiederholungen, Servo + beide Magnete pulsieren parallel
+  → eine Tabak-Portion ist dosiert
+
+**Bauteile:**
+- 1× Mini-Servo (SG90 / Tower Pro Tiny-S Klasse), 5 V, ~10 g
+- 2× **Heschen HS-0530B** Push/Pull-Solenoid: 12 V DC, ~5 mm Hub, ~3–5 N Zugkraft,
+  ~0,5 A pro Solenoid, Bauform ~14×30 mm, Duty cycle intermittent (für kurze Pulse, nicht Dauer)
+- 1× L298N **Mini-Modul** als 2-Kanal-Solenoid-Treiber — das alte ausgetauschte Modul
+  ist hier perfekt: fehlende ENA/ENB sind für Solenoide kein Nachteil, sondern ideal
+  (Always-Enabled-Betrieb passt zur EIN/AUS-Steuerung)
+- 2× Flyback-Diode 1N5819 oder 1N4007 (zusätzlich zur L298N-internen — optional aber sicher)
 
 ### Hülsen-Standard (King Size)
 - 84mm × 8mm OD, ~7,5mm ID
@@ -84,13 +98,17 @@ Zweischicht-Architektur mit klarer Trennung von Echtzeit-Steuerung und höherer 
 
 ### Motortreiber
 - **A4988** (Schrittmotor): 100µF Elko zwischen VMOT und GND PFLICHT, sonst stirbt der Treiber. Vref auf 0,7-1,0V einstellen vor erstem Anlauf.
-- **L298N Standard-Modul** (großes Board mit Kühlkörper, Schraubklemmen, ENA/ENB): 470µF Elko an 12V-Eingang. ENA/ENB für PWM-Drehzahlsteuerung in beide Richtungen.
+- **L298N Standard-Modul** (großes Board mit Kühlkörper, Schraubklemmen, ENA/ENB): 470µF Elko an 12V-Eingang. ENA/ENB für PWM-Drehzahlsteuerung in beide Richtungen. **Verwendung: Presse + Pusher (DC-Getriebemotoren).**
+- **L298N Mini-Modul** (kleines Modul ohne ENA/ENB, ~1,5 A je Kanal): **Verwendung: 2 Tabak-Solenoide** (Heschen HS-0530B). Always-Enabled-Verhalten der Mini-Variante passt ideal zu Solenoid-EIN/AUS-Steuerung. ~2,5 V interner Spannungsabfall → 12 V → ~9,5 V am Solenoid → ~63 % der Nennkraft, ausreichend für Knock-Anwendung.
 
-### Motoren
-- 1× NEMA 17 Schrittmotor (Förderschnecke)
-- 2× DC-Getriebemotor 12V (Presse + Pusher)
-- 1× SG90 Servo (Hülsen-Schieber)
-- 1× kleiner Vibrationsmotor (Hülsenmagazin, später)
+### Motoren / Aktoren
+- 1× NEMA 17 Schrittmotor (**Trommelmagazin-Drehung**, Belt 1:1 zur Drum)
+- 2× DC-Getriebemotor 12V (Presse + Pusher) — via L298N Standard-Modul mit ENA/ENB
+- 1× SG90 Servo (Hülsen-Schieber, D11)
+- 1× SG90/Tiny-S Servo (Tabak-Tilt-Schwenkwand, A3)
+- 2× **Heschen HS-0530B** Hubmagnet 12 V (Tabak-Front-Knock + Tabak-Top-Druck)
+  via L298N Mini-Modul (2-Kanal, 12 V, Always-Enabled)
+- 1× kleiner Vibrationsmotor (Hülsenmagazin, später — noch nicht implementiert)
 
 ### Sensoren
 - **3× induktive Initiatoren** (LJ8A3-2-Z/BX **oder LJ12A3-4-Z/BX**, NPN, 12V): Press-Position, Push-Front, Push-Rear
@@ -124,14 +142,17 @@ D7  → L298N IN1 (Presse Richtung A, digital)
 D8  → L298N IN2 (Presse Richtung B, digital)
 D9  → L298N IN3 (Pusher Richtung A, digital)
 D10 → L298N IN4 (Pusher Richtung B, digital)
-D11 → Servo Signal (PWM)
+D11 → Servo Signal Hülsen-Schieber (PWM)
 D12 → Start-Taster (mechanisch, INPUT_PULLUP, active LOW)
-D13 → Status-LED (onboard)
+D13 → L298N-Mini IN3 → Hubmagnet #2 (Top-Druck)  — Status-LED umgewidmet
 A0  → Initiator Press (über Spannungsteiler)
 A1  → Initiator Push-Front (über Spannungsteiler)
 A2  → Initiator Push-Rear (über Spannungsteiler)
-A5  → Magazin-Sensor (für später)
-A3, A4 → Reserve (z.B. I2C-Display)
+A3  → Servo Signal Tabak-Tilt-Schwenkwand (Servo-Lib auch auf Analog-Pin)
+A4  → L298N-Mini IN1 → Hubmagnet #1 (Front-Knock)
+A5  → Magazin-Lichtschranke (Gabellichtschranke, direkt 5 V)
+
+# L298N-Mini IN2, IN4: hardwire auf GND (statisch LOW, da Solenoide nur EIN/AUS brauchen)
 ```
 
 ### Pin-Belegung ESP-WROOM-32 (Übergangslösung)
@@ -158,7 +179,7 @@ GPIO 39 → Magazin-Sensor
 ## Stopfsequenz (Programm-Logik)
 
 1. **Referenzfahrt** — Trommel per Schlitzsensor auf Startposition
-2. **Tabak dosieren** — Schrittmotor dreht Förderschnecke; Tabak wandert ins Stopfrohr
+2. **Tabak dosieren („Knocking")** — ~8× wiederholt: Tabak-Servo schwenkt Tilt-Wand, Hubmagnet #1 schlägt seitlich gegen Trog (bricht Brücken), Hubmagnet #2 drückt von oben → Tabak rieselt in Stopfrohr-Position
 3. **Pressen** — Presse-Motor verdichtet Tabak; Initiator Press signalisiert Endposition
 4. **Hülse aufsetzen** — Servo schiebt Hülse aufs Stopfrohr
 5. **Stopfen** — Pusher-Motor schiebt Tabak in Hülse; Initiator Push-Front = Endposition
@@ -260,7 +281,8 @@ Nano → Pi:
 
 - **Pusher darf sich nicht drehen, nur linear bewegen** → Linearführung mit zwei Schienen
 - **Tabak muss VOR dem Stopfen auf < Hülsen-ID gepresst werden** (Kniehebel oder Spindel)
-- **Förderschnecke OHNE Kern** funktioniert besser als mit Kern (Fraens-Erkenntnis: zerkleinert Tabak nicht)
+- **Tabak-Dosierung in der Vollautomatik = Tilt + Schlag**, nicht Förderschnecke! Förderschnecke war Fraens' teil-automatische Variante; die Vollautomatik nutzt Servo-Schwenkwand + 2 Hubmagnete. Vorteil: Tabak wird nicht zerkleinert
+- **Zwei Hubmagnete statt einem** — einer bricht Brücken im Vorrat (Front-Knock), der andere drückt Tabak in Position (Top-Druck). Ein Solenoid allein reicht oft nicht für sauberen Tabak-Fluss
 - **Glattes Stopfrohr für Vollautomatik** (keine Widerhaken — die sind nur für Hand-Stopfer)
 - **Slip-on Tube Außendurchmesser ~7,3mm ideal** für 7,5mm Hülsen-ID; bei 7mm OD: Schrumpfschlauch oder 3D-Druck-Trichter ergänzen
 - **Alle GNDs müssen verbunden sein!** Pi, Nano, A4988, L298N, Buck, Netzteil, Servo — sonst funktionieren Steuersignale nicht zuverlässig
@@ -283,6 +305,8 @@ Nano → Pi:
 - Amazon: A4988, L298N, Buck-Konverter, NEMA 17, Servo SG90, ESP32, Arduino Nano, Pi Zero 2 W
 - Initiatoren: "LJ8A3-2-Z/BX" auf Amazon (~5€/Stück)
 - Drucktaster: 12 mm Panel-Mount oder Mini-Tactile-Button (~1–3€/Stück)
+- Hubmagnete: **Heschen HS-0530B** (12V, ~5mm Hub, ~4N, ~0,5A) — Amazon, ~8–12€/Stück, im 2er-Pack
+- L298N Mini-Modul (für Solenoide): das beim Tausch ausgemusterte Modul reicht, sonst neu ~3€
 
 ### Mechanik
 - T8 Leitspindel + Mutter: Amazon Set ~6€

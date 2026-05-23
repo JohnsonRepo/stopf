@@ -41,8 +41,14 @@ constexpr uint8_t PIN_SERVO       = 11;
 // Kein externer Widerstand nötig.
 constexpr uint8_t PIN_BUTTON      = 12;
 
-// --- Status-LED (interne LED auf D13) ---
+// --- D13: aktuell Status-LED, geplant Hubmagnet #2 ---
+// Solange die Tabak-Dosierung noch nicht verkabelt ist, nutzt main.cpp D13
+// als Onboard-Status-LED (PIN_STATUS_LED). Sobald die Tilt+Solenoid-
+// Mechanik gebaut wird, wird D13 auf L298N-Mini IN3 (PIN_SOLENOID_2)
+// umgewidmet — die Variable PIN_STATUS_LED fliegt dann aus main.cpp raus.
+// Beide Symbole zeigen vorerst auf denselben physischen Pin.
 constexpr uint8_t PIN_STATUS_LED  = 13;
+constexpr uint8_t PIN_SOLENOID_2  = 13;  // (geplant — noch nicht im Code verwendet)
 
 // --- Initiatoren (induktive Näherungssensoren über Spannungsteiler) ---
 // Hinweis: 12V Sensorsignal über 10kΩ + 7,5kΩ Spannungsteiler auf 5V
@@ -50,7 +56,12 @@ constexpr uint8_t PIN_INIT_PRESS      = A0;
 constexpr uint8_t PIN_INIT_PUSH_FRONT = A1;
 constexpr uint8_t PIN_INIT_PUSH_REAR  = A2;
 
-// --- Reserve ---
-constexpr uint8_t PIN_RESERVE_A3      = A3;
-constexpr uint8_t PIN_RESERVE_A4      = A4;
-constexpr uint8_t PIN_MAGAZIN_SENSOR  = A5;  // für später (Hülsenmagazin)
+// --- Tabak-Dosierung (Tilt-Schwenkwand + 2 Solenoide) ---
+// Mechanismus aus Fraens' vollautomatischer Variante:
+//   - Tabak-Servo (Mini-Servo) schwenkt eine Tilt-Wand vor/zurück
+//   - 2× Heschen HS-0530B Hubmagnete pulsieren (Front-Knock + Top-Druck)
+//   - L298N-Mini-Modul als 2-Kanal-Solenoid-Treiber
+constexpr uint8_t PIN_TABAK_SERVO  = A3;  // Servo-Lib läuft auf Analog-Pins
+constexpr uint8_t PIN_SOLENOID_1   = A4;  // → L298N-Mini IN1 (Front-Knock)
+
+constexpr uint8_t PIN_MAGAZIN_SENSOR = A5;  // Gabellichtschranke, direkt 5 V-Logik

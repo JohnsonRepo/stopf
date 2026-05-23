@@ -875,6 +875,153 @@ PSU ──► [F1 Hauptsicherung] ──┬──► [NOTAUS-Schalter] ──►
 
 ---
 
+## 9. Tabak-Dosierung (Tilt-Schwenkwand + 2 Solenoide)
+
+Mechanismus aus Fraens' **vollautomatischer** Maschine (nicht zu verwechseln mit
+der Förderschnecke der teil-automatischen Variante). Drei Aktoren arbeiten
+parallel in der „Knocking"-Phase, dosieren Tabak per Schwerkraft + Impuls —
+Tabak wird nicht zerkleinert.
+
+### Funktionsprinzip
+
+```
+              ╔════════════════════════════════╗
+              ║   Tabakvorrat (Acryl-Trog)     ║
+              ║                                ║
+   ●═══════→  ║  ║║║   ║║║   ║║║   ║║║         ║   ← Hubmagnet #1 (Front-Knock)
+   "Front-    ║                                ║     pulst seitlich gegen Trog-Wand
+   Schlag"    ║                                ║     bricht Tabak-Brücken
+              ║                                ║
+              ╚═════════╤══════════════════════╝
+                        │ Tabak rieselt nach
+                ┌───────┴────────┐
+                │ Tilt-Servo     │ ← Tabak-Servo (A3)
+                │ Schwenkwand    │   schwenkt vor/zurück, meter den Fluss
+                └───────┬────────┘
+                        │
+                  ●═════→ Hubmagnet #2 (Top-Druck)
+                  "Top-Schlag"   pulst von oben → drückt Tabak in Stopfrohr
+                                  = Part-83_Ausgefahren im STEP
+                        │
+                        ▼
+                  Stopfrohr / Press-Kammer
+```
+
+### Komponenten
+
+| Bauteil | Spec | Aufgabe |
+|---|---|---|
+| **Tabak-Servo** | SG90 oder Tower Pro Tiny-S, ~10 g, 5 V | schwenkt Tilt-Wand 8× pro Dosis |
+| **Hubmagnet #1** | Heschen HS-0530B, 12 V, 5 mm Hub, 3–5 N, 0,5 A | seitliches Klopfen am Vorratstrog |
+| **Hubmagnet #2** | Heschen HS-0530B (identisch) | Drücken von oben |
+| **L298N Mini** | 2-Kanal, ~1,5 A je Kanal | treibt beide Solenoide. Das aus dem Motor-Setup ausgetauschte Modul ist hier ideal — fehlende ENA/ENB sind für Solenoide nicht hinderlich |
+| Optional: 2× Flyback-Diode | 1N5819 oder 1N4007 | zusätzlich zur L298N-internen — bei Knock-Pulsen oft unnötig |
+
+### Verkabelung L298N Mini → Solenoide
+
+```
+                  L298N Mini-Modul
+                  ┌─────────────────────────────────┐
+   12 V ────────► │ V_S                              │
+                  │            ║ ║ 470 µF / 25 V    │
+                  │            ─ ─ Elko parallel    │
+                  │                                  │
+                  │ Out1 ●───────[Solenoid #1]────● │  ← Heschen HS-0530B
+                  │ Out2 ●─────────────────────────●│    "Front-Knock"
+                  │                                  │
+   Nano A4 ─────► │ IN1  (PIN_SOLENOID_1)            │
+                  │ IN2 ◄── HARDWIRE GND             │  ← (kein Nano-Pin, fest auf GND)
+                  │                                  │
+                  │ Out3 ●───────[Solenoid #2]────● │  ← Heschen HS-0530B
+                  │ Out4 ●─────────────────────────●│    "Top-Druck"
+                  │                                  │
+   Nano D13 ────► │ IN3  (PIN_SOLENOID_2)            │
+                  │ IN4 ◄── HARDWIRE GND             │
+                  │                                  │
+                  │ GND ────────────────────────────│ ◄── Sternpunkt
+                  └─────────────────────────────────┘
+```
+
+**Steuerlogik pro Solenoid:**
+
+| Nano-Pin | Solenoid-Zustand |
+|---|---|
+| HIGH | EIN (Out_a HIGH, Out_b LOW via Hardwire) |
+| LOW | AUS (Out_a LOW, Out_b LOW → Bremse) |
+
+> **IN2 und IN4 müssen aktiv auf GND gelegt werden** (Drahtbrücke am Modul) —
+> ein floatender L298N-Eingang ist undefiniert und kann den Solenoid unbeabsichtigt
+> ansteuern.
+
+### Spannungs-Realität: L298N-Drop
+
+L298N hat **~2,5 V** internen Spannungsabfall (Sättigungsspannung der Bipolar-Treiber).
+
+| | 12 V Versorgung | ~9,5 V am Solenoid |
+|---|---|---|
+| Nominal-Zugkraft Heschen HS-0530B | ~4 N @ 12 V | ~2,5–3 N @ 9,5 V |
+| Für Tabak-Knock ausreichend? | ja, mit Reserve | **ja** — Tabak wiegt nichts, kurzer Impuls reicht |
+
+### Sicherung F4 (zusätzlich zu F1/F2/F3)
+
+```
+12 V-Bus ──[F4: 1 A T]──► L298N-Mini V_S
+```
+
+| Position | Wert | Begründung |
+|---|---|---|
+| **F4 L298N-Mini-Eingang** | 1 A T | 2× 0,5 A Solenoide bei gleichzeitigem Pulse + Reserve. Schmelzsicherung 5×20 mm |
+
+Trennt den Tabak-Dosier-Zweig vom Rest des 12-V-Busses — wenn ein Solenoid mal
+kurzschließt (Wicklung durchschmort), bleibt der Rest der Maschine in Betrieb.
+
+### Steuerlogik (geplant — Statemachine v0.2)
+
+Pseudo-Code für eine Knock-Sequenz:
+
+```cpp
+void knock(uint8_t cycles = 8) {
+    for (uint8_t i = 0; i < cycles; i++) {
+        // Servo schwenkt nach hinten + beide Magnete pulsen kurz
+        tabakServo.write(TABAK_SERVO_REAR);
+        digitalWrite(PIN_SOLENOID_1, HIGH);
+        digitalWrite(PIN_SOLENOID_2, HIGH);
+        delay(KNOCK_PULSE_ON_MS);     // ~80 ms
+
+        digitalWrite(PIN_SOLENOID_1, LOW);
+        digitalWrite(PIN_SOLENOID_2, LOW);
+        delay(KNOCK_PULSE_OFF_MS);    // ~120 ms (Erholung)
+
+        tabakServo.write(TABAK_SERVO_FRONT);
+        delay(KNOCK_PULSE_OFF_MS);
+    }
+    tabakServo.write(TABAK_SERVO_FRONT);  // Endposition
+}
+```
+
+Default-Parameter (config.h, später ergänzt):
+- `TABAK_SERVO_REAR  = 60°`, `TABAK_SERVO_FRONT = 30°` — initial schätzen, mechanisch justieren
+- `KNOCK_PULSE_ON_MS = 80`  (Solenoid an)
+- `KNOCK_PULSE_OFF_MS = 120` (Pause — wichtig: Heschen sind nicht für 100 % Duty cycle ausgelegt)
+- `KNOCK_CYCLES = 8` (analog zu Fraens' Default)
+
+### Duty-Cycle-Warnung
+
+Heschen HS-0530B sind **intermittierende Solenoide** — nicht für Dauer-ON ausgelegt:
+
+| Duty Cycle | Wirkung |
+|---|---|
+| < 30 % | sicher, dauerhaft betreibbar |
+| 30–50 % | erlaubt, leicht warm |
+| > 50 % oder Dauer-ON | Coil überhitzt, Magnet versagt thermisch |
+
+→ Standard-Knock-Pattern (80 ms on / 120 ms off = **40 % Duty**, 8× in 1,6 s, dann lange Pause) ist unkritisch.
+
+> **NIE** den Solenoid „testweise" für mehrere Sekunden HIGH halten — er wird heiß
+> und kann durchbrennen. Maximaler Einzelpuls < 1 Sekunde.
+
+---
+
 ## Verwandte Dokumente
 
 - [`pinout.md`](pinout.md) — vollständige Pin-zu-Bauteil-Tabelle
