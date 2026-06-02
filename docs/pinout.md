@@ -22,7 +22,7 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | D10 | `PIN_PUSHER_IN4` | Pusher Richtung B | L298N IN4 | blau | digital |
 | D11 | `PIN_SERVO` | Servo-Signal Hülsen-Schieber | SG90 (orange Litze) | orange | **PWM** (Servo-Library) |
 | D12 | `PIN_BUTTON` | Start-Taster | mechanischer Drucktaster | grau | **active LOW** (Pull-up intern) |
-| D13 | `PIN_SOLENOID_2` | Hubmagnet #2 (Top-Druck) | L298N-Mini IN3 | weiß | digital ON/OFF (Status-LED umgewidmet) |
+| D13 | `PIN_SOL_TOP` | Hubmagnet #2 Top-Druck | L298N-Mini IN3 | blau | digital; **D13 ist nicht mehr Status-LED!** |
 
 ### Analoge Pins (nutzbar als digital, hier teils analog)
 
@@ -31,9 +31,9 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | A0 | `PIN_INIT_PRESS` | Initiator Press | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k Spannungsteiler | active LOW |
 | A1 | `PIN_INIT_PUSH_FRONT` | Initiator Pusher vorne | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
 | A2 | `PIN_INIT_PUSH_REAR` | Initiator Pusher hinten | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
-| A3 | `PIN_TABAK_SERVO` | Servo Tabak-Tilt-Schwenkwand | SG90/Tiny-S (Signal) | Servo-Lib, analog-pin als digital genutzt |
-| A4 | `PIN_SOLENOID_1` | Hubmagnet #1 (Front-Knock) | L298N-Mini IN1 | digital ON/OFF (Heschen HS-0530B via L298N-Mini) |
-| A5 | `PIN_MAGAZIN_SENSOR` | Magazin-Gabellichtschranke | Oniissy / Standard-Opto | direkt 5 V-Logik, kein Spannungsteiler |
+| A3 | `PIN_TABAK_SERVO` | Servo Tabak-Tilt-Schwenkwand | SG90/Tiny-S | orange | **PWM** (Servo-Library) |
+| A4 | `PIN_SOL_FRONT` | Hubmagnet #1 Front-Knock | L298N-Mini IN1 | blau | digital |
+| A5 | `PIN_MAGAZIN_SENSOR` | Magazin-Optosensor | Oniissy Gabellichtschranke | direkt 5 V-Logik | für später |
 
 ### Versorgungs-Pins
 
@@ -102,6 +102,38 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | 1A / 1B | NEMA 17 Spule A | (meist schwarz/grün) |
 | 2A / 2B | NEMA 17 Spule B | (meist rot/blau) |
 | **Vref-Poti** | mit Multimeter messen | **0,7 ... 1,0 V** vor erstem Anlauf |
+
+---
+
+## L298N Mini-Modul (Solenoid-Treiber, 2-Kanal)
+
+> Kleines Modul **ohne** ENA/ENB (Always-Enabled). Ideal für Solenoide, die nur
+> EIN/AUS brauchen. IN2 und IN4 werden hardwired auf GND verdrahtet.
+
+| L298N-Mini-Pin | Verbindung | Anmerkung |
+|---|---|---|
+| V_S (12 V) | 12 V Bus | Motor-Versorgung |
+| GND | GND-Sternpunkt | |
+| IN1 | Nano **A4** | Hubmagnet #1 Front-Knock |
+| IN2 | **GND** (hardwired) | statisch LOW |
+| IN3 | Nano **D13** | Hubmagnet #2 Top-Druck |
+| IN4 | **GND** (hardwired) | statisch LOW |
+| OUT1/OUT2 | Heschen HS-0530B #1 (Front-Knock) | Polarität egal |
+| OUT3/OUT4 | Heschen HS-0530B #2 (Top-Druck) | Polarität egal |
+
+> ⚠️ **~2,5 V interner Spannungsabfall** am L298N Mini → ~9,5 V am Solenoid statt 12 V → ~63 % Nennkraft.
+> Für Knock-Anwendung (kurze Pulse) ausreichend.
+
+---
+
+## Heschen HS-0530B Solenoid (2 Stück)
+
+| Litzenfarbe | Funktion | Anschluss |
+|---|---|---|
+| beliebig (2-adrig, unpolar) | Solenoid-Spule | L298N-Mini OUT1/OUT2 bzw. OUT3/OUT4 |
+
+> Solenoide sind **unpolar** — Richtung egal. Flyback-Diode 1N5819 parallel zur Spule
+> empfohlen (zusätzlich zur L298N-internen).
 
 ---
 

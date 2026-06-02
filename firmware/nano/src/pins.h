@@ -1,11 +1,11 @@
 // =====================================================
 // pins.h
 // Zentrale Pin-Belegung für Arduino Nano
-// Stopfmaschine v0.1
+// Stopfmaschine v0.2
 // =====================================================
 #pragma once
 
-// --- A4988 (Schrittmotor / Förderschnecke) ---
+// --- A4988 (Schrittmotor / Trommelmagazin-Antrieb) ---
 constexpr uint8_t PIN_STEPPER_STEP = 2;
 constexpr uint8_t PIN_STEPPER_DIR  = 3;
 constexpr uint8_t PIN_STEPPER_EN   = 4;   // EN ist invertiert: LOW = aktiv
@@ -41,14 +41,10 @@ constexpr uint8_t PIN_SERVO       = 11;
 // Kein externer Widerstand nötig.
 constexpr uint8_t PIN_BUTTON      = 12;
 
-// --- D13: aktuell Status-LED, geplant Hubmagnet #2 ---
-// Solange die Tabak-Dosierung noch nicht verkabelt ist, nutzt main.cpp D13
-// als Onboard-Status-LED (PIN_STATUS_LED). Sobald die Tilt+Solenoid-
-// Mechanik gebaut wird, wird D13 auf L298N-Mini IN3 (PIN_SOLENOID_2)
-// umgewidmet — die Variable PIN_STATUS_LED fliegt dann aus main.cpp raus.
-// Beide Symbole zeigen vorerst auf denselben physischen Pin.
-constexpr uint8_t PIN_STATUS_LED  = 13;
-constexpr uint8_t PIN_SOLENOID_2  = 13;  // (geplant — noch nicht im Code verwendet)
+// --- L298N Mini-Modul (Solenoide / Tabak-Knocking) ---
+// IN2 und IN4 werden hardwired auf GND (Solenoide brauchen nur EIN/AUS).
+// D13 war onboard Status-LED, jetzt IN3 für Hubmagnet #2 Top-Druck.
+constexpr uint8_t PIN_SOL_TOP     = 13;   // L298N-Mini IN3 → Heschen HS-0530B Top-Druck
 
 // --- Initiatoren (induktive Näherungssensoren über Spannungsteiler) ---
 // Hinweis: 12V Sensorsignal über 10kΩ + 7,5kΩ Spannungsteiler auf 5V
@@ -58,10 +54,11 @@ constexpr uint8_t PIN_INIT_PUSH_REAR  = A2;
 
 // --- Tabak-Dosierung (Tilt-Schwenkwand + 2 Solenoide) ---
 // Mechanismus aus Fraens' vollautomatischer Variante:
-//   - Tabak-Servo (Mini-Servo) schwenkt eine Tilt-Wand vor/zurück
+//   - Tabak-Servo schwenkt Tilt-Wand vor/zurück
 //   - 2× Heschen HS-0530B Hubmagnete pulsieren (Front-Knock + Top-Druck)
 //   - L298N-Mini-Modul als 2-Kanal-Solenoid-Treiber
-constexpr uint8_t PIN_TABAK_SERVO  = A3;  // Servo-Lib läuft auf Analog-Pins
-constexpr uint8_t PIN_SOLENOID_1   = A4;  // → L298N-Mini IN1 (Front-Knock)
+constexpr uint8_t PIN_TABAK_SERVO  = A3;  // Servo-Lib läuft auch auf Analog-Pins
+constexpr uint8_t PIN_SOL_FRONT    = A4;  // → L298N-Mini IN1 (Front-Knock)
 
-constexpr uint8_t PIN_MAGAZIN_SENSOR = A5;  // Gabellichtschranke, direkt 5 V-Logik
+// --- Magazin-Lichtschranke (Gabellichtschranke, direkt 5V-Logik) ---
+constexpr uint8_t PIN_MAGAZIN_SENSOR = A5;

@@ -773,7 +773,65 @@ Den **kleinen lokalen Elko** an die Servo-eigene Pigtail-Litze löten (rot=VCC, 
 
 ---
 
-## 7. Start-Taster (mechanisch, momentary)
+## 7. Solenoide / Tabak-Knocking (Heschen HS-0530B)
+
+```
+              ┌──────────────────────────────┐
+   12 V ════► │ V_S                 OUT1 │══► Solenoid #1 + (Front-Knock)
+              │                     OUT2 │══► Solenoid #1 −
+              │                     OUT3 │══► Solenoid #2 + (Top-Druck)
+              │                     OUT4 │══► Solenoid #2 −
+              │                          │
+   A4 ──────► │ IN1  (Nano → Front-Knock) │
+   GND ─────► │ IN2  (hardwired GND)      │
+   D13 ─────► │ IN3  (Nano → Top-Druck)   │
+   GND ─────► │ IN4  (hardwired GND)      │
+              │                          │
+              │ GND ─────────────────── │ ◄── GND-Sternpunkt
+              └──────────────────────────────┘
+                       │
+                     ║ ║  optionaler 470 µF / ≥ 25 V Elko
+                     ─ ─  an V_S (Solenoid-Anlaufstrom puffern)
+                      │
+                     GND
+```
+
+### Flyback-Dioden
+
+Solenoide erzeugen beim Abschalten Spannungsspitzen. L298N hat interne Dioden,
+aber externe 1N5819 direkt an der Spule verlängern die Lebensdauer:
+
+```
+   L298N OUT1 ●───●───────● Solenoid +
+                  │
+                 ─┴─ 1N5819   Kathode an OUT1 (+)
+                  ▲            Anode an OUT2 (−)
+                 ─┬─
+                  │
+   L298N OUT2 ●───●───────● Solenoid −
+```
+
+### Knocking-Zyklus (Logik im Pi)
+
+```python
+for _ in range(KNOCK_CYCLES):          # 8×
+    nano.send("knock1 on")             # Front-Knock + Tabak-Servo aktivieren
+    nano.send("tabakservo 80")
+    nano.send("knock2 on")             # Top-Druck
+    sleep(SOL_PULSE_MS / 1000)
+    nano.send("knock1 off")
+    nano.send("knock2 off")
+    nano.send("tabakservo 140")
+    sleep(SOL_PAUSE_MS / 1000)
+```
+
+> **Duty Cycle beachten:** Heschen HS-0530B ist für **intermittierenden Betrieb**
+> ausgelegt. Solenoid nie dauerhaft unter Strom lassen — überhitzt die Spule.
+> Puls 50 ms, Pause 100 ms ist safe.
+
+---
+
+## 8. Start-Taster (mechanisch, momentary)
 
 ```
                                     +5 V (intern)
@@ -832,7 +890,7 @@ Doppel des internen Pull-ups ohne echten Mehrwert.
 
 ---
 
-## 8. Notaus + Sicherungen (Hardware-seitig, geplant)
+## 9. Notaus + Sicherungen (Hardware-seitig, geplant)
 
 ```mermaid
 flowchart LR
