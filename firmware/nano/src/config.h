@@ -21,11 +21,11 @@
 constexpr unsigned long WATCHDOG_TIMEOUT_MS = 5000;  // ohne Pi-Befehl → Stop
 constexpr unsigned long COMMAND_TIMEOUT_MS  = 30000; // max. Dauer für eine Aktion
 
-// --- Schrittmotor (NEMA 17 mit T8-Spindel, 2mm Pitch) ---
+// --- Schrittmotor (NEMA 17 / Trommelmagazin-Antrieb) ---
 constexpr int   STEPPER_STEPS_PER_REV = 200;
 constexpr float STEPPER_MAX_SPEED     = 800.0f;   // Steps/Sekunde
 constexpr float STEPPER_ACCEL         = 1500.0f;  // Steps/s²
-constexpr int   STEPPER_FEED_STEPS    = 400;      // Default-Tabakdosis
+constexpr int   DRUM_STEPS_PER_POS    = 200;      // Steps pro Hülsenposition (anpassen!)
 
 // --- DC-Motoren (PWM 0–255 auf ENA/ENB) ---
 // L298N Standard-Modul mit ENA/ENB: Drehzahl-Regelung in beide Richtungen.
@@ -34,10 +34,19 @@ constexpr uint8_t PUSHER_SPEED_DEFAULT = 220;
 constexpr unsigned long PRESS_TIMEOUT_MS  = 4000;
 constexpr unsigned long PUSHER_TIMEOUT_MS = 4000;
 
-// --- Servo (Hülsen-Schieber) ---
+// --- Servo Hülsen-Schieber ---
 constexpr int SERVO_POS_HOME = 5;    // Hülse fertig aufgeschoben
 constexpr int SERVO_POS_LOAD = 85;   // Hülse aufnehmen
 constexpr int SERVO_MOVE_DELAY_MS = 500;
+
+// --- Servo Tabak-Tilt-Schwenkwand ---
+constexpr int TABAK_SERVO_FRONT = 80;   // Schwenkwand vorne (drückt Tabak)
+constexpr int TABAK_SERVO_REAR  = 140;  // Schwenkwand hinten (Ausgangsposition)
+
+// --- Solenoide / Tabak-Knocking (Heschen HS-0530B, 12V) ---
+constexpr int          KNOCK_CYCLES   = 8;    // Wiederholungen pro Dosierzyklus
+constexpr unsigned long SOL_PULSE_MS  = 50;   // Solenoid-Puls-Dauer
+constexpr unsigned long SOL_PAUSE_MS  = 100;  // Pause zwischen Pulsen
 
 // --- Initiatoren (Logik) ---
 // NPN-Sensoren → bei Detektion ziehen sie nach LOW (über Spannungsteiler)

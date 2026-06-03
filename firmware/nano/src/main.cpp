@@ -1,21 +1,21 @@
 // =====================================================
 // main.cpp
-// Stopfmaschine - Arduino Nano Firmware (Test-Stage 0.1)
+// Stopfmaschine - Arduino Nano Firmware (Test-Stage 0.2)
 //
-// Zweck: Einzeltests aller Motoren und Sensoren über Serial.
-// Diese Version ist KEIN finaler Firmware-Stand, sondern eine
-// Testbench, mit der du jede Komponente einzeln durchprobieren
-// kannst, bevor die echte Stopfsequenz programmiert wird.
+// Zweck: Einzeltests aller Motoren, Solenoide und Sensoren über Serial.
 //
-// Befehle (per Serial Monitor oder vom Pi, 115200 Baud):
-//   help              → Übersicht
-//   status            → aktuelle Sensorwerte (inkl. button-Zustand)
-//   stepper <steps>   → Schrittmotor um N Steps drehen (negativ = rückwärts)
+// Befehle (115200 Baud):
+//   help                    → Übersicht
+//   status                  → Sensorwerte + button-Zustand
+//   stepper <steps>         → Trommel-Schrittmotor N Steps drehen
 //   press fwd|rev|stop
 //   pusher fwd|rev|stop
-//   servo <0..180>    → Servo auf Winkel fahren
-//   stop              → ALLES sofort aus
-//   ping              → antwortet "pong"
+//   servo <0..180>          → Hülsen-Servo (D11)
+//   tabakservo <0..180>     → Tabak-Tilt-Servo (A3)
+//   knock1 on|off           → Hubmagnet Front-Knock (A4)
+//   knock2 on|off           → Hubmagnet Top-Druck (D13)
+//   stop                    → ALLES sofort aus
+//   ping                    → antwortet "pong"
 // =====================================================
 
 #include <Arduino.h>
@@ -27,6 +27,7 @@
 // --- Globale Objekte ---
 AccelStepper stepper(AccelStepper::DRIVER, PIN_STEPPER_STEP, PIN_STEPPER_DIR);
 Servo tubeServo;
+Servo tabakServo;
 
 // --- Watchdog ---
 unsigned long lastCommandMs = 0;
@@ -41,6 +42,8 @@ void allMotorsOff() {
     digitalWrite(PIN_PUSHER_IN4, LOW);
     analogWrite(PIN_PRESS_ENA, 0);
     analogWrite(PIN_PUSHER_ENB, 0);
+    digitalWrite(PIN_SOL_FRONT, LOW);
+    digitalWrite(PIN_SOL_TOP, LOW);
 }
 
 void enableStepper() {
@@ -49,7 +52,6 @@ void enableStepper() {
 
 // L298N Standard-Modul mit ENA/ENB:
 //   Richtung über IN1/IN2 bzw. IN3/IN4, Drehzahl über ENA/ENB (PWM).
-//   Drehzahl-Regelung funktioniert in BEIDE Richtungen.
 void setPressMotor(const String& dir) {
     if (dir == "fwd") {
         digitalWrite(PIN_PRESS_IN1, HIGH);
@@ -116,16 +118,19 @@ void readSensors() {
 }
 
 void printHelp() {
-    Serial.println(F("=== Stopfmaschine Test-Firmware ==="));
-    Serial.println(F("help               - this list"));
-    Serial.println(F("ping               - connection test"));
-    Serial.println(F("status             - sensor readout"));
-    Serial.println(F("stepper <steps>    - move stepper N steps (+/-)"));
-    Serial.println(F("press fwd|rev|stop - press motor"));
-    Serial.println(F("pusher fwd|rev|stop- pusher motor"));
-    Serial.println(F("servo <0..180>     - servo angle"));
-    Serial.println(F("stop               - emergency stop ALL"));
-    Serial.println(F("==================================="));
+    Serial.println(F("=== Stopfmaschine Test-Firmware v0.2 ==="));
+    Serial.println(F("help                    - this list"));
+    Serial.println(F("ping                    - connection test"));
+    Serial.println(F("status                  - sensor readout"));
+    Serial.println(F("stepper <steps>         - drum stepper N steps (+/-)"));
+    Serial.println(F("press fwd|rev|stop      - press motor"));
+    Serial.println(F("pusher fwd|rev|stop     - pusher motor"));
+    Serial.println(F("servo <0..180>          - tube servo D11"));
+    Serial.println(F("tabakservo <0..180>     - tabak tilt servo A3"));
+    Serial.println(F("knock1 on|off           - solenoid front-knock A4"));
+    Serial.println(F("knock2 on|off           - solenoid top-push D13"));
+    Serial.println(F("stop                    - emergency stop ALL"));
+    Serial.println(F("========================================"));
 }
 
 // --- Befehlsverarbeitung ---
@@ -135,7 +140,6 @@ void handleCommand(String cmd) {
 
     lastCommandMs = millis();
     watchdogTripped = false;
-    digitalWrite(PIN_STATUS_LED, HIGH);
 
     if (cmd == "help") {
         printHelp();
@@ -165,11 +169,30 @@ void handleCommand(String cmd) {
         setPusherMotor(cmd.substring(7));
     }
     else if (cmd.startsWith("servo ")) {
-        int angle = cmd.substring(6).toInt();
-        angle = constrain(angle, 0, 180);
+        int angle = constrain(cmd.substring(6).toInt(), 0, 180);
         tubeServo.write(angle);
         Serial.print("ok servo ");
         Serial.println(angle);
+    }
+    else if (cmd.startsWith("tabakservo ")) {
+        int angle = constrain(cmd.substring(11).toInt(), 0, 180);
+        tabakServo.write(angle);
+        Serial.print("ok tabakservo ");
+        Serial.println(angle);
+    }
+    else if (cmd.startsWith("knock1 ")) {
+        String state = cmd.substring(7);
+        state.trim();
+        digitalWrite(PIN_SOL_FRONT, state == "on" ? HIGH : LOW);
+        Serial.print("ok knock1 ");
+        Serial.println(state);
+    }
+    else if (cmd.startsWith("knock2 ")) {
+        String state = cmd.substring(7);
+        state.trim();
+        digitalWrite(PIN_SOL_TOP, state == "on" ? HIGH : LOW);
+        Serial.print("ok knock2 ");
+        Serial.println(state);
     }
     else {
         Serial.print("err unknown_command:");
@@ -190,27 +213,30 @@ void setup() {
     pinMode(PIN_PUSHER_IN4, OUTPUT);
     pinMode(PIN_PRESS_ENA, OUTPUT);   // PWM
     pinMode(PIN_PUSHER_ENB, OUTPUT);  // PWM
-    pinMode(PIN_STATUS_LED, OUTPUT);
+    pinMode(PIN_SOL_FRONT, OUTPUT);   // Hubmagnet Front-Knock
+    pinMode(PIN_SOL_TOP, OUTPUT);     // Hubmagnet Top-Druck
 
     pinMode(PIN_INIT_PRESS, INPUT);
     pinMode(PIN_INIT_PUSH_FRONT, INPUT);
     pinMode(PIN_INIT_PUSH_REAR, INPUT);
-    pinMode(PIN_BUTTON, INPUT_PULLUP);          // Taster gegen GND, intern hochgezogen
-    pinMode(PIN_MAGAZIN_SENSOR, INPUT_PULLUP);  // Opto-Modul mit Open-Collector profitiert; eigener Pull-up des Moduls dominiert wenn vorhanden
+    pinMode(PIN_BUTTON, INPUT_PULLUP);
+    pinMode(PIN_MAGAZIN_SENSOR, INPUT_PULLUP);  // Open-Collector-Opto: externer Pull-up des Moduls dominiert wenn vorhanden
 
-    // Schrittmotor-Setup
+    // Schrittmotor-Setup (Trommelmagazin)
     stepper.setMaxSpeed(STEPPER_MAX_SPEED);
     stepper.setAcceleration(STEPPER_ACCEL);
 
-    // Servo
+    // Servos
     tubeServo.attach(PIN_SERVO);
     tubeServo.write(SERVO_POS_HOME);
+
+    tabakServo.attach(PIN_TABAK_SERVO);
+    tabakServo.write(TABAK_SERVO_REAR);
 
     // Sicher starten
     allMotorsOff();
     lastCommandMs = millis();
 
-    // Begrüßung
     Serial.println();
     Serial.print(F("ready firmware="));
     Serial.println(FIRMWARE_VERSION);
@@ -240,10 +266,8 @@ void loop() {
     // 3) Watchdog: lange keine Kommunikation → alles aus
     if (!watchdogTripped &&
         (millis() - lastCommandMs > WATCHDOG_TIMEOUT_MS)) {
-        // Nur beim allerersten Mal nach Boot nicht greifen
         if (lastCommandMs > 0) {
             allMotorsOff();
-            digitalWrite(PIN_STATUS_LED, LOW);
             Serial.println("warn watchdog_timeout motors_off");
             watchdogTripped = true;
         }
