@@ -41,10 +41,17 @@ constexpr uint8_t PIN_SERVO       = 11;
 // Kein externer Widerstand nötig.
 constexpr uint8_t PIN_BUTTON      = 12;
 
-// --- L298N Mini-Modul (Solenoide / Tabak-Knocking) ---
-// IN2 und IN4 werden hardwired auf GND (Solenoide brauchen nur EIN/AUS).
-// D13 war onboard Status-LED, jetzt IN3 für Hubmagnet #2 Top-Druck.
-constexpr uint8_t PIN_SOL_TOP     = 13;   // L298N-Mini IN3 → Heschen HS-0530B Top-Druck
+// --- Solenoid-Treiber (Tabak-Knocking) ---
+// HINWEIS: Das L298N-Mini-Modul hat die Dauer-/Halteströme der Solenoide NICHT
+// überlebt → Solenoide laufen jetzt an einem zweiten Standard-L298N (#2).
+// Steuerung unverändert: IN1/IN3 toggeln, IN2/IN4 hardwired GND, ENA/ENB per
+// Jumper dauerhaft HIGH (Solenoide brauchen nur EIN/AUS).
+// D13 war onboard Status-LED, jetzt Solenoid #2 (Top-Druck).
+//
+// EMPFOHLENE MIGRATION (sauberer + thermisch unkritisch): beide Solenoide auf
+// ein Logic-Level-MOSFET-Board legen — siehe docs/mosfet-driver.md. Pin-Namen
+// bleiben dann gleich (PIN_SOL_FRONT/PIN_SOL_TOP gehen direkt aufs MOSFET-Gate).
+constexpr uint8_t PIN_SOL_TOP     = 13;   // L298N #2 IN3 (bzw. MOSFET-Gate) → Heschen HS-0530B Top-Druck
 
 // --- Initiatoren (induktive Näherungssensoren über Spannungsteiler) ---
 // Hinweis: 12V Sensorsignal über 10kΩ + 7,5kΩ Spannungsteiler auf 5V
@@ -56,9 +63,18 @@ constexpr uint8_t PIN_INIT_PUSH_REAR  = A2;
 // Mechanismus aus Fraens' vollautomatischer Variante:
 //   - Tabak-Servo schwenkt Tilt-Wand vor/zurück
 //   - 2× Heschen HS-0530B Hubmagnete pulsieren (Front-Knock + Top-Druck)
-//   - L298N-Mini-Modul als 2-Kanal-Solenoid-Treiber
+//   - Treiber: Standard-L298N #2 (Mini-Modul ausgefallen) bzw. MOSFET-Board
+//     (siehe docs/mosfet-driver.md)
 constexpr uint8_t PIN_TABAK_SERVO  = A3;  // Servo-Lib läuft auch auf Analog-Pins
-constexpr uint8_t PIN_SOL_FRONT    = A4;  // → L298N-Mini IN1 (Front-Knock)
+constexpr uint8_t PIN_SOL_FRONT    = A4;  // → L298N #2 IN1 (bzw. MOSFET-Gate) (Front-Knock)
+
+// --- 3. DC-Motor (unidirektional, NEU) ---
+// Läuft nur in EINE Richtung → keine H-Brücke nötig, ein einzelner
+// Logic-Level-MOSFET (z. B. IRLZ44N) reicht. Treiber-Details + Pin-Frage
+// (der Nano hat KEINEN freien PWM-Pin mehr!) siehe docs/mosfet-driver.md.
+// Auf dem Nano daher nur als EIN/AUS über A5 möglich (Magazin-Sensor müsste
+// dafür weichen); echte Drehzahl-Regelung (PWM) → ESP32. Bewusst noch KEIN
+// Pin fest vergeben, bis Controller/Modus entschieden sind.
 
 // --- Magazin-Lichtschranke (Gabellichtschranke, direkt 5V-Logik) ---
 constexpr uint8_t PIN_MAGAZIN_SENSOR = A5;

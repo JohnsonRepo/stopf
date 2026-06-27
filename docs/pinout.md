@@ -22,7 +22,7 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | D10 | `PIN_PUSHER_IN4` | Pusher Richtung B | L298N IN4 | blau | digital |
 | D11 | `PIN_SERVO` | Servo-Signal Hülsen-Schieber | SG90 (orange Litze) | orange | **PWM** (Servo-Library) |
 | D12 | `PIN_BUTTON` | Start-Taster | mechanischer Drucktaster | grau | **active LOW** (Pull-up intern) |
-| D13 | `PIN_SOL_TOP` | Hubmagnet #2 Top-Druck | L298N-Mini IN3 | blau | digital; **D13 ist nicht mehr Status-LED!** |
+| D13 | `PIN_SOL_TOP` | Hubmagnet #2 Top-Druck | L298N #2 IN3 (bzw. MOSFET-Gate) | blau | digital; **D13 ist nicht mehr Status-LED!** |
 
 ### Analoge Pins (nutzbar als digital, hier teils analog)
 
@@ -32,7 +32,7 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | A1 | `PIN_INIT_PUSH_FRONT` | Initiator Pusher vorne | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
 | A2 | `PIN_INIT_PUSH_REAR` | Initiator Pusher hinten | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
 | A3 | `PIN_TABAK_SERVO` | Servo Tabak-Tilt-Schwenkwand | SG90/Tiny-S | orange | **PWM** (Servo-Library) |
-| A4 | `PIN_SOL_FRONT` | Hubmagnet #1 Front-Knock | L298N-Mini IN1 | blau | digital |
+| A4 | `PIN_SOL_FRONT` | Hubmagnet #1 Front-Knock | L298N #2 IN1 (bzw. MOSFET-Gate) | blau | digital |
 | A5 | `PIN_MAGAZIN_SENSOR` | Magazin-Optosensor | Oniissy Gabellichtschranke | direkt 5 V-Logik | für später |
 
 ### Versorgungs-Pins
@@ -105,15 +105,22 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 
 ---
 
-## L298N Mini-Modul (Solenoid-Treiber, 2-Kanal)
+## L298N Standard-Modul #2 (Solenoid-Treiber, 2-Kanal)
 
-> Kleines Modul **ohne** ENA/ENB (Always-Enabled). Ideal für Solenoide, die nur
-> EIN/AUS brauchen. IN2 und IN4 werden hardwired auf GND verdrahtet.
+> ⚠️ **Geändert:** Das ursprünglich vorgesehene **L298N-Mini** hat die
+> Solenoid-(Halte-)Ströme **nicht überlebt**. Die Solenoide hängen jetzt an einem
+> **zweiten Standard-L298N (#2)**. Für EIN/AUS-Betrieb ENA/ENB per Jumper
+> dauerhaft HIGH, Richtung fix über IN1/IN3 (IN2/IN4 auf GND).
+>
+> **Empfohlene Migration:** beide Solenoide auf ein Logic-Level-MOSFET-Board —
+> löst das Hitze-/Spannungsabfall-Problem komplett. Siehe
+> [`mosfet-driver.md`](mosfet-driver.md).
 
-| L298N-Mini-Pin | Verbindung | Anmerkung |
+| L298N #2-Pin | Verbindung | Anmerkung |
 |---|---|---|
-| V_S (12 V) | 12 V Bus | Motor-Versorgung |
+| V_S (12 V) | 12 V Bus + 470 µF Elko | Solenoid-Versorgung |
 | GND | GND-Sternpunkt | |
+| ENA / ENB | **Jumper auf HIGH** (5 V) | Always-Enabled für EIN/AUS |
 | IN1 | Nano **A4** | Hubmagnet #1 Front-Knock |
 | IN2 | **GND** (hardwired) | statisch LOW |
 | IN3 | Nano **D13** | Hubmagnet #2 Top-Druck |
@@ -121,8 +128,8 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | OUT1/OUT2 | Heschen HS-0530B #1 (Front-Knock) | Polarität egal |
 | OUT3/OUT4 | Heschen HS-0530B #2 (Top-Druck) | Polarität egal |
 
-> ⚠️ **~2,5 V interner Spannungsabfall** am L298N Mini → ~9,5 V am Solenoid statt 12 V → ~63 % Nennkraft.
-> Für Knock-Anwendung (kurze Pulse) ausreichend.
+> ⚠️ **~2,5 V interner Spannungsabfall** am L298N → ~9,5 V am Solenoid statt 12 V → ~63 % Nennkraft.
+> Für Knock-Anwendung (kurze Pulse) ausreichend; ein MOSFET-Board gäbe die vollen 12 V.
 
 ---
 
@@ -130,7 +137,7 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 
 | Litzenfarbe | Funktion | Anschluss |
 |---|---|---|
-| beliebig (2-adrig, unpolar) | Solenoid-Spule | L298N-Mini OUT1/OUT2 bzw. OUT3/OUT4 |
+| beliebig (2-adrig, unpolar) | Solenoid-Spule | L298N #2 OUT1/OUT2 bzw. OUT3/OUT4 |
 
 > Solenoide sind **unpolar** — Richtung egal. Flyback-Diode 1N5819 parallel zur Spule
 > empfohlen (zusätzlich zur L298N-internen).
@@ -176,24 +183,26 @@ Intermittierender Betrieb (kurze Pulse 50–150 ms), nicht für Dauer-ON ausgele
 
 | Litze | Funktion | Anschluss |
 |---|---|---|
-| Solenoid #1 (Front-Knock) +/− | DC-Pulse 12 V | L298N-Mini Out1 / Out2 |
-| Solenoid #2 (Top-Druck) +/− | DC-Pulse 12 V | L298N-Mini Out3 / Out4 |
+| Solenoid #1 (Front-Knock) +/− | DC-Pulse 12 V | L298N #2 Out1 / Out2 |
+| Solenoid #2 (Top-Druck) +/− | DC-Pulse 12 V | L298N #2 Out3 / Out4 |
 
-Steuerung via **L298N Mini-Modul** (2-Kanal):
+Steuerung via **Standard-L298N #2** (2-Kanal; Mini-Modul ausgefallen):
 
-| L298N-Mini Pin | Anschluss | Anmerkung |
+| L298N #2 Pin | Anschluss | Anmerkung |
 |---|---|---|
 | V_S (12 V) | 12 V-Bus über F4 (siehe Sicherungs-Liste) | +470 µF Elko parallel |
 | GND | GND-Sternpunkt | |
-| IN1 | Nano **A4** (`PIN_SOLENOID_1`) | Solenoid #1 EIN/AUS |
+| ENA / ENB | **Jumper HIGH** | Always-Enabled für EIN/AUS |
+| IN1 | Nano **A4** (`PIN_SOL_FRONT`) | Solenoid #1 EIN/AUS |
 | IN2 | **hardwire an GND** | statisch LOW (Solenoid braucht keine Drehrichtung) |
-| IN3 | Nano **D13** (`PIN_SOLENOID_2`) | Solenoid #2 EIN/AUS |
+| IN3 | Nano **D13** (`PIN_SOL_TOP`) | Solenoid #2 EIN/AUS |
 | IN4 | **hardwire an GND** | statisch LOW |
 | Out1 / Out2 | Solenoid #1 | Polung egal (Coil), aber konsistent anschließen |
 | Out3 / Out4 | Solenoid #2 | dito |
 
 > **Spannungsabfall L298N:** ~2,5 V intern → 12 V → ~9,5 V am Solenoid → ~63 %
-> Nennkraft. Für Knock-Anwendung ausreichend.
+> Nennkraft. Für Knock-Anwendung ausreichend. **Sauberer + volle 12 V:**
+> Logic-Level-MOSFET-Board statt L298N — siehe [`mosfet-driver.md`](mosfet-driver.md).
 
 > **Polung:** DC-Solenoide haben technisch keine Polarität (Spule), aber für
 > einheitliche Verkabelung: rot/+ an Out_a, schwarz/− an Out_b.
@@ -275,6 +284,15 @@ Die anderen beiden sind intern mit ihrem Diagonalpartner verbunden.
 | Initiator PushFront | GPIO 35 | ⚠️ input-only |
 | Initiator PushRear | GPIO 36 | ⚠️ input-only |
 | Magazin-Sensor | GPIO 39 | ⚠️ input-only |
+| Tabak-Servo | GPIO 18 | LEDC-PWM (fehlte bisher im Map) |
+| Solenoid #1 → MOSFET K1 | GPIO 17 | EIN/AUS bzw. Pick-and-Hold-PWM |
+| Solenoid #2 → MOSFET K2 | GPIO 16 | dito |
+| **3. DC-Motor → MOSFET K3** | **GPIO 23** | **LEDC-PWM (Drehzahl), unidirektional** |
+
+> **Solenoide + 3. Motor:** am ESP32 über ein Logic-Level-MOSFET-Board statt
+> L298N — siehe [`mosfet-driver.md`](mosfet-driver.md). Logic-Level-FET ist bei
+> 3,3 V Gate-Spannung **doppelt** Pflicht. Gewählte GPIOs sind sichere Outputs
+> (keine Strapping-Pins 0/2/5/12/15, keine Flash-Pins 6–11).
 
 ⚠️ **Spannungsteiler für ESP32:** 10 kΩ + **3,9 kΩ** (nicht 7,5 kΩ wie beim Nano).
    U_out = 12 V · 3,9/13,9 ≈ 3,37 V — innerhalb 3,3 V-Toleranz.
@@ -464,6 +482,7 @@ abfall-Probleme bei pulsenden Lasten (Schrittmotor, DC-Motor).
 ## Verwandte Dokumente
 
 - [`wiring.md`](wiring.md) — Schaltpläne und Spannungsteiler-Details
+- [`mosfet-driver.md`](mosfet-driver.md) — MOSFET-Treiber für 3. Motor & Solenoide
 - [`protocol.md`](protocol.md) — Serial-Befehle Pi ↔ Nano
 - [`../firmware/nano/src/pins.h`](../firmware/nano/src/pins.h) — Pin-Defines im Code
 - [`../firmware/nano/src/config.h`](../firmware/nano/src/config.h) — Konstanten (Speeds, Timeouts)

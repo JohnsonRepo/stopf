@@ -76,10 +76,11 @@ der „Knocking"-Phase:
 - 1× Mini-Servo (SG90 / Tower Pro Tiny-S Klasse), 5 V, ~10 g
 - 2× **Heschen HS-0530B** Push/Pull-Solenoid: 12 V DC, ~5 mm Hub, ~3–5 N Zugkraft,
   ~0,5 A pro Solenoid, Bauform ~14×30 mm, Duty cycle intermittent (für kurze Pulse, nicht Dauer)
-- 1× L298N **Mini-Modul** als 2-Kanal-Solenoid-Treiber — das alte ausgetauschte Modul
-  ist hier perfekt: fehlende ENA/ENB sind für Solenoide kein Nachteil, sondern ideal
-  (Always-Enabled-Betrieb passt zur EIN/AUS-Steuerung)
-- 2× Flyback-Diode 1N5819 oder 1N4007 (zusätzlich zur L298N-internen — optional aber sicher)
+- Solenoid-Treiber: aktuell **Standard-L298N #2** (ENA/ENB per Jumper HIGH).
+  ⚠️ Das L298N-Mini-Modul ist hier **ausgefallen** (Solenoid-Halteströme zu hoch).
+  Empfohlene saubere Lösung: **Logic-Level-MOSFET-Board** — bleibt thermisch kalt,
+  volle 12 V am Magnet, ermöglicht Pick-and-Hold-PWM. Siehe [`docs/mosfet-driver.md`](docs/mosfet-driver.md).
+- 2× Flyback-Diode 1N5819 oder 1N4007 (Pflicht am MOSFET, zusätzlich zur L298N-internen)
 
 ### Hülsen-Standard (King Size)
 - 84mm × 8mm OD, ~7,5mm ID
@@ -98,17 +99,19 @@ der „Knocking"-Phase:
 
 ### Motortreiber
 - **A4988** (Schrittmotor): 100µF Elko zwischen VMOT und GND PFLICHT, sonst stirbt der Treiber. Vref auf 0,7-1,0V einstellen vor erstem Anlauf.
-- **L298N Standard-Modul** (großes Board mit Kühlkörper, Schraubklemmen, ENA/ENB): 470µF Elko an 12V-Eingang. ENA/ENB für PWM-Drehzahlsteuerung in beide Richtungen. **Verwendung: Presse + Pusher (DC-Getriebemotoren).**
-- **L298N Mini-Modul** (kleines Modul ohne ENA/ENB, ~1,5 A je Kanal): **Verwendung: 2 Tabak-Solenoide** (Heschen HS-0530B). Always-Enabled-Verhalten der Mini-Variante passt ideal zu Solenoid-EIN/AUS-Steuerung. ~2,5 V interner Spannungsabfall → 12 V → ~9,5 V am Solenoid → ~63 % der Nennkraft, ausreichend für Knock-Anwendung.
+- **L298N Standard-Modul #1** (großes Board mit Kühlkörper, Schraubklemmen, ENA/ENB): 470µF Elko an 12V-Eingang. ENA/ENB für PWM-Drehzahlsteuerung in beide Richtungen. **Verwendung: Presse + Pusher (DC-Getriebemotoren).**
+- **L298N Standard-Modul #2**: **Verwendung: 2 Tabak-Solenoide** (Heschen HS-0530B), ENA/ENB per Jumper dauerhaft HIGH (EIN/AUS). ~2,5 V interner Spannungsabfall → ~9,5 V am Solenoid → ~63 % Nennkraft, für Knock ausreichend.
+  - ⚠️ **Das L298N-Mini-Modul ist hierfür ausgefallen** (Halteströme der Solenoide). Empfohlene saubere Ablösung: **Logic-Level-MOSFET-Board** (volle 12 V, thermisch kalt, nimmt auch den 3. Motor mit) — Details in [`docs/mosfet-driver.md`](docs/mosfet-driver.md).
+- **MOSFET (Logic-Level, z. B. IRLZ44N / 4-Kanal-Board)**: **Verwendung: 3. DC-Motor (unidirektional)** und optional Solenoide. Nur EIN/AUS bzw. PWM (keine Drehrichtung) → für den nur in eine Richtung laufenden 3. Motor ideal. ⚠️ Nano hat **keinen freien PWM-Pin** mehr → PWM-Drehzahl nur am ESP32. Siehe [`docs/mosfet-driver.md`](docs/mosfet-driver.md).
 
 ### Motoren / Aktoren
 - 1× NEMA 17 Schrittmotor (**Trommelmagazin-Drehung**, Belt 1:1 zur Drum)
-- 2× DC-Getriebemotor 12V (Presse + Pusher) — via L298N Standard-Modul mit ENA/ENB
+- 2× DC-Getriebemotor 12V (Presse + Pusher) — via L298N Standard-Modul #1 mit ENA/ENB
+- **1× DC-Getriebemotor 12V (3., unidirektional)** — via Logic-Level-MOSFET (keine H-Brücke nötig)
 - 1× SG90 Servo (Hülsen-Schieber, D11)
 - 1× SG90/Tiny-S Servo (Tabak-Tilt-Schwenkwand, A3)
 - 2× **Heschen HS-0530B** Hubmagnet 12 V (Tabak-Front-Knock + Tabak-Top-Druck)
-  via L298N Mini-Modul (2-Kanal, 12 V, Always-Enabled)
-- 1× kleiner Vibrationsmotor (Hülsenmagazin, später — noch nicht implementiert)
+  via L298N Standard-Modul #2 (Mini ausgefallen) bzw. MOSFET-Board
 
 ### Sensoren
 - **3× induktive Initiatoren** (LJ8A3-2-Z/BX **oder LJ12A3-4-Z/BX**, NPN, 12V): Press-Position, Push-Front, Push-Rear
@@ -144,15 +147,18 @@ D9  → L298N IN3 (Pusher Richtung A, digital)
 D10 → L298N IN4 (Pusher Richtung B, digital)
 D11 → Servo Signal Hülsen-Schieber (PWM)
 D12 → Start-Taster (mechanisch, INPUT_PULLUP, active LOW)
-D13 → L298N-Mini IN3 → Hubmagnet #2 (Top-Druck)  — Status-LED umgewidmet
+D13 → L298N #2 IN3 (bzw. MOSFET-Gate) → Hubmagnet #2 (Top-Druck)  — Status-LED umgewidmet
 A0  → Initiator Press (über Spannungsteiler)
 A1  → Initiator Push-Front (über Spannungsteiler)
 A2  → Initiator Push-Rear (über Spannungsteiler)
 A3  → Servo Signal Tabak-Tilt-Schwenkwand (Servo-Lib auch auf Analog-Pin)
-A4  → L298N-Mini IN1 → Hubmagnet #1 (Front-Knock)
+A4  → L298N #2 IN1 (bzw. MOSFET-Gate) → Hubmagnet #1 (Front-Knock)
 A5  → Magazin-Lichtschranke (Gabellichtschranke, direkt 5 V)
 
-# L298N-Mini IN2, IN4: hardwire auf GND (statisch LOW, da Solenoide nur EIN/AUS brauchen)
+# L298N #2 IN2, IN4: hardwire auf GND; ENA/ENB per Jumper HIGH (Solenoide nur EIN/AUS)
+# 3. DC-Motor (unidirektional): braucht eigenen Treiber-Pin — Nano hat KEINEN
+#   freien PWM-Pin (D3/D5/D6/D9/D10/D11 alle belegt). Nur EIN/AUS über A5 möglich
+#   (Magazin-Sensor müsste weichen); PWM-Drehzahl → ESP32. Siehe docs/mosfet-driver.md
 ```
 
 ### Pin-Belegung ESP-WROOM-32 (Übergangslösung)
@@ -306,7 +312,8 @@ Nano → Pi:
 - Initiatoren: "LJ8A3-2-Z/BX" auf Amazon (~5€/Stück)
 - Drucktaster: 12 mm Panel-Mount oder Mini-Tactile-Button (~1–3€/Stück)
 - Hubmagnete: **Heschen HS-0530B** (12V, ~5mm Hub, ~4N, ~0,5A) — Amazon, ~8–12€/Stück, im 2er-Pack
-- L298N Mini-Modul (für Solenoide): das beim Tausch ausgemusterte Modul reicht, sonst neu ~3€
+- Solenoid-/3.-Motor-Treiber: 2. Standard-L298N (~5€) **oder** Logic-Level-MOSFET-Board (IRLZ44N/AOD4184, 4-Kanal, ~5–8€, empfohlen — siehe `docs/mosfet-driver.md`). Einzel-MOSFET IRLZ44N ~0,50€/St.
+- Flyback-Dioden: 1N5819 (1A, 40V), ~5ct/St. — Pflicht am MOSFET je induktiver Last
 
 ### Mechanik
 - T8 Leitspindel + Mutter: Amazon Set ~6€

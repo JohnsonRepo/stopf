@@ -775,6 +775,17 @@ Den **kleinen lokalen Elko** an die Servo-eigene Pigtail-Litze löten (rot=VCC, 
 
 ## 7. Solenoide / Tabak-Knocking (Heschen HS-0530B)
 
+> ⚠️ **Treiber geändert:** Das L298N-**Mini** hat die Solenoid-(Halte-)Ströme
+> nicht überlebt → Solenoide laufen jetzt am **Standard-L298N #2** (ENA/ENB per
+> Jumper HIGH). Der unten gezeigte Anschluss (OUT1–4 + IN1/IN3) gilt unverändert
+> auch fürs Standard-Modul.
+>
+> **Empfohlene, aufgeräumtere Alternative:** Logic-Level-MOSFET-Board statt
+> L298N — bleibt thermisch kalt, liefert die vollen 12 V und nimmt optional auch
+> den **neuen 3. DC-Motor** mit auf. Komplette Analyse, Pin-Frage (Nano hat
+> keinen freien PWM-Pin!) und Bauteilliste in
+> [`mosfet-driver.md`](mosfet-driver.md).
+
 ```
               ┌──────────────────────────────┐
    12 V ════► │ V_S                 OUT1 │══► Solenoid #1 + (Front-Knock)
@@ -972,13 +983,15 @@ Tabak wird nicht zerkleinert.
 | **Tabak-Servo** | SG90 oder Tower Pro Tiny-S, ~10 g, 5 V | schwenkt Tilt-Wand 8× pro Dosis |
 | **Hubmagnet #1** | Heschen HS-0530B, 12 V, 5 mm Hub, 3–5 N, 0,5 A | seitliches Klopfen am Vorratstrog |
 | **Hubmagnet #2** | Heschen HS-0530B (identisch) | Drücken von oben |
-| **L298N Mini** | 2-Kanal, ~1,5 A je Kanal | treibt beide Solenoide. Das aus dem Motor-Setup ausgetauschte Modul ist hier ideal — fehlende ENA/ENB sind für Solenoide nicht hinderlich |
-| Optional: 2× Flyback-Diode | 1N5819 oder 1N4007 | zusätzlich zur L298N-internen — bei Knock-Pulsen oft unnötig |
+| **Solenoid-Treiber** | Standard-L298N #2 (ENA/ENB Jumper HIGH) | ⚠️ L298N-**Mini ausgefallen** (Halteströme). Sauberer: Logic-Level-MOSFET-Board, siehe [`mosfet-driver.md`](mosfet-driver.md) |
+| Optional: 2× Flyback-Diode | 1N5819 oder 1N4007 | am L298N optional (interne Dioden), **am MOSFET-Board Pflicht** |
 
-### Verkabelung L298N Mini → Solenoide
+### Verkabelung L298N #2 → Solenoide
+
+> Anschluss identisch zum Mini, nur am großen Modul; ENA/ENB per Jumper HIGH.
 
 ```
-                  L298N Mini-Modul
+                  Standard-L298N #2
                   ┌─────────────────────────────────┐
    12 V ────────► │ V_S                              │
                   │            ║ ║ 470 µF / 25 V    │
@@ -1023,12 +1036,12 @@ L298N hat **~2,5 V** internen Spannungsabfall (Sättigungsspannung der Bipolar-T
 ### Sicherung F4 (zusätzlich zu F1/F2/F3)
 
 ```
-12 V-Bus ──[F4: 1 A T]──► L298N-Mini V_S
+12 V-Bus ──[F4: 1 A T]──► L298N #2 (bzw. MOSFET-Board) V_S
 ```
 
 | Position | Wert | Begründung |
 |---|---|---|
-| **F4 L298N-Mini-Eingang** | 1 A T | 2× 0,5 A Solenoide bei gleichzeitigem Pulse + Reserve. Schmelzsicherung 5×20 mm |
+| **F4 Solenoid-Treiber-Eingang** | 1 A T | 2× 0,5 A Solenoide bei gleichzeitigem Pulse + Reserve. Schmelzsicherung 5×20 mm |
 
 Trennt den Tabak-Dosier-Zweig vom Rest des 12-V-Busses — wenn ein Solenoid mal
 kurzschließt (Wicklung durchschmort), bleibt der Rest der Maschine in Betrieb.
