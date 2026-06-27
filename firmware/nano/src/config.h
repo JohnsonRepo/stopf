@@ -14,7 +14,7 @@
 #define SERIAL_BAUD 115200
 #endif
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.1.0"
+#define FIRMWARE_VERSION "0.2.0"  // v0.2: + Tabak-Dosierung (Tilt-Servo + 2 Solenoide), Hopper-Motor, Magazin-Status
 #endif
 
 // --- Watchdog / Sicherheit ---
@@ -39,15 +39,6 @@ constexpr int SERVO_POS_HOME = 5;    // Hülse fertig aufgeschoben
 constexpr int SERVO_POS_LOAD = 85;   // Hülse aufnehmen
 constexpr int SERVO_MOVE_DELAY_MS = 500;
 
-// --- Servo Tabak-Tilt-Schwenkwand ---
-constexpr int TABAK_SERVO_FRONT = 80;   // Schwenkwand vorne (drückt Tabak)
-constexpr int TABAK_SERVO_REAR  = 140;  // Schwenkwand hinten (Ausgangsposition)
-
-// --- Solenoide / Tabak-Knocking (Heschen HS-0530B, 12V) ---
-constexpr int          KNOCK_CYCLES   = 8;    // Wiederholungen pro Dosierzyklus
-constexpr unsigned long SOL_PULSE_MS  = 50;   // Solenoid-Puls-Dauer
-constexpr unsigned long SOL_PAUSE_MS  = 100;  // Pause zwischen Pulsen
-
 // --- Initiatoren (Logik) ---
 // NPN-Sensoren → bei Detektion ziehen sie nach LOW (über Spannungsteiler)
 // Wir prüfen mit digitalRead, Schwellwert ist HIGH/LOW
@@ -57,9 +48,23 @@ constexpr bool INIT_TRIGGERED_LEVEL = LOW;
 // Module-abhängig — typisch: Flagge im Schlitz blockiert IR-Licht →
 // Phototransistor sperrt → DO-Pin via Pull-up auf HIGH.
 // Falls dein Modul invertiert ist (Comparator): auf HIGH ändern.
-// Test: status anzeigen, Flagge in den Schlitz halten, beobachten welcher
-// Wert "blockiert" entspricht.
 constexpr bool MAGAZIN_TRIGGERED_LEVEL = HIGH;
 
-// --- Start-Taster (mechanisch, mit Software-Entprellung) ---
-constexpr unsigned long BUTTON_DEBOUNCE_MS = 50;
+// --- Tabak-Dosierung (Tilt-Servo + 2 Solenoide) ---
+// Tabak-Servo-Positionen — initial schätzen, mechanisch justieren
+constexpr int TABAK_SERVO_REAR    = 60;     // gekippt nach hinten (Tabak rutscht)
+constexpr int TABAK_SERVO_FRONT   = 30;     // gekippt nach vorne (Tabak setzt sich)
+
+// Knock-Sequenz Defaults
+constexpr unsigned long KNOCK_PULSE_ON_MS  = 80;   // Solenoid an pro Schlag
+constexpr unsigned long KNOCK_PULSE_OFF_MS = 120;  // Pause nach Schlag (Erholung)
+constexpr uint8_t       KNOCK_CYCLES_DEFAULT = 8;  // Anzahl Schläge pro Dose
+
+// Solenoid-Sicherheit
+constexpr unsigned long SOLENOID_PULSE_MAX_MS = 1000;  // max Einzelpuls — Heschen
+                                                        // ist nicht für Dauer-ON
+                                                        // ausgelegt!
+
+// --- Hülsenmagazin-Motor (5 V Vibrationsmotor) ---
+constexpr unsigned long HOPPER_DEFAULT_MS = 1500;       // Default-Lauf für "hopper run"
+constexpr unsigned long HOPPER_RUN_MAX_MS = 4000;       // unter Watchdog (5 s)

@@ -29,7 +29,7 @@ Ein Befehl pro Zeile, mit `\n` (LF) terminiert. Antworten zeilenweise.
 |---|---|---|
 | `ping` | `pong` | Verbindungstest. Pi sollte das nach Connect zuerst senden. |
 | `help` | mehrzeilige Hilfe | Liste aller Befehle (für manuelles Debuggen) |
-| `status` | `status press=B push_front=B push_rear=B button=B magazin=B magazin_raw=B stepper_pos=N` | Sensor-Snapshot (`B` = `0`/`1`, `N` = signed long); `button=1` = Start-Taster gedrückt |
+| `status` | `status press=B push_front=B push_rear=B magazin=B magazin_raw=B sol1=B sol2=B hopper=B stepper_pos=N` | Sensor-Snapshot (`B` = `0`/`1`, `N` = signed long) |
 
 ### Schrittmotor (Trommelmagazin-Drehung)
 
@@ -69,11 +69,38 @@ Wichtige Positionen (siehe `config.h`):
 - `servo 5` → Hülse fertig aufgeschoben (`SERVO_POS_HOME`)
 - `servo 85` → Hülse aufnehmen (`SERVO_POS_LOAD`)
 
+### Tabak-Dosierung (Tilt-Servo + 2 Solenoide via MOSFETs)
+
+| Befehl | Antwort | Beschreibung |
+|---|---|---|
+| `tabak_servo <0..180>` | `ok tabak_servo <angle>` | Tilt-Schwenkwand auf Winkel (Justage) |
+| `solenoid 1 on` | `ok sol1 on` | Hubmagnet #1 (Front-Knock) ein |
+| `solenoid 1 off` | `ok sol1 off` | Hubmagnet #1 aus |
+| `solenoid 1 pulse <ms>` | `ok sol1 pulse <ms>` | Hubmagnet #1 für ms an, dann aus (max 1000 ms — Schutz vor Überhitzung) |
+| `solenoid 2 on\|off\|pulse <ms>` | wie #1 | Hubmagnet #2 (Top-Druck) |
+| `knock` | `ok knock start cycles=8` ... `ok knock done` | Komplette Knock-Sequenz mit Default-Cycles (8) |
+| `knock <n>` | wie oben | mit `n` statt Default |
+
+Konstanten (in `config.h`):
+- `TABAK_SERVO_REAR = 60°`, `TABAK_SERVO_FRONT = 30°` (Knock-Servo-Endpositionen)
+- `KNOCK_PULSE_ON_MS = 80`, `KNOCK_PULSE_OFF_MS = 120`, `KNOCK_CYCLES_DEFAULT = 8`
+- `SOLENOID_PULSE_MAX_MS = 1000` (max Einzelpuls — Heschen nicht für Dauer-ON)
+
+### Hülsenmagazin-Motor (kleiner 5 V DC via MOSFET)
+
+| Befehl | Antwort | Beschreibung |
+|---|---|---|
+| `hopper on` | `ok hopper on` | Motor an (bis `off`, `stop` oder Watchdog) |
+| `hopper off` | `ok hopper off` | Motor aus |
+| `hopper run <ms>` | `ok hopper run <ms>` | Motor für ms an, dann aus (max 4000 ms wegen Watchdog) |
+
+Konstante: `HOPPER_DEFAULT_MS = 1500` (Default wenn `run 0`).
+
 ### Sicherheit
 
 | Befehl | Antwort | Beschreibung |
 |---|---|---|
-| `stop` | `ok stop` | Sofort-Stopp **aller** Motoren + Stepper. |
+| `stop` | `ok stop` | Sofort-Stopp **aller** Aktoren (DC-Motoren, Stepper, Solenoide, Hopper). |
 
 ---
 
@@ -85,7 +112,8 @@ err unknown_command:<text>    # Befehl nicht erkannt (Echo zur Diagnose)
 err <reason>                  # Anderer Fehler (z. B. ERROR pusher_stuck — geplant)
 warn watchdog_timeout motors_off
                               # Spontane Warnung vom Nano (KEIN Antwort-Satz)
-status press=<0|1> push_front=<0|1> push_rear=<0|1> button=<0|1> stepper_pos=<N>
+status press=<0|1> push_front=<0|1> push_rear=<0|1> magazin=<0|1>
+       magazin_raw=<0|1> sol1=<0|1> sol2=<0|1> hopper=<0|1> stepper_pos=<N>
                               # Antwort auf "status"
 pong                          # Antwort auf "ping"
 ready firmware=<version>      # Bei Boot, einmalig
@@ -105,7 +133,7 @@ Pi → ping
 Pi ← pong
 
 Pi → status
-Pi ← status press=0 push_front=0 push_rear=1 button=0 stepper_pos=0
+Pi ← status press=0 push_front=0 push_rear=1 stepper_pos=0
 
 # 1) Tabak dosieren
 Pi → stepper 400
@@ -116,7 +144,7 @@ Pi ← ok stepper 400
 Pi → press fwd
 Pi ← ok press fwd
 Pi → status                    (mehrfach gepollt im 50-ms-Takt)
-Pi ← status press=1 push_front=0 push_rear=1 button=0 stepper_pos=400
+Pi ← status press=1 push_front=0 push_rear=1 stepper_pos=400
 Pi → press stop
 Pi ← ok press stop
 
@@ -130,7 +158,7 @@ Pi ← ok servo 5
 Pi → pusher fwd
 Pi ← ok pusher fwd
 Pi → status                    (Polling)
-Pi ← status press=0 push_front=1 push_rear=0 button=0 stepper_pos=400
+Pi ← status press=0 push_front=1 push_rear=0 stepper_pos=400
 Pi → pusher stop
 Pi ← ok pusher stop
 
@@ -138,7 +166,7 @@ Pi ← ok pusher stop
 Pi → pusher rev
 Pi ← ok pusher rev
 Pi → status                    (Polling)
-Pi ← status press=0 push_front=0 push_rear=1 button=0 stepper_pos=400
+Pi ← status press=0 push_front=0 push_rear=1 stepper_pos=400
 Pi → pusher stop
 Pi ← ok pusher stop
 ```
@@ -151,8 +179,7 @@ Pi ← ok pusher stop
 T=0      letzter Befehl empfangen → lastCommandMs = 0
 T=4,9 s  noch nichts geschehen → alles weiter
 T=5,0 s  WATCHDOG_TIMEOUT_MS überschritten
-         → allMotorsOff()
-         → Status-LED aus
+         → allMotorsOff()  (inkl. Solenoide + Hopper-Motor!)
          Nano → Pi: warn watchdog_timeout motors_off
 T=5,1 s  Pi sendet: ping
          Nano → Pi: pong
@@ -172,14 +199,13 @@ Folgende Befehle stehen in [`../CLAUDE.md`](../CLAUDE.md) und sind **geplant**:
 |---|---|---|
 | `home` | Referenzfahrt Trommel via Magazin-Lichtschranke | 🔲 |
 | `stuff [<n>]` | komplette Stopfsequenz (1 oder n Zigaretten) | 🔲 wenn `statemachine.cpp/.h` existiert |
-| `knock [<cycles>]` | Tabak-Dosier-Zyklus: Servo schwenkt + Solenoide pulsen | 🔲 |
-| `tabak_servo <angle>` | Tabak-Tilt-Servo manuell positionieren (Justage) | 🔲 |
-| `solenoid 1\|2 on\|off\|pulse <ms>` | Einzeln Solenoid testen | 🔲 |
 | `set_press_time <ms>` | Presszeit zur Laufzeit setzen | 🔲 |
 | `set_push_speed <pwm>` | Pusher-Geschwindigkeit setzen | 🔲 |
-| `set_knock_cycles <n>` | Anzahl Knock-Wiederholungen pro Dose | 🔲 |
-| `test_motor press\|push\|stepper\|servo\|solenoid` | Einzeltest mit Standard-Profil | 🔲 |
-| `abort` | sequenz sauber abbrechen, alle Aktoren in safe state | 🔲 |
+| `set_knock_cycles <n>` | Anzahl Knock-Wiederholungen pro Dose ändern | 🔲 |
+| `abort` | sequenz sauber abbrechen, alle Aktoren in safe state | 🔲 (entspricht aktuell `stop`) |
+
+Implementierte Tabak/Hopper-Befehle (`tabak_servo`, `solenoid 1|2`, `knock`, `hopper`)
+siehe Sektion 2 oben — die sind seit der Tabak-Dosier-Erweiterung Bestandteil von v0.1.
 
 Bis diese existieren, baut der Pi die Sequenz aus den **bestehenden** Befehlen
 (`stepper`, `press fwd/stop`, `servo`, `pusher fwd/rev/stop`) zusammen.

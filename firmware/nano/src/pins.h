@@ -1,11 +1,11 @@
 // =====================================================
 // pins.h
 // Zentrale Pin-Belegung für Arduino Nano
-// Stopfmaschine v0.2
+// Stopfmaschine v0.1
 // =====================================================
 #pragma once
 
-// --- A4988 (Schrittmotor / Trommelmagazin-Antrieb) ---
+// --- A4988 (Schrittmotor / Förderschnecke) ---
 constexpr uint8_t PIN_STEPPER_STEP = 2;
 constexpr uint8_t PIN_STEPPER_DIR  = 3;
 constexpr uint8_t PIN_STEPPER_EN   = 4;   // EN ist invertiert: LOW = aktiv
@@ -32,19 +32,25 @@ constexpr uint8_t PIN_PRESS_IN2   = 8;    // digital
 constexpr uint8_t PIN_PUSHER_IN3  = 9;    // digital (Servo killt hier nur PWM)
 constexpr uint8_t PIN_PUSHER_IN4  = 10;   // digital
 
-// --- Servo (Hülsen-Schieber) ---
-constexpr uint8_t PIN_SERVO       = 11;
+// --- Servo Hülsen-Schieber ---
+constexpr uint8_t PIN_SERVO          = 11;
 
-// --- Start-Taster (mechanischer Drucktaster, momentary) ---
-// Verdrahtung: Taster zwischen D12 und GND.
-// Interner Pull-up im Nano aktiviert → ungedrückt = HIGH, gedrückt = LOW.
-// Kein externer Widerstand nötig.
-constexpr uint8_t PIN_BUTTON      = 12;
+// --- Hülsenmagazin-Motor (kleiner DC-Motor, 5 V, ~40 mA) ---
+// Verdrahtung: Nano D12 → 1 kΩ → Gate eines kleinen N-MOSFETs (2N7000 / IRLZ44N).
+// Motor zwischen 5V-Bus und Drain. Source an GND. 1N4148 als Flyback-Diode
+// parallel zum Motor (Kathode an +5V). Nano-Pin direkt würde 40 mA grenzwertig
+// belasten — MOSFET-Treiber ist sicherer.
+// Steuerung: digital ON/OFF (D12 ist nicht PWM-fähig; Vibrationsmotor braucht
+// keine Drehzahl-Regelung).
+constexpr uint8_t PIN_HOPPER_MOTOR   = 12;
 
-// --- L298N Mini-Modul (Solenoide / Tabak-Knocking) ---
-// IN2 und IN4 werden hardwired auf GND (Solenoide brauchen nur EIN/AUS).
-// D13 war onboard Status-LED, jetzt IN3 für Hubmagnet #2 Top-Druck.
-constexpr uint8_t PIN_SOL_TOP     = 13;   // L298N-Mini IN3 → Heschen HS-0530B Top-Druck
+// --- Hubmagnet #2 (Top-Druck, Tabak-Dosierung) ---
+// Verdrahtung: Nano D13 → 100 Ω → Gate eines IRLZ44N (Logic-Level-MOSFET).
+// Solenoid zwischen 12V-Bus und Drain. Source an GND. 1N5819 Flyback parallel
+// zum Solenoid (Kathode an +12V).
+// L298N-Mini wurde verworfen: ~2,5 V Spannungsabfall + Wärme bei Halteströmen.
+// MOSFET: < 20 mV Drop, kein Wärmeproblem, Solenoid sieht volle 12 V.
+constexpr uint8_t PIN_SOLENOID_2     = 13;
 
 // --- Initiatoren (induktive Näherungssensoren über Spannungsteiler) ---
 // Hinweis: 12V Sensorsignal über 10kΩ + 7,5kΩ Spannungsteiler auf 5V
@@ -52,13 +58,17 @@ constexpr uint8_t PIN_INIT_PRESS      = A0;
 constexpr uint8_t PIN_INIT_PUSH_FRONT = A1;
 constexpr uint8_t PIN_INIT_PUSH_REAR  = A2;
 
-// --- Tabak-Dosierung (Tilt-Schwenkwand + 2 Solenoide) ---
+// --- Tabak-Dosierung (Tilt-Schwenkwand + 2 Solenoide via MOSFETs) ---
 // Mechanismus aus Fraens' vollautomatischer Variante:
-//   - Tabak-Servo schwenkt Tilt-Wand vor/zurück
+//   - Tabak-Servo (Mini-Servo) schwenkt eine Tilt-Wand vor/zurück
 //   - 2× Heschen HS-0530B Hubmagnete pulsieren (Front-Knock + Top-Druck)
-//   - L298N-Mini-Modul als 2-Kanal-Solenoid-Treiber
-constexpr uint8_t PIN_TABAK_SERVO  = A3;  // Servo-Lib läuft auch auf Analog-Pins
-constexpr uint8_t PIN_SOL_FRONT    = A4;  // → L298N-Mini IN1 (Front-Knock)
+//   - Pro Solenoid: 1× IRLZ44N MOSFET + 1× 1N5819 Flyback-Diode
+//   - Solenoid #2 siehe oben (D13), Solenoid #1 hier:
+constexpr uint8_t PIN_TABAK_SERVO    = A3;  // Servo-Lib läuft auf Analog-Pins
+constexpr uint8_t PIN_SOLENOID_1     = A4;  // → MOSFET → Heschen HS-0530B (Front-Knock)
 
-// --- Magazin-Lichtschranke (Gabellichtschranke, direkt 5V-Logik) ---
-constexpr uint8_t PIN_MAGAZIN_SENSOR = A5;
+// --- Magazin-Lichtschranke (Trommel-Index) ---
+constexpr uint8_t PIN_MAGAZIN_SENSOR = A5;  // Gabellichtschranke, direkt 5 V-Logik
+
+// === Steuerung ist komplett remote-only (Pi → Serial → Nano). ===
+// Manueller Start-Taster entfällt — kein physischer Pin reserviert.

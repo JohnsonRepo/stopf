@@ -268,12 +268,14 @@ flowchart LR
         D8["D8 PRESS_IN2"]
         D9["D9 PUSHER_IN3"]
         D10["D10 PUSHER_IN4"]
-        D11["D11 Servo PWM"]
-        D12["D12 Start-Taster"]
-        D13["D13 Status-LED"]
+        D11["D11 Servo Huelse PWM"]
+        D12["D12 Hopper-MOSFET"]
+        D13["D13 Solenoid2-MOSFET"]
         A0["A0 Init Press"]
         A1["A1 Init PushFront"]
         A2["A2 Init PushRear"]
+        A3["A3 Servo Tabak"]
+        A4["A4 Solenoid1-MOSFET"]
         A5["A5 Magazin-Sensor"]
     end
 
@@ -290,8 +292,11 @@ flowchart LR
     D10 --> L298N_B
 
     D11 --> SERVO["SG90 Servo<br/>Huelsen-Schieber"]
+    A3 --> TABAK["SG90 / Tiny-S Servo<br/>Tabak-Tilt-Schwenkwand"]
 
-    BUTTON["Start-Taster<br/>mechanisch, momentary<br/>gegen GND"] --> D12
+    A4 --> MOS1["MOSFET IRLZ44N<br/>+ 1N5819 Flyback<br/>zu Solenoid Heschen HS-0530B (Front-Knock)"]
+    D13 --> MOS2["MOSFET IRLZ44N<br/>+ 1N5819 Flyback<br/>zu Solenoid Heschen HS-0530B (Top-Druck)"]
+    D12 --> MOS3["MOSFET IRLZ44N oder 2N7000<br/>+ 1N4148 Flyback<br/>zu Huelsenmagazin-Motor 5V"]
 
     DIV1["Spannungsteiler<br/>10 k + 7,5 k"] --> A0
     DIV2["Spannungsteiler<br/>10 k + 7,5 k"] --> A1
@@ -301,7 +306,7 @@ flowchart LR
     INIT_PF["Initiator Push-Front"] -->|schwarz| DIV2
     INIT_PR["Initiator Push-Rear"] -->|schwarz| DIV3
 
-    OPTO["Gabellichtschranke<br/>Oniissy<br/>Magazin-Ref"] --> A5
+    OPTO["Gabellichtschranke<br/>Magazin-Index"] --> A5
 ```
 
 ---
@@ -773,124 +778,19 @@ Den **kleinen lokalen Elko** an die Servo-eigene Pigtail-Litze löten (rot=VCC, 
 
 ---
 
-## 7. Solenoide / Tabak-Knocking (Heschen HS-0530B)
+## 7. Manueller Start-Taster — entfällt
 
-```
-              ┌──────────────────────────────┐
-   12 V ════► │ V_S                 OUT1 │══► Solenoid #1 + (Front-Knock)
-              │                     OUT2 │══► Solenoid #1 −
-              │                     OUT3 │══► Solenoid #2 + (Top-Druck)
-              │                     OUT4 │══► Solenoid #2 −
-              │                          │
-   A4 ──────► │ IN1  (Nano → Front-Knock) │
-   GND ─────► │ IN2  (hardwired GND)      │
-   D13 ─────► │ IN3  (Nano → Top-Druck)   │
-   GND ─────► │ IN4  (hardwired GND)      │
-              │                          │
-              │ GND ─────────────────── │ ◄── GND-Sternpunkt
-              └──────────────────────────────┘
-                       │
-                     ║ ║  optionaler 470 µF / ≥ 25 V Elko
-                     ─ ─  an V_S (Solenoid-Anlaufstrom puffern)
-                      │
-                     GND
-```
+Die Steuerung erfolgt **komplett remote** über den Raspberry Pi (HTTP-API,
+später BLE). Es gibt **keinen physischen Start-Taster** am Nano.
 
-### Flyback-Dioden
+Der Pin **D12** ist deshalb für den **Hülsenmagazin-Motor** umgewidmet (siehe § 10).
 
-Solenoide erzeugen beim Abschalten Spannungsspitzen. L298N hat interne Dioden,
-aber externe 1N5819 direkt an der Spule verlängern die Lebensdauer:
-
-```
-   L298N OUT1 ●───●───────● Solenoid +
-                  │
-                 ─┴─ 1N5819   Kathode an OUT1 (+)
-                  ▲            Anode an OUT2 (−)
-                 ─┬─
-                  │
-   L298N OUT2 ●───●───────● Solenoid −
-```
-
-### Knocking-Zyklus (Logik im Pi)
-
-```python
-for _ in range(KNOCK_CYCLES):          # 8×
-    nano.send("knock1 on")             # Front-Knock + Tabak-Servo aktivieren
-    nano.send("tabakservo 80")
-    nano.send("knock2 on")             # Top-Druck
-    sleep(SOL_PULSE_MS / 1000)
-    nano.send("knock1 off")
-    nano.send("knock2 off")
-    nano.send("tabakservo 140")
-    sleep(SOL_PAUSE_MS / 1000)
-```
-
-> **Duty Cycle beachten:** Heschen HS-0530B ist für **intermittierenden Betrieb**
-> ausgelegt. Solenoid nie dauerhaft unter Strom lassen — überhitzt die Spule.
-> Puls 50 ms, Pause 100 ms ist safe.
+> Falls du später trotzdem einen Hardware-Schalter willst (z. B. Notaus-mäßig): den
+> Pi-seitig per GPIO einlesen, nicht den Nano-Pin opfern.
 
 ---
 
-## 8. Start-Taster (mechanisch, momentary)
-
-```
-                                    +5 V (intern)
-                                       │
-                                      ┌┴┐
-                                      │ │  ~30 kΩ
-                                      │ │  (interner
-                                      │ │  Pull-up im
-                                      │ │  ATmega328)
-                                      └┬┘
-                                       │
-   Nano D12 ◄──────────────────────────●──────────● Taster Pin 1
-                                                  │
-                                                 ─┤   Drucktaster
-                                                  │   (Schließer,
-                                                 ─┤    momentary)
-                                                  │
-   Nano GND ──────────────────────────────────── ● Taster Pin 2
-```
-
-**Logik:**
-- **Ungedrückt:** Pin-Eingang über internen Pull-up auf HIGH gezogen (~5 V).
-- **Gedrückt:** Taster schließt → Eingang direkt an GND → LOW.
-- `digitalRead(PIN_BUTTON) == LOW` → Taster ist gedrückt.
-
-**Vorteile gegenüber TTP223:**
-- robust gegen Tabakstaub und EMI von DC-Motoren
-- kein zusätzliches Modul / keine Versorgungsleitung
-- nur zwei Kabel (Signal + GND) statt drei
-
-**Geeignete Bauarten:**
-- Mini-Tactile-Tactile-Button auf Steckbrett (für Tests)
-- Panel-Mount-Drucktaster 12 mm oder 16 mm (mit Verschraubung am Gehäuse)
-- Pilzkopf-Taster mit Schließer-Kontakt (NICHT als Notaus verwenden — der hat
-  einen Öffner und unterbricht 12 V hardwareseitig)
-
-**Software-Entprellung:** Mechanische Taster prellen ~1–10 ms beim Schließen.
-Konstante `BUTTON_DEBOUNCE_MS = 50` in [`config.h`](../firmware/nano/src/config.h)
-ist als Vorgabe für künftiges Edge-Detection im Pi reserviert. Bei reinem
-Status-Polling (alle 50 ms) ist Prellen meist unkritisch — die nächste Abfrage
-sieht schon den stabilen Zustand.
-
-### Externer Pull-up — brauche ich keinen!
-
-Der interne Pull-up des ATmega328 (~30 kΩ) ist **im Chip integriert** und wird
-per Software aktiviert (`pinMode(PIN_BUTTON, INPUT_PULLUP)`). **Kein externer
-Widerstand nötig.**
-
-Externen Pull-up nur ergänzen, wenn:
-
-- Kabel zum Taster > 1 m lang (EMV-Anfälligkeit)
-- Industrielle Umgebung mit hoher Stör­einstrahlung
-
-Dann **4,7–10 kΩ** zwischen D12 und +5 V — **kein 30 kΩ**, der wäre nur ein
-Doppel des internen Pull-ups ohne echten Mehrwert.
-
----
-
-## 9. Notaus + Sicherungen (Hardware-seitig, geplant)
+## 8. Notaus + Sicherungen (Hardware-seitig, geplant)
 
 ```mermaid
 flowchart LR
@@ -972,66 +872,67 @@ Tabak wird nicht zerkleinert.
 | **Tabak-Servo** | SG90 oder Tower Pro Tiny-S, ~10 g, 5 V | schwenkt Tilt-Wand 8× pro Dosis |
 | **Hubmagnet #1** | Heschen HS-0530B, 12 V, 5 mm Hub, 3–5 N, 0,5 A | seitliches Klopfen am Vorratstrog |
 | **Hubmagnet #2** | Heschen HS-0530B (identisch) | Drücken von oben |
-| **L298N Mini** | 2-Kanal, ~1,5 A je Kanal | treibt beide Solenoide. Das aus dem Motor-Setup ausgetauschte Modul ist hier ideal — fehlende ENA/ENB sind für Solenoide nicht hinderlich |
-| Optional: 2× Flyback-Diode | 1N5819 oder 1N4007 | zusätzlich zur L298N-internen — bei Knock-Pulsen oft unnötig |
+| **2× IRLZ44N MOSFET** | Logic-Level, Rds_on ~17 mΩ, 30+ A | je ein Treiber pro Solenoid (statt L298N-Mini) |
+| **2× 1N5819 Flyback** | Schottky, 1 A | absorbieren Back-EMF beim Abschalten — Pflicht bei induktiven Lasten |
+| 2× 100 Ω Gate-Widerstand | – | dämpfen Gate-Switching, schützen Nano-Pin |
 
-### Verkabelung L298N Mini → Solenoide
+> **Warum nicht L298N-Mini?** Ursprünglich geplant, aber bei Heschen-Halteströmen
+> (~1 A pro Solenoid) und 2,5 V internem Drop am L298N entstehen 2,5 W pro Kanal
+> = 5 W bei beiden aktiv — Mini-Modul ohne Kühlkörper überhitzt. MOSFET hat
+> < 20 mV Drop, virtuell keine Wärme, und Solenoid sieht volle 12 V.
+
+### Verkabelung MOSFET → Solenoid (pro Solenoid identisch)
 
 ```
-                  L298N Mini-Modul
-                  ┌─────────────────────────────────┐
-   12 V ────────► │ V_S                              │
-                  │            ║ ║ 470 µF / 25 V    │
-                  │            ─ ─ Elko parallel    │
-                  │                                  │
-                  │ Out1 ●───────[Solenoid #1]────● │  ← Heschen HS-0530B
-                  │ Out2 ●─────────────────────────●│    "Front-Knock"
-                  │                                  │
-   Nano A4 ─────► │ IN1  (PIN_SOLENOID_1)            │
-                  │ IN2 ◄── HARDWIRE GND             │  ← (kein Nano-Pin, fest auf GND)
-                  │                                  │
-                  │ Out3 ●───────[Solenoid #2]────● │  ← Heschen HS-0530B
-                  │ Out4 ●─────────────────────────●│    "Top-Druck"
-                  │                                  │
-   Nano D13 ────► │ IN3  (PIN_SOLENOID_2)            │
-                  │ IN4 ◄── HARDWIRE GND             │
-                  │                                  │
-                  │ GND ────────────────────────────│ ◄── Sternpunkt
-                  └─────────────────────────────────┘
+   12 V Bus (über F4) ──●────[Solenoid Heschen HS-0530B]────●
+                        │                                   │
+                        │ Kathode                           │ Drain
+                        ▼                                   │
+                    ─┤├─ 1N5819 Flyback                     │
+                        │ (Anode an Drain,                  │
+                        │  Kathode an +12 V)                │
+                        │                                   │
+                        ●───────────────────────────────────●
+                                                            │
+                                                          ──┴── MOSFET
+                                                          │     IRLZ44N
+   Nano A4 (oder D13) ──[100 Ω]─── Gate ─────────────────┤├── (Logic-Level,
+                                                          │     30 A, ~17 mΩ)
+                                                            │ Source
+                                                            ●
+                                                            │
+   GND (Sternpunkt) ────────────────────────────────────────●
 ```
 
 **Steuerlogik pro Solenoid:**
 
-| Nano-Pin | Solenoid-Zustand |
-|---|---|
-| HIGH | EIN (Out_a HIGH, Out_b LOW via Hardwire) |
-| LOW | AUS (Out_a LOW, Out_b LOW → Bremse) |
-
-> **IN2 und IN4 müssen aktiv auf GND gelegt werden** (Drahtbrücke am Modul) —
-> ein floatender L298N-Eingang ist undefiniert und kann den Solenoid unbeabsichtigt
-> ansteuern.
-
-### Spannungs-Realität: L298N-Drop
-
-L298N hat **~2,5 V** internen Spannungsabfall (Sättigungsspannung der Bipolar-Treiber).
-
-| | 12 V Versorgung | ~9,5 V am Solenoid |
+| Nano-Pin | MOSFET-Gate | Solenoid-Zustand |
 |---|---|---|
-| Nominal-Zugkraft Heschen HS-0530B | ~4 N @ 12 V | ~2,5–3 N @ 9,5 V |
-| Für Tabak-Knock ausreichend? | ja, mit Reserve | **ja** — Tabak wiegt nichts, kurzer Impuls reicht |
+| HIGH (5 V) | öffnet (Source-Drain leitet) | EIN — 12 V über Spule |
+| LOW (0 V) | sperrt | AUS — Strom 0 |
+
+### Spannungs-Realität (MOSFET vs. L298N — warum gewechselt)
+
+| | L298N Mini (verworfen) | MOSFET (jetzt) |
+|---|---|---|
+| Spannungsabfall bei 1 A | ~2,5 V | ~17 mV |
+| Solenoid sieht | ~9,5 V → 63 % Nennkraft | volle 12 V → 100 % |
+| Verlustleistung pro Kanal | ~2,5 W | ~17 mW |
+| Dauer-Halten möglich? | ❌ überhitzt | ✅ kalt |
+| Pins am Nano | 2 (oder 4 ohne Hardwire) | 1 pro Solenoid |
 
 ### Sicherung F4 (zusätzlich zu F1/F2/F3)
 
 ```
-12 V-Bus ──[F4: 1 A T]──► L298N-Mini V_S
+12 V-Bus ──[F4: 1 A T]──► Solenoid-Stromschiene (beide Solenoide via MOSFET)
 ```
 
 | Position | Wert | Begründung |
 |---|---|---|
-| **F4 L298N-Mini-Eingang** | 1 A T | 2× 0,5 A Solenoide bei gleichzeitigem Pulse + Reserve. Schmelzsicherung 5×20 mm |
+| **F4 Solenoid-Zweig** | 1 A T | 2× ~1 A Halteströme bei gleichzeitigem Pulse → träge, 5×20 mm |
 
 Trennt den Tabak-Dosier-Zweig vom Rest des 12-V-Busses — wenn ein Solenoid mal
-kurzschließt (Wicklung durchschmort), bleibt der Rest der Maschine in Betrieb.
+kurzschließt (Coil durchgeschmort), bleibt der Rest der Maschine in Betrieb.
 
 ### Steuerlogik (geplant — Statemachine v0.2)
 
@@ -1076,7 +977,71 @@ Heschen HS-0530B sind **intermittierende Solenoide** — nicht für Dauer-ON aus
 → Standard-Knock-Pattern (80 ms on / 120 ms off = **40 % Duty**, 8× in 1,6 s, dann lange Pause) ist unkritisch.
 
 > **NIE** den Solenoid „testweise" für mehrere Sekunden HIGH halten — er wird heiß
-> und kann durchbrennen. Maximaler Einzelpuls < 1 Sekunde.
+> und kann durchbrennen. Maximaler Einzelpuls < 1 Sekunde. In der Firmware
+> erzwungen via `SOLENOID_PULSE_MAX_MS = 1000` in `config.h`.
+
+---
+
+## 10. Hülsenmagazin-Motor (5 V, ~40 mA, MOSFET-getrieben)
+
+Kleiner Vibrations-/DC-Motor zum Vorrücken der Hülsen im Magazin. Wird vom Pi
+remote getriggert (`hopper on/off/run <ms>`) — typisch beim Eject einer fertigen
+Zigarette, um die nächste Hülse in Position zu rütteln.
+
+### Verkabelung
+
+```
+   5 V Bus ──●────[Hülsen-Motor 5 V / 40 mA]────●
+             │                                  │
+             │ Kathode                          │ Drain
+             ▼                                  │
+         ─┤├─ 1N4148 Flyback                    │
+             │ (40 mA passt — 1N4148 verträgt   │
+             │  200 mA Dauerstrom)              │
+             │                                  │
+             ●──────────────────────────────────●
+                                                │
+                                              ──┴── MOSFET
+                                              │     2N7000 (TO-92, klein)
+   Nano D12 ──[1 kΩ]── Gate ─────────────────┤├──  ODER IRLZ44N (overkill, ok)
+                                              │
+                                                │ Source
+                                                ●
+                                                │
+   GND ─────────────────────────────────────────●
+```
+
+> **Warum 1 kΩ statt 100 Ω** wie bei Solenoiden? Bei 40 mA und langsamem
+> Schalten ist die Gate-Ladung minimal — höherer Series-Widerstand reicht und
+> bremst die Schaltflanke leicht ab (weniger EMV-Spitzen).
+
+### Warum Treiber statt direkt Nano-Pin?
+
+| | Direkt Nano D12 → Motor | MOSFET-Treiber |
+|---|---|---|
+| Pin-Belastung | 40 mA = exakt am Limit (max 40 mA/Pin) | 0 mA — Pin liefert nur Gate-Ladung |
+| Anlaufspitze | kurzfristig > 40 mA → Pin gefährdet | irrelevant |
+| Back-EMF beim Abschalten | Pin-Schutzdiode wird gefordert | externer Flyback fängt es ab |
+| Lebensdauer | über Zeit kann Pin sterben | unbegrenzt |
+
+→ MOSFET kostet 10 ct (2N7000) und schützt den Nano dauerhaft. Lohnt sich.
+
+### Stromversorgung
+
+5 V kommt vom **Buck-Konverter-Ausgang** (gleiche 5 V-Schiene wie Pi und
+Servo), **nicht** vom Nano-5V-Pin. Der Nano-Regler ist klein (max ~500 mA), den
+Buck-Bus belasten ist sauberer.
+
+### Firmware-Befehle
+
+```
+hopper on              → Motor an (läuft bis off, stop oder Watchdog)
+hopper off             → Motor aus
+hopper run <ms>        → Motor für N ms an (max 4000 ms wegen Watchdog), dann aus
+```
+
+Default-Laufzeit: `HOPPER_DEFAULT_MS = 1500` (1,5 s — typisch ausreichend, um
+eine Hülse vorzurücken).
 
 ---
 

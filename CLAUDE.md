@@ -99,7 +99,7 @@ der „Knocking"-Phase:
 ### Motortreiber
 - **A4988** (Schrittmotor): 100µF Elko zwischen VMOT und GND PFLICHT, sonst stirbt der Treiber. Vref auf 0,7-1,0V einstellen vor erstem Anlauf.
 - **L298N Standard-Modul** (großes Board mit Kühlkörper, Schraubklemmen, ENA/ENB): 470µF Elko an 12V-Eingang. ENA/ENB für PWM-Drehzahlsteuerung in beide Richtungen. **Verwendung: Presse + Pusher (DC-Getriebemotoren).**
-- **L298N Mini-Modul** (kleines Modul ohne ENA/ENB, ~1,5 A je Kanal): **Verwendung: 2 Tabak-Solenoide** (Heschen HS-0530B). Always-Enabled-Verhalten der Mini-Variante passt ideal zu Solenoid-EIN/AUS-Steuerung. ~2,5 V interner Spannungsabfall → 12 V → ~9,5 V am Solenoid → ~63 % der Nennkraft, ausreichend für Knock-Anwendung.
+- **MOSFETs (3× IRLZ44N o. ä. Logic-Level)**: **Verwendung: 2 Tabak-Solenoide + 1 Hülsenmagazin-Motor**. Pro Kanal: Nano-Pin → 100 Ω → Gate, Source an GND, Drain an Last, Last-andere-Seite an +12 V bzw. +5 V, Flyback-Diode parallel (1N5819 für Solenoide, 1N4148 reicht für 40-mA-Motor). Spannungsabfall < 20 mV, keine Wärme. Ersetzt den ursprünglich geplanten L298N-Mini, der bei Solenoid-Halteströmen überhitzen würde.
 
 ### Motoren / Aktoren
 - 1× NEMA 17 Schrittmotor (**Trommelmagazin-Drehung**, Belt 1:1 zur Drum)
@@ -107,8 +107,9 @@ der „Knocking"-Phase:
 - 1× SG90 Servo (Hülsen-Schieber, D11)
 - 1× SG90/Tiny-S Servo (Tabak-Tilt-Schwenkwand, A3)
 - 2× **Heschen HS-0530B** Hubmagnet 12 V (Tabak-Front-Knock + Tabak-Top-Druck)
-  via L298N Mini-Modul (2-Kanal, 12 V, Always-Enabled)
-- 1× kleiner Vibrationsmotor (Hülsenmagazin, später — noch nicht implementiert)
+  via **MOSFETs** (IRLZ44N) — kein L298N-Mini, weil Halteströme (~1 A/Solenoid)
+  und Spannungsabfall (~2,5 V) ihn überhitzen würden
+- 1× **5 V Vibrationsmotor** (Hülsenmagazin, ~40 mA) via MOSFET + 1N4148-Flyback
 
 ### Sensoren
 - **3× induktive Initiatoren** (LJ8A3-2-Z/BX **oder LJ12A3-4-Z/BX**, NPN, 12V): Press-Position, Push-Front, Push-Rear
@@ -118,8 +119,11 @@ der „Knocking"-Phase:
     - Für **Arduino Nano (5V Logik):** 10kΩ + 7,5kΩ Spannungsteiler
     - Für **ESP32 (3,3V Logik):** 10kΩ + 3,9kΩ Spannungsteiler
 - **1× Optosensor** (Oniissy Gabellichtschranke) für Trommelmagazin-Referenz (sauberer Bereich)
-- **1× mechanischer Drucktaster** als Start-Trigger (Schließer-Kontakt, momentary; an D12 mit internem Pull-up gegen GND verdrahtet)
-- **Mikroschalter (KW12) als Backup-Endschalter** für staubige Bereiche
+- **Mikroschalter (KW12) als Backup-Endschalter** für staubige Bereiche (optional)
+
+### Steuerung (rein remote)
+- Manueller Drucktaster entfällt — komplette Steuerung erfolgt **remote** über den
+  Raspberry Pi (HTTP-API, später BLE). Der Nano kennt keinen lokalen Start-Trigger.
 
 ### Stromversorgung
 - **12V Netzteil min. 5A** als Hauptversorgung
@@ -143,16 +147,17 @@ D8  → L298N IN2 (Presse Richtung B, digital)
 D9  → L298N IN3 (Pusher Richtung A, digital)
 D10 → L298N IN4 (Pusher Richtung B, digital)
 D11 → Servo Signal Hülsen-Schieber (PWM)
-D12 → Start-Taster (mechanisch, INPUT_PULLUP, active LOW)
-D13 → L298N-Mini IN3 → Hubmagnet #2 (Top-Druck)  — Status-LED umgewidmet
+D12 → MOSFET-Gate → Hülsenmagazin-Motor (5 V, ~40 mA)
+D13 → MOSFET-Gate → Hubmagnet #2 (Top-Druck, Heschen HS-0530B)
 A0  → Initiator Press (über Spannungsteiler)
 A1  → Initiator Push-Front (über Spannungsteiler)
 A2  → Initiator Push-Rear (über Spannungsteiler)
-A3  → Servo Signal Tabak-Tilt-Schwenkwand (Servo-Lib auch auf Analog-Pin)
-A4  → L298N-Mini IN1 → Hubmagnet #1 (Front-Knock)
+A3  → Servo Signal Tabak-Tilt-Schwenkwand (Servo-Lib auf Analog-Pin)
+A4  → MOSFET-Gate → Hubmagnet #1 (Front-Knock, Heschen HS-0530B)
 A5  → Magazin-Lichtschranke (Gabellichtschranke, direkt 5 V)
 
-# L298N-Mini IN2, IN4: hardwire auf GND (statisch LOW, da Solenoide nur EIN/AUS brauchen)
+# Manueller Start-Taster: ENTFÄLLT (Steuerung remote über Pi)
+# Onboard-Status-LED: ENTFÄLLT (D13 jetzt MOSFET-Gate für Solenoid #2)
 ```
 
 ### Pin-Belegung ESP-WROOM-32 (Übergangslösung)
@@ -272,8 +277,10 @@ Nano → Pi:
 8. **DC-Motor 2 Pusher** mit L298N
 9. **Servo** zum Schluss
 10. **Initiatoren** mit Spannungsteilern
-11. **Start-Taster** Funktionscheck
-12. **Vollintegration:** Stopfsequenz schrittweise
+11. **Magazin-Lichtschranke** (Trommel-Index)
+12. **Tabak-Servo + 2× Solenoide** (MOSFET-Tests via `knock`-Befehl)
+13. **Hülsenmagazin-Motor** (MOSFET, on/off via `hopper`-Befehl)
+14. **Vollintegration:** Stopfsequenz schrittweise (Pi-orchestriert)
 
 ---
 
@@ -304,9 +311,11 @@ Nano → Pi:
 ### Elektronik
 - Amazon: A4988, L298N, Buck-Konverter, NEMA 17, Servo SG90, ESP32, Arduino Nano, Pi Zero 2 W
 - Initiatoren: "LJ8A3-2-Z/BX" auf Amazon (~5€/Stück)
-- Drucktaster: 12 mm Panel-Mount oder Mini-Tactile-Button (~1–3€/Stück)
 - Hubmagnete: **Heschen HS-0530B** (12V, ~5mm Hub, ~4N, ~0,5A) — Amazon, ~8–12€/Stück, im 2er-Pack
-- L298N Mini-Modul (für Solenoide): das beim Tausch ausgemusterte Modul reicht, sonst neu ~3€
+- MOSFETs (Treiber für Solenoide + Hülsenmagazin-Motor): **3× IRLZ44N** (Logic-Level, Reichelt ~0,30€/Stück) oder 2N7000/BS170 für kleinere Lasten
+- Flyback-Dioden: **2× 1N5819** (Solenoide), **1× 1N4148** (Hülsenmotor-40mA) — Standard, im Sortiment dabei
+- Gate-Widerstände: 2× 100 Ω (Solenoide), 1× 1 kΩ (Hopper-Motor)
+- Hülsenmagazin-Motor: 5 V Mini-DC- oder Vibrationsmotor, ~40 mA
 
 ### Mechanik
 - T8 Leitspindel + Mutter: Amazon Set ~6€

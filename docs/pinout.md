@@ -21,8 +21,8 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | D9 | `PIN_PUSHER_IN3` | Pusher Richtung A | L298N IN3 | violett | digital (Servo killt hier nur PWM) |
 | D10 | `PIN_PUSHER_IN4` | Pusher Richtung B | L298N IN4 | blau | digital |
 | D11 | `PIN_SERVO` | Servo-Signal Hülsen-Schieber | SG90 (orange Litze) | orange | **PWM** (Servo-Library) |
-| D12 | `PIN_BUTTON` | Start-Taster | mechanischer Drucktaster | grau | **active LOW** (Pull-up intern) |
-| D13 | `PIN_SOL_TOP` | Hubmagnet #2 Top-Druck | L298N-Mini IN3 | blau | digital; **D13 ist nicht mehr Status-LED!** |
+| D12 | `PIN_HOPPER_MOTOR` | Hülsenmagazin-Motor | MOSFET-Gate (2N7000 / IRLZ44N) | grau | digital ON/OFF (5 V, ~40 mA Last) |
+| D13 | `PIN_SOLENOID_2` | Hubmagnet #2 (Top-Druck) | MOSFET-Gate (IRLZ44N) | weiß | digital ON/OFF, Heschen HS-0530B (12 V) |
 
 ### Analoge Pins (nutzbar als digital, hier teils analog)
 
@@ -31,9 +31,9 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | A0 | `PIN_INIT_PRESS` | Initiator Press | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k Spannungsteiler | active LOW |
 | A1 | `PIN_INIT_PUSH_FRONT` | Initiator Pusher vorne | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
 | A2 | `PIN_INIT_PUSH_REAR` | Initiator Pusher hinten | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
-| A3 | `PIN_TABAK_SERVO` | Servo Tabak-Tilt-Schwenkwand | SG90/Tiny-S | orange | **PWM** (Servo-Library) |
-| A4 | `PIN_SOL_FRONT` | Hubmagnet #1 Front-Knock | L298N-Mini IN1 | blau | digital |
-| A5 | `PIN_MAGAZIN_SENSOR` | Magazin-Optosensor | Oniissy Gabellichtschranke | direkt 5 V-Logik | für später |
+| A3 | `PIN_TABAK_SERVO` | Servo Tabak-Tilt-Schwenkwand | SG90/Tiny-S (Signal) | Servo-Lib, analog-pin als digital genutzt |
+| A4 | `PIN_SOLENOID_1` | Hubmagnet #1 (Front-Knock) | MOSFET-Gate (IRLZ44N) | digital ON/OFF, Heschen HS-0530B (12 V) |
+| A5 | `PIN_MAGAZIN_SENSOR` | Magazin-Gabellichtschranke | Oniissy / Standard-Opto | direkt 5 V-Logik, kein Spannungsteiler |
 
 ### Versorgungs-Pins
 
@@ -105,38 +105,6 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 
 ---
 
-## L298N Mini-Modul (Solenoid-Treiber, 2-Kanal)
-
-> Kleines Modul **ohne** ENA/ENB (Always-Enabled). Ideal für Solenoide, die nur
-> EIN/AUS brauchen. IN2 und IN4 werden hardwired auf GND verdrahtet.
-
-| L298N-Mini-Pin | Verbindung | Anmerkung |
-|---|---|---|
-| V_S (12 V) | 12 V Bus | Motor-Versorgung |
-| GND | GND-Sternpunkt | |
-| IN1 | Nano **A4** | Hubmagnet #1 Front-Knock |
-| IN2 | **GND** (hardwired) | statisch LOW |
-| IN3 | Nano **D13** | Hubmagnet #2 Top-Druck |
-| IN4 | **GND** (hardwired) | statisch LOW |
-| OUT1/OUT2 | Heschen HS-0530B #1 (Front-Knock) | Polarität egal |
-| OUT3/OUT4 | Heschen HS-0530B #2 (Top-Druck) | Polarität egal |
-
-> ⚠️ **~2,5 V interner Spannungsabfall** am L298N Mini → ~9,5 V am Solenoid statt 12 V → ~63 % Nennkraft.
-> Für Knock-Anwendung (kurze Pulse) ausreichend.
-
----
-
-## Heschen HS-0530B Solenoid (2 Stück)
-
-| Litzenfarbe | Funktion | Anschluss |
-|---|---|---|
-| beliebig (2-adrig, unpolar) | Solenoid-Spule | L298N-Mini OUT1/OUT2 bzw. OUT3/OUT4 |
-
-> Solenoide sind **unpolar** — Richtung egal. Flyback-Diode 1N5819 parallel zur Spule
-> empfohlen (zusätzlich zur L298N-internen).
-
----
-
 ## NEMA 17 Schrittmotor
 
 Standard-Belegung (variiert pro Hersteller — mit Multimeter durchklingeln!):
@@ -171,36 +139,70 @@ Belegung beider Servos (Litzenfarben identisch):
 
 ## Hubmagnete Heschen HS-0530B (2 Stück, Tabak-Dosierung)
 
-12V Push/Pull-Solenoid, ~5 mm Hub, ~3–5 N Zugkraft, ~0,5 A pro Solenoid, ~14×30 mm.
-Intermittierender Betrieb (kurze Pulse 50–150 ms), nicht für Dauer-ON ausgelegt.
+12V Push/Pull-Solenoid, ~5 mm Hub, ~3–5 N Zugkraft, ~0,5 A nominal (Halte­strom
+bei aktivem Coil ~1 A), ~14×30 mm. Intermittierender Betrieb (kurze Pulse
+50–150 ms), nicht für Dauer-ON ausgelegt.
 
 | Litze | Funktion | Anschluss |
 |---|---|---|
-| Solenoid #1 (Front-Knock) +/− | DC-Pulse 12 V | L298N-Mini Out1 / Out2 |
-| Solenoid #2 (Top-Druck) +/− | DC-Pulse 12 V | L298N-Mini Out3 / Out4 |
+| Solenoid #1 (Front-Knock) | beide Anschlüsse | über MOSFET-Treiber an Nano A4 |
+| Solenoid #2 (Top-Druck) | beide Anschlüsse | über MOSFET-Treiber an Nano D13 |
 
-Steuerung via **L298N Mini-Modul** (2-Kanal):
+Steuerung pro Solenoid via **Logic-Level-MOSFET** (z. B. IRLZ44N):
 
-| L298N-Mini Pin | Anschluss | Anmerkung |
-|---|---|---|
-| V_S (12 V) | 12 V-Bus über F4 (siehe Sicherungs-Liste) | +470 µF Elko parallel |
-| GND | GND-Sternpunkt | |
-| IN1 | Nano **A4** (`PIN_SOLENOID_1`) | Solenoid #1 EIN/AUS |
-| IN2 | **hardwire an GND** | statisch LOW (Solenoid braucht keine Drehrichtung) |
-| IN3 | Nano **D13** (`PIN_SOLENOID_2`) | Solenoid #2 EIN/AUS |
-| IN4 | **hardwire an GND** | statisch LOW |
-| Out1 / Out2 | Solenoid #1 | Polung egal (Coil), aber konsistent anschließen |
-| Out3 / Out4 | Solenoid #2 | dito |
+| Bauteil | Anschluss |
+|---|---|
+| Solenoid + | 12 V-Bus (über F4 = 1 A T) |
+| Solenoid − | Drain des MOSFETs |
+| 1N5819 Flyback | Kathode an +12 V, Anode an Drain (parallel zum Solenoid) |
+| MOSFET Source | GND-Sternpunkt |
+| MOSFET Gate | über 100 Ω Series an Nano-Pin (A4 oder D13) |
 
-> **Spannungsabfall L298N:** ~2,5 V intern → 12 V → ~9,5 V am Solenoid → ~63 %
-> Nennkraft. Für Knock-Anwendung ausreichend.
+> **Warum nicht L298N-Mini?** Wäre theoretisch ein 2-Kanal-Treiber für beide
+> Solenoide. **Aber:** Halte­strom 1 A × 2,5 V L298N-Drop = 2,5 W pro Kanal,
+> bei beiden aktiv 5 W → das Mini-Modul ohne Kühlkörper überhitzt. MOSFET hat
+> < 20 mV Drop → kalt.
 
-> **Polung:** DC-Solenoide haben technisch keine Polarität (Spule), aber für
-> einheitliche Verkabelung: rot/+ an Out_a, schwarz/− an Out_b.
+> **Polung Solenoid:** DC-Solenoide haben keine elektrische Polarität, aber
+> konsistente Anschluss-Konvention vereinfacht Wartung.
 
-> **Flyback-Diode optional:** L298N hat interne Freilaufdioden. Externe 1N5819
-> oder 1N4007 parallel zum Solenoid (Kathode an +12 V) nur, falls die internen
-> zu langsam werden — bei Knock-Pulsen meist unproblematisch.
+> **Flyback-Diode Pflicht** (nicht optional wie bei L298N) — beim Abschalten
+> erzeugt die Solenoid-Spule eine hohe Back-EMF-Spitze, die den MOSFET ohne
+> Schutz beschädigt.
+
+---
+
+## Hülsenmagazin-Motor (1 Stück, 5 V Vibrationsmotor)
+
+Kleiner DC-Motor zum Vorrücken/Rütteln der Hülsen im Magazin. ~40 mA bei 5 V,
+nur on/off (Drehzahl-Regelung nicht nötig).
+
+| Bauteil | Anschluss |
+|---|---|
+| Motor + | 5 V-Bus (vom Buck-Out, nicht vom Nano-5V-Pin) |
+| Motor − | Drain des MOSFETs |
+| 1N4148 Flyback | Kathode an +5 V, Anode an Drain (parallel zum Motor) |
+| MOSFET Source | GND-Sternpunkt |
+| MOSFET Gate | über 1 kΩ Series an Nano D12 |
+
+> **MOSFET-Wahl:** 2N7000 (TO-92, ~10 ct) ist optimal für 40 mA. IRLZ44N geht
+> auch (overkill aber konsistent mit Solenoid-Treibern).
+
+> **Warum 1N4148 statt 1N5819?** Bei 40 mA reicht die 200 mA-Dauerlast-
+> Spec der 1N4148 dicke. 1N5819 wäre overkill und die hast du eh für die
+> Solenoide.
+
+> **Nicht direkt vom Nano-Pin treiben:** Nano-Pin verträgt max 40 mA — exakt am
+> Limit, plus Anlaufspitze + Back-EMF → Pin-Schutzdiode wird über Zeit stressed.
+> MOSFET ist die sichere Lösung.
+
+---
+
+## Start-Taster — entfällt
+
+Manueller Hardware-Start ist nicht vorgesehen. Die Maschine wird **komplett
+remote** über den Raspberry Pi gesteuert (HTTP-API, später BLE). Pin D12 ist
+für den Hülsenmagazin-Motor umgewidmet.
 
 ---
 
@@ -215,26 +217,6 @@ Steuerung via **L298N Mini-Modul** (2-Kanal):
 > **LJ8 vs. LJ12:** elektrisch identisch (NPN, active LOW, gleicher Spannungsteiler,
 > gleicher Code). Unterschied nur mechanisch: LJ8 = M8/2 mm Schaltabstand,
 > LJ12 = M12/4 mm (größere Bohrung, Target ≥ 12×12 mm). Beide verwendbar.
-
----
-
-## Start-Taster (mechanisch, momentary)
-
-Z. B. Tactile Push-Button (Mini), Panel-Mount-Taster mit 12 mm oder 16 mm Loch,
-oder Pilzkopf-Taster (Pflicht-Schließer für Start, NICHT Notaus!).
-
-| Taster-Pin | Anschluss | Anmerkung |
-|---|---|---|
-| Pin 1 (eines der zwei Kontakte) | Nano **D12** | Signal mit internem Pull-up |
-| Pin 2 (der andere Kontakt) | **GND** | gemeinsame Masse |
-
-Bei 4-Pin-Tactile-Buttons: zwei diagonale Pins nutzen (1+3 oder 2+4).
-Die anderen beiden sind intern mit ihrem Diagonalpartner verbunden.
-
-> **Logik:** Pin-Modus `INPUT_PULLUP`. Ungedrückt = HIGH (intern hochgezogen),
-> gedrückt = LOW (Taster zieht gegen GND). Das `status`-Feld `button=1` bedeutet
-> "Taster wird gerade gedrückt". Kein externer Pull-up und kein Vorwiderstand
-> nötig — interne 20–50 kΩ vom ATmega328 reichen.
 
 ---
 
@@ -270,7 +252,7 @@ Die anderen beiden sind intern mit ihrem Diagonalpartner verbunden.
 | L298N ENA | GPIO 33 | PWM |
 | L298N ENB | GPIO 4 | PWM |
 | Servo | GPIO 19 | PWM (LEDC-Kanal) |
-| Start-Taster | GPIO 21 | INPUT_PULLUP, active LOW |
+| (Start-Taster) | – | **entfällt — Steuerung remote über Pi** |
 | Initiator Press | GPIO 34 | ⚠️ input-only, kein Pull-Up |
 | Initiator PushFront | GPIO 35 | ⚠️ input-only |
 | Initiator PushRear | GPIO 36 | ⚠️ input-only |
@@ -312,7 +294,18 @@ Zentrale Pufferkondensatoren — alle 105 °C, radial THT.
 
 | Bauteil | Wert | Anzahl | Position |
 |---|---|---|---|
-| Schottky-Flyback-Diode | 1N5819 (1 A, 40 V) | 8× | je 4 pro DC-Motor an L298N-Ausgängen |
+| Schottky-Flyback-Diode | 1N5819 (1 A, 40 V) | 8× (DC-Motoren) + 2× (Solenoide) | 4 pro DC-Motor an L298N-Ausgängen; 2 für die Heschen-Solenoide (Pflicht!) |
+
+### MOSFET-Treiber (Pflicht für Tabak-Solenoide + Hülsenmagazin-Motor)
+
+| Bauteil | Wert | Anzahl | Position |
+|---|---|---|---|
+| **MOSFET Logic-Level** | IRLZ44N (TO-220, 30A, ~17 mΩ Rds_on) | 3× | je 1 pro Solenoid + 1 für Hopper-Motor (overkill ok) |
+| Alternativ Hopper-Motor | 2N7000 oder BS170 (TO-92, klein) | 1× statt IRLZ44N | nur 40 mA — kleiner ist genug |
+| Flyback-Diode Hopper | **1N4148** (200 mA, 100 V) | 1× | parallel zum 40-mA-Motor (1N5819 wäre overkill) |
+| Gate-Series-Widerstand | 100 Ω (Solenoide) / 1 kΩ (Hopper) | 3× | dämpft Gate-Switching |
+
+Kosten gesamt: ~1,50 € (3× IRLZ44N + 2× 1N5819 + 1× 1N4148 + 3× R).
 
 ---
 
@@ -335,7 +328,7 @@ Zentrale Pufferkondensatoren — alle 105 °C, radial THT.
 | **NEMA 17 → A4988 (4-adrig)** | 1 A pro Phase | 0,5 mm² je Ader | AWG 20 | schwarz/grün/rot/blau |
 | Logik-Signale (STEP, DIR, EN, IN1–4) | < 50 mA | 0,14–0,25 mm² | AWG 26–24 | beliebig |
 | Servo-Signal (PWM von Nano) | < 20 mA | 0,14 mm² | AWG 26 | orange |
-| Start-Taster | < 20 mA | 0,14 mm² | AWG 26 | grau |
+| MOSFET-Gate-Leitungen (Nano → Gate, mit 100Ω/1kΩ Series) | < 1 mA | 0,14 mm² | AWG 26 | grau |
 | Initiator-Signal (schwarz) | < 20 mA | 0,25 mm² | AWG 24 | schwarz/grün |
 | GND-Rückleitungen | **wie Hinweg!** | gleicher Querschnitt | – | schwarz |
 
