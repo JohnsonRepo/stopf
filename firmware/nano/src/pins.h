@@ -58,14 +58,16 @@ constexpr uint8_t PIN_INIT_PRESS      = A0;
 constexpr uint8_t PIN_INIT_PUSH_FRONT = A1;
 constexpr uint8_t PIN_INIT_PUSH_REAR  = A2;
 
-// --- Tabak-Dosierung (Tilt-Schwenkwand + 2 Solenoide via MOSFETs) ---
+// --- Tabak-Dosierung (nur Solenoide — KEIN Tabak-Servo!) ---
 // Mechanismus aus Fraens' vollautomatischer Variante:
-//   - Tabak-Servo (Mini-Servo) schwenkt eine Tilt-Wand vor/zurück
-//   - 2× Heschen HS-0530B Hubmagnete pulsieren (Front-Knock + Top-Druck)
+//   - 2× Heschen HS-0530B Hubmagnete pulsieren synchron (Front-Knock + Top-Druck)
+//   - kein Servo dazwischen — die ursprünglich angedachte Tilt-Wand wurde durch
+//     die Doppel-Solenoid-Lösung ersetzt
 //   - Pro Solenoid: 1× IRLZ44N MOSFET + 1× 1N5819 Flyback-Diode
 //   - Solenoid #2 siehe oben (D13), Solenoid #1 hier:
-constexpr uint8_t PIN_TABAK_SERVO    = A3;  // Servo-Lib läuft auf Analog-Pins
 constexpr uint8_t PIN_SOLENOID_1     = A4;  // → MOSFET → Heschen HS-0530B (Front-Knock)
+
+// A3 ist frei (Reserve — z. B. zukünftige Sensoren, I²C-Display etc.)
 
 // --- Magazin-Lichtschranke (Trommel-Index) ---
 constexpr uint8_t PIN_MAGAZIN_SENSOR = A5;  // Gabellichtschranke, direkt 5 V-Logik

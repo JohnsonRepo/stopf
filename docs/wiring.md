@@ -274,7 +274,6 @@ flowchart LR
         A0["A0 Init Press"]
         A1["A1 Init PushFront"]
         A2["A2 Init PushRear"]
-        A3["A3 Servo Tabak"]
         A4["A4 Solenoid1-MOSFET"]
         A5["A5 Magazin-Sensor"]
     end
@@ -291,8 +290,7 @@ flowchart LR
     D9 --> L298N_B
     D10 --> L298N_B
 
-    D11 --> SERVO["SG90 Servo<br/>Huelsen-Schieber"]
-    A3 --> TABAK["SG90 / Tiny-S Servo<br/>Tabak-Tilt-Schwenkwand"]
+    D11 --> SERVO["SG90 Servo<br/>Huelsen-Schieber (einziger Servo)"]
 
     A4 --> MOS1["MOSFET IRLZ44N<br/>+ 1N5819 Flyback<br/>zu Solenoid Heschen HS-0530B (Front-Knock)"]
     D13 --> MOS2["MOSFET IRLZ44N<br/>+ 1N5819 Flyback<br/>zu Solenoid Heschen HS-0530B (Top-Druck)"]
@@ -833,12 +831,15 @@ PSU ──► [F1 Hauptsicherung] ──┬──► [NOTAUS-Schalter] ──►
 
 ---
 
-## 9. Tabak-Dosierung (Tilt-Schwenkwand + 2 Solenoide)
+## 9. Tabak-Dosierung (nur 2 Solenoide — KEIN Servo)
 
 Mechanismus aus Fraens' **vollautomatischer** Maschine (nicht zu verwechseln mit
-der Förderschnecke der teil-automatischen Variante). Drei Aktoren arbeiten
-parallel in der „Knocking"-Phase, dosieren Tabak per Schwerkraft + Impuls —
-Tabak wird nicht zerkleinert.
+der Förderschnecke der teil-automatischen Variante). **Zwei Solenoide** dosieren
+Tabak per Schwerkraft + Impuls — kein bewegtes Element dazwischen.
+
+> **Hinweis:** Frühere Versionen dieser Doku zeigten eine zusätzliche Servo-Tilt-
+> Wand. Die wurde durch die Doppel-Solenoid-Lösung ersetzt — der einzige Servo
+> im Aufbau ist der Hülsen-Schieber (D11). A3 ist frei (Reserve).
 
 ### Funktionsprinzip
 
@@ -851,11 +852,8 @@ Tabak wird nicht zerkleinert.
    Schlag"    ║                                ║     bricht Tabak-Brücken
               ║                                ║
               ╚═════════╤══════════════════════╝
-                        │ Tabak rieselt nach
-                ┌───────┴────────┐
-                │ Tilt-Servo     │ ← Tabak-Servo (A3)
-                │ Schwenkwand    │   schwenkt vor/zurück, meter den Fluss
-                └───────┬────────┘
+                        │ Tabak rieselt durch Schwerkraft
+                        │ (kein bewegtes Element nötig)
                         │
                   ●═════→ Hubmagnet #2 (Top-Druck)
                   "Top-Schlag"   pulst von oben → drückt Tabak in Stopfrohr
@@ -863,13 +861,14 @@ Tabak wird nicht zerkleinert.
                         │
                         ▼
                   Stopfrohr / Press-Kammer
+
+   Beide Solenoide pulsen SYNCHRON, 8× pro Dose (siehe Knock-Sequenz).
 ```
 
 ### Komponenten
 
 | Bauteil | Spec | Aufgabe |
 |---|---|---|
-| **Tabak-Servo** | SG90 oder Tower Pro Tiny-S, ~10 g, 5 V | schwenkt Tilt-Wand 8× pro Dosis |
 | **Hubmagnet #1** | Heschen HS-0530B, 12 V, 5 mm Hub, 3–5 N, 0,5 A | seitliches Klopfen am Vorratstrog |
 | **Hubmagnet #2** | Heschen HS-0530B (identisch) | Drücken von oben |
 | **2× IRLZ44N MOSFET** | Logic-Level, Rds_on ~17 mΩ, 30+ A | je ein Treiber pro Solenoid (statt L298N-Mini) |
@@ -934,35 +933,33 @@ Tabak wird nicht zerkleinert.
 Trennt den Tabak-Dosier-Zweig vom Rest des 12-V-Busses — wenn ein Solenoid mal
 kurzschließt (Coil durchgeschmort), bleibt der Rest der Maschine in Betrieb.
 
-### Steuerlogik (geplant — Statemachine v0.2)
+### Steuerlogik (implementiert in Firmware v0.2)
 
-Pseudo-Code für eine Knock-Sequenz:
+Knock-Sequenz: beide Solenoide pulsen **synchron**, kein Servo.
 
 ```cpp
-void knock(uint8_t cycles = 8) {
+void runKnock(uint8_t cycles) {
+    if (cycles == 0) cycles = KNOCK_CYCLES_DEFAULT;
     for (uint8_t i = 0; i < cycles; i++) {
-        // Servo schwenkt nach hinten + beide Magnete pulsen kurz
-        tabakServo.write(TABAK_SERVO_REAR);
         digitalWrite(PIN_SOLENOID_1, HIGH);
         digitalWrite(PIN_SOLENOID_2, HIGH);
-        delay(KNOCK_PULSE_ON_MS);     // ~80 ms
+        delay(KNOCK_PULSE_ON_MS);     // 80 ms
 
         digitalWrite(PIN_SOLENOID_1, LOW);
         digitalWrite(PIN_SOLENOID_2, LOW);
-        delay(KNOCK_PULSE_OFF_MS);    // ~120 ms (Erholung)
+        delay(KNOCK_PULSE_OFF_MS);    // 120 ms (Erholung)
 
-        tabakServo.write(TABAK_SERVO_FRONT);
-        delay(KNOCK_PULSE_OFF_MS);
+        lastCommandMs = millis();      // Watchdog füttern
     }
-    tabakServo.write(TABAK_SERVO_FRONT);  // Endposition
 }
 ```
 
-Default-Parameter (config.h, später ergänzt):
-- `TABAK_SERVO_REAR  = 60°`, `TABAK_SERVO_FRONT = 30°` — initial schätzen, mechanisch justieren
+Default-Parameter (in `config.h`):
 - `KNOCK_PULSE_ON_MS = 80`  (Solenoid an)
-- `KNOCK_PULSE_OFF_MS = 120` (Pause — wichtig: Heschen sind nicht für 100 % Duty cycle ausgelegt)
-- `KNOCK_CYCLES = 8` (analog zu Fraens' Default)
+- `KNOCK_PULSE_OFF_MS = 120` (Pause — Heschen sind nicht für 100 % Duty cycle ausgelegt)
+- `KNOCK_CYCLES_DEFAULT = 8` (analog zu Fraens' Default)
+
+Gesamt-Dauer: 8 × 200 ms = **1,6 Sekunden** pro Knock-Befehl — unter Watchdog-Timeout (5 s).
 
 ### Duty-Cycle-Warnung
 

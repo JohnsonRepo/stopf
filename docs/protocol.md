@@ -73,7 +73,6 @@ Wichtige Positionen (siehe `config.h`):
 
 | Befehl | Antwort | Beschreibung |
 |---|---|---|
-| `tabak_servo <0..180>` | `ok tabak_servo <angle>` | Tilt-Schwenkwand auf Winkel (Justage) |
 | `solenoid 1 on` | `ok sol1 on` | Hubmagnet #1 (Front-Knock) ein |
 | `solenoid 1 off` | `ok sol1 off` | Hubmagnet #1 aus |
 | `solenoid 1 pulse <ms>` | `ok sol1 pulse <ms>` | Hubmagnet #1 für ms an, dann aus (max 1000 ms — Schutz vor Überhitzung) |
@@ -82,9 +81,11 @@ Wichtige Positionen (siehe `config.h`):
 | `knock <n>` | wie oben | mit `n` statt Default |
 
 Konstanten (in `config.h`):
-- `TABAK_SERVO_REAR = 60°`, `TABAK_SERVO_FRONT = 30°` (Knock-Servo-Endpositionen)
 - `KNOCK_PULSE_ON_MS = 80`, `KNOCK_PULSE_OFF_MS = 120`, `KNOCK_CYCLES_DEFAULT = 8`
 - `SOLENOID_PULSE_MAX_MS = 1000` (max Einzelpuls — Heschen nicht für Dauer-ON)
+
+> **Kein Tabak-Servo** — Knock-Sequenz pulst nur die zwei Solenoide synchron.
+> Der einzige Servo im System ist der Hülsen-Schieber (D11).
 
 ### Hülsenmagazin-Motor (kleiner 5 V DC via MOSFET)
 
@@ -204,8 +205,8 @@ Folgende Befehle stehen in [`../CLAUDE.md`](../CLAUDE.md) und sind **geplant**:
 | `set_knock_cycles <n>` | Anzahl Knock-Wiederholungen pro Dose ändern | 🔲 |
 | `abort` | sequenz sauber abbrechen, alle Aktoren in safe state | 🔲 (entspricht aktuell `stop`) |
 
-Implementierte Tabak/Hopper-Befehle (`tabak_servo`, `solenoid 1|2`, `knock`, `hopper`)
-siehe Sektion 2 oben — die sind seit der Tabak-Dosier-Erweiterung Bestandteil von v0.1.
+Implementierte Tabak/Hopper-Befehle (`solenoid 1|2`, `knock`, `hopper`)
+siehe Sektion 2 oben — Bestandteil von Firmware v0.2.
 
 Bis diese existieren, baut der Pi die Sequenz aus den **bestehenden** Befehlen
 (`stepper`, `press fwd/stop`, `servo`, `pusher fwd/rev/stop`) zusammen.

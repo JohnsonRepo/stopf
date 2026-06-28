@@ -13,8 +13,7 @@
 //   stepper <steps>     → Schrittmotor um N Steps drehen (negativ = rückwärts)
 //   press fwd|rev|stop  → DC-Press-Motor (drehzahlgeregelt via ENA)
 //   pusher fwd|rev|stop → DC-Pusher-Motor (drehzahlgeregelt via ENB)
-//   servo <0..180>      → Hülsen-Schieber-Servo
-//   tabak_servo <0..180>→ Tabak-Tilt-Schwenkwand-Servo
+//   servo <0..180>      → Hülsen-Schieber-Servo (einziger Servo)
 //   solenoid 1|2 on|off|pulse <ms>
 //                       → Heschen HS-0530B Hubmagnete via MOSFET
 //   hopper on|off|run <ms>
@@ -32,8 +31,7 @@
 
 // --- Globale Objekte ---
 AccelStepper stepper(AccelStepper::DRIVER, PIN_STEPPER_STEP, PIN_STEPPER_DIR);
-Servo tubeServo;     // Hülsen-Schieber (D11)
-Servo tabakServo;    // Tabak-Tilt-Schwenkwand (A3)
+Servo tubeServo;     // Hülsen-Schieber (D11) — einziger Servo im Aufbau
 
 // --- Watchdog ---
 unsigned long lastCommandMs = 0;
@@ -184,22 +182,21 @@ void setHopper(const String& action) {
     }
 }
 
-// Komplette Knock-Sequenz: Servo schwenkt + beide Solenoide pulsen synchron.
+// Komplette Knock-Sequenz: beide Solenoide pulsen synchron.
+// Tabak rieselt durch Schwerkraft + Impuls in Stopfposition. Kein Servo dazwischen.
 // Blockierend, aber Gesamt-Dauer ~1,6 s (8 × 200 ms) < Watchdog (5 s).
 void runKnock(uint8_t cycles) {
     if (cycles == 0) cycles = KNOCK_CYCLES_DEFAULT;
     Serial.print("ok knock start cycles=");
     Serial.println(cycles);
     for (uint8_t i = 0; i < cycles; i++) {
-        // Pulse: Servo nach hinten + Solenoide an
-        tabakServo.write(TABAK_SERVO_REAR);
+        // Pulse: beide Solenoide an
         digitalWrite(PIN_SOLENOID_1, HIGH);
         digitalWrite(PIN_SOLENOID_2, HIGH);
         delay(KNOCK_PULSE_ON_MS);
-        // Pause: Solenoide aus + Servo nach vorne (Erholung)
+        // Pause: Solenoide aus
         digitalWrite(PIN_SOLENOID_1, LOW);
         digitalWrite(PIN_SOLENOID_2, LOW);
-        tabakServo.write(TABAK_SERVO_FRONT);
         delay(KNOCK_PULSE_OFF_MS);
         // Watchdog während Knock-Sequenz "füttern"
         lastCommandMs = millis();
@@ -215,14 +212,12 @@ void printHelp() {
     Serial.println(F("stepper <steps>    - move stepper N steps (+/-)"));
     Serial.println(F("press fwd|rev|stop - press DC motor"));
     Serial.println(F("pusher fwd|rev|stop- pusher DC motor"));
-    Serial.println(F("servo <0..180>     - tube-servo angle (Huelsen)"));
-    Serial.println(F("tabak_servo <0..180>"));
-    Serial.println(F("                   - tobacco-tilt servo angle"));
+    Serial.println(F("servo <0..180>     - tube-servo angle (Huelsen-Schieber, einziger Servo)"));
     Serial.println(F("solenoid 1|2 on|off|pulse <ms>"));
     Serial.println(F("                   - 2x Heschen HS-0530B (Knock-Magnete)"));
     Serial.println(F("hopper on|off|run <ms>"));
     Serial.println(F("                   - 5V Huelsenmagazin-Motor"));
-    Serial.println(F("knock [<cycles>]   - Tabak-Dosis: Servo+Solenoide N-mal"));
+    Serial.println(F("knock [<cycles>]   - Tabak-Dosis: beide Solenoide N-mal synchron"));
     Serial.println(F("stop               - emergency stop ALL"));
     Serial.println(F("==================================="));
 }
@@ -267,13 +262,6 @@ void handleCommand(String cmd) {
         angle = constrain(angle, 0, 180);
         tubeServo.write(angle);
         Serial.print("ok servo ");
-        Serial.println(angle);
-    }
-    else if (cmd.startsWith("tabak_servo ")) {
-        int angle = cmd.substring(12).toInt();
-        angle = constrain(angle, 0, 180);
-        tabakServo.write(angle);
-        Serial.print("ok tabak_servo ");
         Serial.println(angle);
     }
     else if (cmd.startsWith("solenoid 1 ")) {
@@ -329,11 +317,9 @@ void setup() {
     stepper.setMaxSpeed(STEPPER_MAX_SPEED);
     stepper.setAcceleration(STEPPER_ACCEL);
 
-    // Servos: Hülsen-Schieber und Tabak-Tilt
+    // Servo: nur Hülsen-Schieber (einziger Servo im Aufbau)
     tubeServo.attach(PIN_SERVO);
     tubeServo.write(SERVO_POS_HOME);
-    tabakServo.attach(PIN_TABAK_SERVO);
-    tabakServo.write(TABAK_SERVO_FRONT);
 
     // Sicher starten
     allMotorsOff();

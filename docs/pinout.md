@@ -31,7 +31,7 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | A0 | `PIN_INIT_PRESS` | Initiator Press | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k Spannungsteiler | active LOW |
 | A1 | `PIN_INIT_PUSH_FRONT` | Initiator Pusher vorne | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
 | A2 | `PIN_INIT_PUSH_REAR` | Initiator Pusher hinten | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
-| A3 | `PIN_TABAK_SERVO` | Servo Tabak-Tilt-Schwenkwand | SG90/Tiny-S (Signal) | Servo-Lib, analog-pin als digital genutzt |
+| A3 | – | **frei** (Reserve) | – | – | z. B. zukünftige Sensoren oder I²C-Display |
 | A4 | `PIN_SOLENOID_1` | Hubmagnet #1 (Front-Knock) | MOSFET-Gate (IRLZ44N) | digital ON/OFF, Heschen HS-0530B (12 V) |
 | A5 | `PIN_MAGAZIN_SENSOR` | Magazin-Gabellichtschranke | Oniissy / Standard-Opto | direkt 5 V-Logik, kein Spannungsteiler |
 
@@ -118,22 +118,16 @@ Standard-Belegung (variiert pro Hersteller — mit Multimeter durchklingeln!):
 
 ---
 
-## SG90 Servo (Hülsen-Schieber UND Tabak-Tilt)
+## SG90 Servo (Hülsen-Schieber — einziger Servo)
 
-Zwei Servo-Instanzen:
-
-| Funktion | Pin | Anschluss-Hinweis |
-|---|---|---|
-| Hülsen-Schieber | **Nano D11** | Standard-Servo-Pin (PWM via Servo-Lib Timer1) |
-| Tabak-Tilt-Schwenkwand | **Nano A3** | Analog-Pin als digital nutzbar — Servo-Lib generiert Signal selbst |
-
-Belegung beider Servos (Litzenfarben identisch):
+Im finalen Aufbau gibt es **nur einen Servo** (für das Aufschieben der Hülse).
+Die Tabak-Dosierung läuft komplett über 2 Solenoide ohne Servo.
 
 | Litzenfarbe | Funktion | Anschluss |
 |---|---|---|
-| rot | VCC 5 V | Buck-Out + 470 µF Elko (Hülsen-Servo lokal, Tabak-Servo ggf. eigener Bulk) |
+| rot | VCC 5 V | Buck-Out + 470 µF Elko lokal am Servo |
 | braun / schwarz | GND | GND-Sternpunkt |
-| orange / gelb | Signal (PWM) | Nano D11 (Hülse) bzw. A3 (Tabak) |
+| orange / gelb | Signal (PWM) | Nano **D11** |
 
 ---
 

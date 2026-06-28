@@ -60,26 +60,26 @@ Zweischicht-Architektur mit klarer Trennung von Echtzeit-Steuerung und höherer 
 - **Selbsthemmend** — Pusher bleibt bei Motorstillstand auch unter Druck stehen
 - Bei 200-Step NEMA17 → 0,01mm Auflösung pro Step
 
-### Tabak-Dosierung (Tilt-Schwenkwand + 2 Hubmagnete)
+### Tabak-Dosierung (2 Hubmagnete, KEIN Servo)
 **Mechanismus der vollautomatischen Fraens-Maschine** (anders als die teil-automatische
-Variante mit Förderschnecke — die wäre falsch hier). Drei Aktoren arbeiten gemeinsam in
-der „Knocking"-Phase:
+Variante mit Förderschnecke). Reine Solenoid-Lösung — die ursprünglich angedachte
+Servo-Tilt-Wand wurde durch die Doppel-Solenoid-Anordnung ersetzt:
 
-- **Servo-Schwenkwand** im Acryl-Trog — Mini-Servo (Tabak-Servo) schwenkt eine Wand vor/zurück
-  → mischt und führt den Tabak in Richtung Auslass
 - **Hubmagnet #1 (Front-Knock)** — schlägt seitlich gegen den Trog → bricht Brücken im Vorrat
 - **Hubmagnet #2 (Top-Druck)** — schlägt von oben → drückt Tabak in Stopfrohr-Position
-- **Zyklus:** ~8× Knocking-Wiederholungen, Servo + beide Magnete pulsieren parallel
+- **Zyklus:** ~8× Knocking-Wiederholungen, beide Magnete pulsieren **synchron**
   → eine Tabak-Portion ist dosiert
+- Schwerkraft + Impulsstöße sorgen für gleichmäßigen Tabakfluss, kein bewegtes Element nötig
 
 **Bauteile:**
-- 1× Mini-Servo (SG90 / Tower Pro Tiny-S Klasse), 5 V, ~10 g
 - 2× **Heschen HS-0530B** Push/Pull-Solenoid: 12 V DC, ~5 mm Hub, ~3–5 N Zugkraft,
-  ~0,5 A pro Solenoid, Bauform ~14×30 mm, Duty cycle intermittent (für kurze Pulse, nicht Dauer)
-- 1× L298N **Mini-Modul** als 2-Kanal-Solenoid-Treiber — das alte ausgetauschte Modul
-  ist hier perfekt: fehlende ENA/ENB sind für Solenoide kein Nachteil, sondern ideal
-  (Always-Enabled-Betrieb passt zur EIN/AUS-Steuerung)
-- 2× Flyback-Diode 1N5819 oder 1N4007 (zusätzlich zur L298N-internen — optional aber sicher)
+  ~0,5 A pro Solenoid, Bauform ~14×30 mm, Duty cycle intermittent (kurze Pulse, nicht Dauer)
+- 2× MOSFET (IRLZ44N, Logic-Level) — Treiber für die Solenoide
+- 2× 1N5819 Flyback-Diode (Pflicht bei induktiven Lasten ohne integrierten Schutz)
+- 2× 100 Ω Gate-Series-Widerstand
+
+> **Es gibt im ganzen Aufbau nur EINEN Servo** — den Hülsen-Schieber (D11). Kein
+> Tabak-Servo. A3 ist Reserve.
 
 ### Hülsen-Standard (King Size)
 - 84mm × 8mm OD, ~7,5mm ID
@@ -104,8 +104,7 @@ der „Knocking"-Phase:
 ### Motoren / Aktoren
 - 1× NEMA 17 Schrittmotor (**Trommelmagazin-Drehung**, Belt 1:1 zur Drum)
 - 2× DC-Getriebemotor 12V (Presse + Pusher) — via L298N Standard-Modul mit ENA/ENB
-- 1× SG90 Servo (Hülsen-Schieber, D11)
-- 1× SG90/Tiny-S Servo (Tabak-Tilt-Schwenkwand, A3)
+- **1× SG90 Servo** (Hülsen-Schieber, D11) — einziger Servo im Aufbau
 - 2× **Heschen HS-0530B** Hubmagnet 12 V (Tabak-Front-Knock + Tabak-Top-Druck)
   via **MOSFETs** (IRLZ44N) — kein L298N-Mini, weil Halteströme (~1 A/Solenoid)
   und Spannungsabfall (~2,5 V) ihn überhitzen würden
@@ -152,7 +151,7 @@ D13 → MOSFET-Gate → Hubmagnet #2 (Top-Druck, Heschen HS-0530B)
 A0  → Initiator Press (über Spannungsteiler)
 A1  → Initiator Push-Front (über Spannungsteiler)
 A2  → Initiator Push-Rear (über Spannungsteiler)
-A3  → Servo Signal Tabak-Tilt-Schwenkwand (Servo-Lib auf Analog-Pin)
+A3  → frei (Reserve — z. B. zukünftige Sensoren, I²C-Display)
 A4  → MOSFET-Gate → Hubmagnet #1 (Front-Knock, Heschen HS-0530B)
 A5  → Magazin-Lichtschranke (Gabellichtschranke, direkt 5 V)
 
@@ -184,7 +183,7 @@ GPIO 39 → Magazin-Sensor
 ## Stopfsequenz (Programm-Logik)
 
 1. **Referenzfahrt** — Trommel per Schlitzsensor auf Startposition
-2. **Tabak dosieren („Knocking")** — ~8× wiederholt: Tabak-Servo schwenkt Tilt-Wand, Hubmagnet #1 schlägt seitlich gegen Trog (bricht Brücken), Hubmagnet #2 drückt von oben → Tabak rieselt in Stopfrohr-Position
+2. **Tabak dosieren („Knocking")** — ~8× wiederholt: Hubmagnet #1 schlägt seitlich gegen Trog (bricht Brücken), Hubmagnet #2 drückt von oben (beide synchron) → Tabak rieselt in Stopfrohr-Position
 3. **Pressen** — Presse-Motor verdichtet Tabak; Initiator Press signalisiert Endposition
 4. **Hülse aufsetzen** — Servo schiebt Hülse aufs Stopfrohr
 5. **Stopfen** — Pusher-Motor schiebt Tabak in Hülse; Initiator Push-Front = Endposition
@@ -192,9 +191,9 @@ GPIO 39 → Magazin-Sensor
 7. **Trommel weiterdrehen** — fertige Zigarette fällt aus, neue Hülse vorrutschen
 8. **Repeat ab Schritt 2**
 
-### Servo-Positionen (aus Fraens-Code)
-- Hülsen-Servo: 5° (vorne) / 85° (hinten)
-- Tabak-Servo: 80° (vorne) / 140° (hinten)
+### Servo-Position (einziger Servo: Hülsen-Schieber)
+- Hülsen-Servo D11: 5° (HOME — Hülse fertig aufgeschoben) / 85° (LOAD — Hülse aufnehmen)
+- Tabak-Dosierung läuft ohne Servo (siehe Tabak-Dosierung-Sektion)
 
 ---
 
@@ -278,7 +277,7 @@ Nano → Pi:
 9. **Servo** zum Schluss
 10. **Initiatoren** mit Spannungsteilern
 11. **Magazin-Lichtschranke** (Trommel-Index)
-12. **Tabak-Servo + 2× Solenoide** (MOSFET-Tests via `knock`-Befehl)
+12. **2× Solenoide** (MOSFET-Tests via `knock`-Befehl — synchrones Pulsen)
 13. **Hülsenmagazin-Motor** (MOSFET, on/off via `hopper`-Befehl)
 14. **Vollintegration:** Stopfsequenz schrittweise (Pi-orchestriert)
 

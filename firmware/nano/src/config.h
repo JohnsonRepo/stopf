@@ -50,12 +50,9 @@ constexpr bool INIT_TRIGGERED_LEVEL = LOW;
 // Falls dein Modul invertiert ist (Comparator): auf HIGH ändern.
 constexpr bool MAGAZIN_TRIGGERED_LEVEL = HIGH;
 
-// --- Tabak-Dosierung (Tilt-Servo + 2 Solenoide) ---
-// Tabak-Servo-Positionen — initial schätzen, mechanisch justieren
-constexpr int TABAK_SERVO_REAR    = 60;     // gekippt nach hinten (Tabak rutscht)
-constexpr int TABAK_SERVO_FRONT   = 30;     // gekippt nach vorne (Tabak setzt sich)
-
-// Knock-Sequenz Defaults
+// --- Tabak-Dosierung (nur 2 Solenoide, kein Servo) ---
+// Knock-Sequenz: beide Solenoide pulsen synchron, Tabak rieselt durch Schwerkraft
+// und Impulsstöße in die Stopfposition. Kein Servo dazwischen.
 constexpr unsigned long KNOCK_PULSE_ON_MS  = 80;   // Solenoid an pro Schlag
 constexpr unsigned long KNOCK_PULSE_OFF_MS = 120;  // Pause nach Schlag (Erholung)
 constexpr uint8_t       KNOCK_CYCLES_DEFAULT = 8;  // Anzahl Schläge pro Dose
