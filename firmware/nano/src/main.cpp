@@ -1,26 +1,33 @@
 // =====================================================
 // main.cpp
-// Stopfmaschine - Arduino Nano Firmware (Test-Stage 0.2)
+// Stopfmaschine - Arduino Nano Firmware v0.3.0
 //
-// Zweck: Einzeltests aller Motoren und Sensoren über Serial.
-// Diese Version ist KEIN finaler Firmware-Stand, sondern eine
-// Testbench, mit der du jede Komponente einzeln durchprobieren
-// kannst, bevor die echte Stopfsequenz programmiert wird.
+// Architektur:
+//   - Live-tunbare Parameter im EEPROM (params.h/cpp)
+//   - Kooperative State-Machine (home / stuff / step / idle / error)
+//   - Background-Hopper-Cycle parallel zur Hauptsequenz
+//   - Alle Sequenz-Befehle non-blocking — `stop` greift sofort
 //
-// Befehle (per Serial Monitor oder vom Pi, 115200 Baud):
-//   help                → Übersicht
-//   status              → Sensorwerte + Aktor-Zustände
-//   stepper <steps>     → Schrittmotor um N Steps drehen (negativ = rückwärts)
-//   press fwd|rev|stop  → DC-Press-Motor (drehzahlgeregelt via ENA)
-//   pusher fwd|rev|stop → DC-Pusher-Motor (drehzahlgeregelt via ENB)
-//   servo <0..180>      → Hülsen-Schieber-Servo (einziger Servo)
+// Befehle (115200 Baud):
+//   help                     - Liste
+//   ping                     - "pong"
+//   status                   - state + sensoren + aktoren als key=value
+//   params                   - alle EEPROM-Parameter
+//   get <key>                - einzelner Parameter
+//   set <key> <value>        - Parameter setzen (validiert + persistiert)
+//   home                     - Referenzfahrt (Trommel → Lichtschranke, Pusher → A2)
+//   stuff                    - Vollsequenz, läuft endlos bis `stop`
+//   step <n>                 - Einzelschritt (1..9 = Stuff-Steps)
+//   stop                     - Notaus, alles aus, Mode → IDLE
+//
+//   --- Manual (nur erlaubt wenn state=idle) ---
+//   stepper <steps>          - relative Stepper-Bewegung
+//   press fwd|rev|stop       - DC-Motor Presse (PWM aus params.press_pwm)
+//   pusher fwd|rev|stop      - DC-Motor Pusher (PWM aus params.pusher_pwm)
+//   servo <0..180>           - Hülsen-Schieber-Servo
 //   solenoid 1|2 on|off|pulse <ms>
-//                       → Heschen HS-0530B Hubmagnete via MOSFET
-//   hopper on|off|run <ms>
-//                       → 5V Hülsenmagazin-Motor via MOSFET
-//   knock [<cycles>]    → komplette Tabak-Dosier-Sequenz
-//   stop                → ALLES sofort aus
-//   ping                → antwortet "pong"
+//   hopper on|off|test <ms>  - on = Background-Cycle, test = einmaliger Run
+//   knock [<cycles>]         - läuft als Step (kann via stop abgebrochen werden)
 // =====================================================
 
 #include <Arduino.h>
@@ -28,313 +35,699 @@
 #include <Servo.h>
 #include "pins.h"
 #include "config.h"
+#include "params.h"
 
-// --- Globale Objekte ---
+// --- Hardware ---
 AccelStepper stepper(AccelStepper::DRIVER, PIN_STEPPER_STEP, PIN_STEPPER_DIR);
-Servo tubeServo;     // Hülsen-Schieber (D11) — einziger Servo im Aufbau
+Servo        tubeServo;
 
 // --- Watchdog ---
 unsigned long lastCommandMs = 0;
-bool watchdogTripped = false;
+bool          watchdogTripped = false;
 
-// --- Hilfsfunktionen ---
-void allMotorsOff() {
-    digitalWrite(PIN_STEPPER_EN, HIGH);  // EN HIGH = Treiber aus
+// --- State-Machine ---
+enum Mode : uint8_t {
+    MODE_IDLE     = 0,
+    MODE_HOMING   = 1,
+    MODE_STUFFING = 2,
+    MODE_STEP     = 3,
+    MODE_ERROR    = 4
+};
+
+// Stuff steps 1..9, Home steps 101..104
+constexpr uint8_t STEP_DRUM       = 1;
+constexpr uint8_t STEP_SERVO_LOAD = 2;
+constexpr uint8_t STEP_SERVO_HOME = 3;
+constexpr uint8_t STEP_KNOCK      = 4;
+constexpr uint8_t STEP_PRESS_FWD  = 5;
+constexpr uint8_t STEP_PRESS_REV  = 6;
+constexpr uint8_t STEP_PUSH_FWD   = 7;
+constexpr uint8_t STEP_PUSH_REV   = 8;
+constexpr uint8_t STEP_DELAY      = 9;
+constexpr uint8_t STUFF_STEP_MIN  = 1;
+constexpr uint8_t STUFF_STEP_MAX  = 9;
+
+constexpr uint8_t HOME_DRUM      = 101;
+constexpr uint8_t HOME_PUSH_REV  = 102;
+constexpr uint8_t HOME_SERVO     = 103;
+constexpr uint8_t HOME_PRESS_REV = 104;
+constexpr uint8_t HOME_DONE      = 105;
+
+Mode          currentMode    = MODE_IDLE;
+uint8_t       currentStep    = 0;
+unsigned long stepStartedMs  = 0;
+char          errorMsg[24]   = "";
+
+// Knock-Sub-State (innerhalb STEP_KNOCK)
+uint8_t       knockCounter      = 0;
+bool          knockPhaseOn      = false;
+unsigned long knockPhaseStartMs = 0;
+uint8_t       knockTargetCycles = 0;  // für Manual-Knock mit eigener Cycle-Zahl
+
+// Hopper-Background
+bool          hopperEnabled      = false;
+unsigned long hopperCycleStartMs = 0;
+unsigned long hopperManualUntil  = 0;  // für `hopper test <ms>` (Manual)
+
+// =====================================================
+// Hardware-Helpers
+// =====================================================
+
+static void allMotorsOff() {
+    digitalWrite(PIN_STEPPER_EN, HIGH);
     digitalWrite(PIN_PRESS_IN1, LOW);
     digitalWrite(PIN_PRESS_IN2, LOW);
     digitalWrite(PIN_PUSHER_IN3, LOW);
     digitalWrite(PIN_PUSHER_IN4, LOW);
     analogWrite(PIN_PRESS_ENA, 0);
     analogWrite(PIN_PUSHER_ENB, 0);
-    // Tabak-Dosier-Aktoren auch in Safe State
     digitalWrite(PIN_SOLENOID_1, LOW);
     digitalWrite(PIN_SOLENOID_2, LOW);
     digitalWrite(PIN_HOPPER_MOTOR, LOW);
 }
 
-void enableStepper() {
-    digitalWrite(PIN_STEPPER_EN, LOW);   // LOW = aktiv
-}
+static void enableStepper() { digitalWrite(PIN_STEPPER_EN, LOW); }
 
-// L298N Standard-Modul mit ENA/ENB:
-//   Richtung über IN1/IN2 bzw. IN3/IN4, Drehzahl über ENA/ENB (PWM).
-//   Drehzahl-Regelung funktioniert in BEIDE Richtungen.
-void setPressMotor(const String& dir) {
-    if (dir == "fwd") {
+static void pressDrive(const char* dir) {
+    if (strcmp(dir, "fwd") == 0) {
         digitalWrite(PIN_PRESS_IN1, HIGH);
         digitalWrite(PIN_PRESS_IN2, LOW);
-        analogWrite(PIN_PRESS_ENA, PRESS_SPEED_DEFAULT);
-        Serial.println("ok press fwd");
-    } else if (dir == "rev") {
+        analogWrite(PIN_PRESS_ENA, params.press_pwm);
+    } else if (strcmp(dir, "rev") == 0) {
         digitalWrite(PIN_PRESS_IN1, LOW);
         digitalWrite(PIN_PRESS_IN2, HIGH);
-        analogWrite(PIN_PRESS_ENA, PRESS_SPEED_DEFAULT);
-        Serial.println("ok press rev");
+        analogWrite(PIN_PRESS_ENA, params.press_pwm);
     } else {
         digitalWrite(PIN_PRESS_IN1, LOW);
         digitalWrite(PIN_PRESS_IN2, LOW);
         analogWrite(PIN_PRESS_ENA, 0);
-        Serial.println("ok press stop");
     }
 }
 
-void setPusherMotor(const String& dir) {
-    if (dir == "fwd") {
+static void pusherDrive(const char* dir) {
+    if (strcmp(dir, "fwd") == 0) {
         digitalWrite(PIN_PUSHER_IN3, HIGH);
         digitalWrite(PIN_PUSHER_IN4, LOW);
-        analogWrite(PIN_PUSHER_ENB, PUSHER_SPEED_DEFAULT);
-        Serial.println("ok pusher fwd");
-    } else if (dir == "rev") {
+        analogWrite(PIN_PUSHER_ENB, params.pusher_pwm);
+    } else if (strcmp(dir, "rev") == 0) {
         digitalWrite(PIN_PUSHER_IN3, LOW);
         digitalWrite(PIN_PUSHER_IN4, HIGH);
-        analogWrite(PIN_PUSHER_ENB, PUSHER_SPEED_DEFAULT);
-        Serial.println("ok pusher rev");
+        analogWrite(PIN_PUSHER_ENB, params.pusher_pwm);
     } else {
         digitalWrite(PIN_PUSHER_IN3, LOW);
         digitalWrite(PIN_PUSHER_IN4, LOW);
         analogWrite(PIN_PUSHER_ENB, 0);
-        Serial.println("ok pusher stop");
     }
 }
 
-void readSensors() {
+// =====================================================
+// State-Machine
+// =====================================================
+
+static void setError(const char* msg) {
+    strncpy(errorMsg, msg, sizeof(errorMsg) - 1);
+    errorMsg[sizeof(errorMsg) - 1] = '\0';
+    currentMode = MODE_ERROR;
+    allMotorsOff();
+    hopperEnabled = false;
+    Serial.print(F("err sequence:")); Serial.println(errorMsg);
+}
+
+static void clearError() { errorMsg[0] = '\0'; }
+
+static void enterStep(uint8_t step);
+
+static void advanceStep() {
+    if (currentMode == MODE_STEP) {
+        // Einzelschritt fertig → zurück zu IDLE
+        currentMode = MODE_IDLE;
+        currentStep = 0;
+        return;
+    }
+    if (currentMode == MODE_STUFFING) {
+        uint8_t next = currentStep + 1;
+        if (next > STUFF_STEP_MAX) next = STUFF_STEP_MIN;
+        enterStep(next);
+        return;
+    }
+    if (currentMode == MODE_HOMING) {
+        switch (currentStep) {
+            case HOME_DRUM:      enterStep(HOME_PUSH_REV);  break;
+            case HOME_PUSH_REV:  enterStep(HOME_SERVO);     break;
+            case HOME_SERVO:     enterStep(HOME_PRESS_REV); break;
+            case HOME_PRESS_REV:
+                currentMode = MODE_IDLE;
+                currentStep = 0;
+                Serial.println(F("ok home_done"));
+                break;
+        }
+    }
+}
+
+static void enterStep(uint8_t step) {
+    currentStep   = step;
+    stepStartedMs = millis();
+
+    switch (step) {
+        // ----- Stuff steps -----
+        case STEP_DRUM:
+            enableStepper();
+            stepper.setMaxSpeed(STEPPER_MAX_SPEED);
+            stepper.move(params.drum_steps_per_pos);
+            break;
+
+        case STEP_SERVO_LOAD:
+            tubeServo.write(params.servo_load);
+            break;
+
+        case STEP_SERVO_HOME:
+            tubeServo.write(params.servo_home);
+            break;
+
+        case STEP_KNOCK:
+            knockCounter      = 0;
+            knockPhaseOn      = true;
+            knockPhaseStartMs = millis();
+            knockTargetCycles = (knockTargetCycles > 0) ? knockTargetCycles : params.knock_cycles;
+            digitalWrite(PIN_SOLENOID_1, HIGH);
+            digitalWrite(PIN_SOLENOID_2, HIGH);
+            break;
+
+        case STEP_PRESS_FWD:
+            pressDrive("fwd");
+            break;
+
+        case STEP_PRESS_REV:
+            pressDrive("rev");
+            break;
+
+        case STEP_PUSH_FWD:
+            pusherDrive("fwd");
+            break;
+
+        case STEP_PUSH_REV:
+            pusherDrive("rev");
+            break;
+
+        case STEP_DELAY:
+            // nichts zu starten, nur warten
+            break;
+
+        // ----- Home steps -----
+        case HOME_DRUM:
+            enableStepper();
+            stepper.setMaxSpeed(STEPPER_HOME_SPEED);
+            // große Distanz in eine Richtung — wir stoppen über den Sensor
+            stepper.move((long)STEPPER_STEPS_PER_REV * 4);
+            break;
+
+        case HOME_PUSH_REV:
+            pusherDrive("rev");
+            break;
+
+        case HOME_SERVO:
+            tubeServo.write(params.servo_home);
+            break;
+
+        case HOME_PRESS_REV:
+            pressDrive("rev");
+            break;
+    }
+}
+
+static void tickKnock() {
+    unsigned long now = millis();
+    if (knockPhaseOn) {
+        if (now - knockPhaseStartMs >= params.knock_on_ms) {
+            digitalWrite(PIN_SOLENOID_1, LOW);
+            digitalWrite(PIN_SOLENOID_2, LOW);
+            knockPhaseOn      = false;
+            knockPhaseStartMs = now;
+        }
+    } else {
+        if (now - knockPhaseStartMs >= params.knock_off_ms) {
+            knockCounter++;
+            if (knockCounter >= knockTargetCycles) {
+                knockTargetCycles = 0;  // reset für nächstes Mal
+                advanceStep();
+                return;
+            }
+            digitalWrite(PIN_SOLENOID_1, HIGH);
+            digitalWrite(PIN_SOLENOID_2, HIGH);
+            knockPhaseOn      = true;
+            knockPhaseStartMs = now;
+        }
+    }
+}
+
+static void tickStep() {
+    unsigned long now = millis();
+
+    switch (currentStep) {
+        case STEP_DRUM:
+            if (stepper.distanceToGo() == 0) advanceStep();
+            break;
+
+        case STEP_SERVO_LOAD:
+        case STEP_SERVO_HOME:
+        case HOME_SERVO:
+            if (now - stepStartedMs >= SERVO_MOVE_DELAY_MS) advanceStep();
+            break;
+
+        case STEP_KNOCK:
+            tickKnock();
+            break;
+
+        case STEP_PRESS_FWD:
+            if (digitalRead(PIN_INIT_PRESS) == INIT_TRIGGERED_LEVEL) {
+                pressDrive("stop");
+                advanceStep();
+            } else if (now - stepStartedMs > params.press_fwd_timeout_ms) {
+                pressDrive("stop");
+                setError("press_fwd_timeout");
+            }
+            break;
+
+        case STEP_PRESS_REV:
+        case HOME_PRESS_REV:
+            if (now - stepStartedMs >= params.press_rev_ms) {
+                pressDrive("stop");
+                advanceStep();
+            }
+            break;
+
+        case STEP_PUSH_FWD:
+            if (digitalRead(PIN_INIT_PUSH_FRONT) == INIT_TRIGGERED_LEVEL) {
+                pusherDrive("stop");
+                advanceStep();
+            } else if (now - stepStartedMs > params.pusher_fwd_timeout_ms) {
+                pusherDrive("stop");
+                setError("pusher_fwd_timeout");
+            }
+            break;
+
+        case STEP_PUSH_REV:
+        case HOME_PUSH_REV:
+            if (digitalRead(PIN_INIT_PUSH_REAR) == INIT_TRIGGERED_LEVEL) {
+                pusherDrive("stop");
+                advanceStep();
+            } else if (now - stepStartedMs > params.pusher_rev_timeout_ms) {
+                pusherDrive("stop");
+                setError("pusher_rev_timeout");
+            }
+            break;
+
+        case STEP_DELAY:
+            if (now - stepStartedMs >= params.step_delay_ms) advanceStep();
+            break;
+
+        case HOME_DRUM:
+            if (digitalRead(PIN_MAGAZIN_SENSOR) == MAGAZIN_TRIGGERED_LEVEL) {
+                stepper.setCurrentPosition(0);
+                stepper.move(0);
+                stepper.setMaxSpeed(STEPPER_MAX_SPEED);  // zurück auf normal
+                advanceStep();
+            } else if (now - stepStartedMs > params.home_drum_timeout_ms) {
+                stepper.move(0);
+                setError("home_drum_timeout");
+            }
+            break;
+    }
+}
+
+static void tickStateMachine() {
+    if (currentMode == MODE_IDLE || currentMode == MODE_ERROR) return;
+    tickStep();
+    // Self-Heartbeat: solange wir arbeiten, frischen Watchdog auf.
+    lastCommandMs = millis();
+}
+
+// =====================================================
+// Background-Hopper-Cycle
+// =====================================================
+
+static void tickHopper() {
+    unsigned long now = millis();
+
+    // Manueller Einmal-Run hat Vorrang
+    if (hopperManualUntil > 0) {
+        if ((long)(now - hopperManualUntil) >= 0) {
+            digitalWrite(PIN_HOPPER_MOTOR, LOW);
+            hopperManualUntil = 0;
+        } else {
+            digitalWrite(PIN_HOPPER_MOTOR, HIGH);
+        }
+        return;
+    }
+
+    if (!hopperEnabled) {
+        digitalWrite(PIN_HOPPER_MOTOR, LOW);
+        return;
+    }
+
+    unsigned long period = (unsigned long)params.hopper_on_ms + (unsigned long)params.hopper_off_ms;
+    if (period == 0) { digitalWrite(PIN_HOPPER_MOTOR, LOW); return; }
+    unsigned long t = (now - hopperCycleStartMs) % period;
+    bool shouldRun = (t >= params.hopper_off_ms);   // off-Phase zuerst, dann on
+    digitalWrite(PIN_HOPPER_MOTOR, shouldRun ? HIGH : LOW);
+}
+
+// =====================================================
+// Befehle starten
+// =====================================================
+
+static void startHome() {
+    if (currentMode != MODE_IDLE && currentMode != MODE_ERROR) {
+        Serial.println(F("err busy"));
+        return;
+    }
+    clearError();
+    currentMode = MODE_HOMING;
+    hopperEnabled = false;
+    enterStep(HOME_DRUM);
+    Serial.println(F("ok homing"));
+}
+
+static void startStuff() {
+    if (currentMode != MODE_IDLE && currentMode != MODE_ERROR) {
+        Serial.println(F("err busy"));
+        return;
+    }
+    clearError();
+    currentMode = MODE_STUFFING;
+    hopperEnabled = true;
+    hopperCycleStartMs = millis();
+    enterStep(STEP_DRUM);
+    Serial.println(F("ok stuffing"));
+}
+
+static void startStep(uint8_t n) {
+    if (currentMode != MODE_IDLE && currentMode != MODE_ERROR) {
+        Serial.println(F("err busy"));
+        return;
+    }
+    if (n < STUFF_STEP_MIN || n > STUFF_STEP_MAX) {
+        Serial.print(F("err step_range:1..")); Serial.println(STUFF_STEP_MAX);
+        return;
+    }
+    clearError();
+    currentMode = MODE_STEP;
+    enterStep(n);
+    Serial.print(F("ok step=")); Serial.println(n);
+}
+
+static void doStop() {
+    allMotorsOff();
+    stepper.stop();
+    stepper.move(0);
+    stepper.setMaxSpeed(STEPPER_MAX_SPEED);
+    knockTargetCycles = 0;
+    hopperEnabled = false;
+    hopperManualUntil = 0;
+    currentMode = MODE_IDLE;
+    currentStep = 0;
+    clearError();
+    Serial.println(F("ok stop"));
+}
+
+// =====================================================
+// Status / Help
+// =====================================================
+
+static const char* modeName(Mode m) {
+    switch (m) {
+        case MODE_IDLE:     return "idle";
+        case MODE_HOMING:   return "homing";
+        case MODE_STUFFING: return "stuffing";
+        case MODE_STEP:     return "step";
+        case MODE_ERROR:    return "error";
+    }
+    return "?";
+}
+
+static void printStatus() {
     bool press     = (digitalRead(PIN_INIT_PRESS)      == INIT_TRIGGERED_LEVEL);
     bool pushFront = (digitalRead(PIN_INIT_PUSH_FRONT) == INIT_TRIGGERED_LEVEL);
     bool pushRear  = (digitalRead(PIN_INIT_PUSH_REAR)  == INIT_TRIGGERED_LEVEL);
-    // Magazin-Gabellichtschranke (Index-Sensor an Stepper-Pulley/Trommel)
-    bool magazin   = (digitalRead(PIN_MAGAZIN_SENSOR) == MAGAZIN_TRIGGERED_LEVEL);
-    int  magazinRaw = digitalRead(PIN_MAGAZIN_SENSOR);
-    // Aktor-Zustände (Output-Pins zurücklesen für Diagnose)
-    int  sol1   = digitalRead(PIN_SOLENOID_1);
-    int  sol2   = digitalRead(PIN_SOLENOID_2);
-    int  hopper = digitalRead(PIN_HOPPER_MOTOR);
+    bool magazin   = (digitalRead(PIN_MAGAZIN_SENSOR)  == MAGAZIN_TRIGGERED_LEVEL);
 
-    Serial.print("status press=");
-    Serial.print(press);
-    Serial.print(" push_front=");
-    Serial.print(pushFront);
-    Serial.print(" push_rear=");
-    Serial.print(pushRear);
-    Serial.print(" magazin=");
-    Serial.print(magazin);
-    Serial.print(" magazin_raw=");
-    Serial.print(magazinRaw);
-    Serial.print(" sol1=");
-    Serial.print(sol1);
-    Serial.print(" sol2=");
-    Serial.print(sol2);
-    Serial.print(" hopper=");
-    Serial.print(hopper);
-    Serial.print(" stepper_pos=");
-    Serial.println(stepper.currentPosition());
+    Serial.print(F("status state="));    Serial.print(modeName(currentMode));
+    Serial.print(F(" step="));            Serial.print(currentStep);
+    Serial.print(F(" error="));           Serial.print(errorMsg[0] ? errorMsg : "");
+    Serial.print(F(" press="));           Serial.print(press);
+    Serial.print(F(" push_front="));      Serial.print(pushFront);
+    Serial.print(F(" push_rear="));       Serial.print(pushRear);
+    Serial.print(F(" magazin="));         Serial.print(magazin);
+    Serial.print(F(" sol1="));            Serial.print(digitalRead(PIN_SOLENOID_1));
+    Serial.print(F(" sol2="));            Serial.print(digitalRead(PIN_SOLENOID_2));
+    Serial.print(F(" hopper="));          Serial.print(digitalRead(PIN_HOPPER_MOTOR));
+    Serial.print(F(" hopper_enabled="));  Serial.print(hopperEnabled ? 1 : 0);
+    Serial.print(F(" stepper_pos="));     Serial.println(stepper.currentPosition());
 }
 
-// --- Tabak-Dosier-Aktoren (MOSFET-getrieben) ---
-void setSolenoid(uint8_t pin, const String& action) {
+static void printHelp() {
+    Serial.println(F("=== Stopfmaschine v0.3 ==="));
+    Serial.println(F("ping | status | help"));
+    Serial.println(F("params | get <k> | set <k> <v>"));
+    Serial.println(F("home | stuff | step <1..9> | stop"));
+    Serial.println(F("stepper <steps>"));
+    Serial.println(F("press fwd|rev|stop  (PWM aus params.press_pwm)"));
+    Serial.println(F("pusher fwd|rev|stop (PWM aus params.pusher_pwm)"));
+    Serial.println(F("servo <0..180>"));
+    Serial.println(F("solenoid 1|2 on|off|pulse <ms>"));
+    Serial.println(F("hopper on|off|test <ms>   (on = 10s/20s Cycle)"));
+    Serial.println(F("knock [<cycles>]"));
+    Serial.println(F("========================="));
+}
+
+// =====================================================
+// Manual-Befehle (nur im IDLE-Mode)
+// =====================================================
+
+static bool requireIdle() {
+    if (currentMode == MODE_IDLE) return true;
+    Serial.print(F("err busy mode=")); Serial.println(modeName(currentMode));
+    return false;
+}
+
+static void cmdSolenoid(uint8_t pin, const String& action) {
     const char* name = (pin == PIN_SOLENOID_1) ? "sol1" : "sol2";
     if (action == "on") {
         digitalWrite(pin, HIGH);
-        Serial.print("ok ");  Serial.print(name); Serial.println(" on");
+        Serial.print(F("ok ")); Serial.print(name); Serial.println(F(" on"));
     } else if (action == "off") {
         digitalWrite(pin, LOW);
-        Serial.print("ok ");  Serial.print(name); Serial.println(" off");
+        Serial.print(F("ok ")); Serial.print(name); Serial.println(F(" off"));
     } else if (action.startsWith("pulse ")) {
         unsigned long ms = action.substring(6).toInt();
         if (ms == 0 || ms > SOLENOID_PULSE_MAX_MS) {
-            Serial.print("err pulse_ms_invalid:0<ms<=");
-            Serial.println(SOLENOID_PULSE_MAX_MS);
+            Serial.print(F("err pulse_ms:1..")); Serial.println(SOLENOID_PULSE_MAX_MS);
             return;
         }
         digitalWrite(pin, HIGH);
-        delay(ms);
+        delay(ms);   // Manual-Pulse darf blocken, ist <1 s
         digitalWrite(pin, LOW);
-        Serial.print("ok ");  Serial.print(name);
-        Serial.print(" pulse "); Serial.println(ms);
+        Serial.print(F("ok ")); Serial.print(name);
+        Serial.print(F(" pulse ")); Serial.println(ms);
     } else {
-        Serial.print("err solenoid_action:");
-        Serial.println(action);
+        Serial.print(F("err sol_action:")); Serial.println(action);
     }
 }
 
-void setHopper(const String& action) {
+static void cmdHopper(const String& action) {
     if (action == "on") {
-        digitalWrite(PIN_HOPPER_MOTOR, HIGH);
-        Serial.println("ok hopper on");
+        hopperEnabled = true;
+        hopperCycleStartMs = millis();
+        Serial.println(F("ok hopper=cyclic"));
     } else if (action == "off") {
+        hopperEnabled = false;
+        hopperManualUntil = 0;
         digitalWrite(PIN_HOPPER_MOTOR, LOW);
-        Serial.println("ok hopper off");
-    } else if (action.startsWith("run ")) {
-        unsigned long ms = action.substring(4).toInt();
-        if (ms == 0) ms = HOPPER_DEFAULT_MS;
-        if (ms > HOPPER_RUN_MAX_MS) {
-            Serial.print("err hopper_run_max_ms:");
-            Serial.println(HOPPER_RUN_MAX_MS);
+        Serial.println(F("ok hopper=off"));
+    } else if (action.startsWith("test ")) {
+        unsigned long ms = action.substring(5).toInt();
+        if (ms == 0 || ms > HOPPER_RUN_MAX_MS) {
+            Serial.print(F("err hopper_test_ms:1..")); Serial.println(HOPPER_RUN_MAX_MS);
             return;
         }
-        digitalWrite(PIN_HOPPER_MOTOR, HIGH);
-        delay(ms);
-        digitalWrite(PIN_HOPPER_MOTOR, LOW);
-        Serial.print("ok hopper run ");
-        Serial.println(ms);
+        hopperManualUntil = millis() + ms;
+        Serial.print(F("ok hopper test ")); Serial.println(ms);
     } else {
-        Serial.print("err hopper_action:");
-        Serial.println(action);
+        Serial.print(F("err hopper_action:")); Serial.println(action);
     }
 }
 
-// Komplette Knock-Sequenz: beide Solenoide pulsen synchron.
-// Tabak rieselt durch Schwerkraft + Impuls in Stopfposition. Kein Servo dazwischen.
-// Blockierend, aber Gesamt-Dauer ~1,6 s (8 × 200 ms) < Watchdog (5 s).
-void runKnock(uint8_t cycles) {
-    if (cycles == 0) cycles = KNOCK_CYCLES_DEFAULT;
-    Serial.print("ok knock start cycles=");
-    Serial.println(cycles);
-    for (uint8_t i = 0; i < cycles; i++) {
-        // Pulse: beide Solenoide an
-        digitalWrite(PIN_SOLENOID_1, HIGH);
-        digitalWrite(PIN_SOLENOID_2, HIGH);
-        delay(KNOCK_PULSE_ON_MS);
-        // Pause: Solenoide aus
-        digitalWrite(PIN_SOLENOID_1, LOW);
-        digitalWrite(PIN_SOLENOID_2, LOW);
-        delay(KNOCK_PULSE_OFF_MS);
-        // Watchdog während Knock-Sequenz "füttern"
-        lastCommandMs = millis();
-    }
-    Serial.println("ok knock done");
-}
+// =====================================================
+// Befehls-Parser
+// =====================================================
 
-void printHelp() {
-    Serial.println(F("=== Stopfmaschine Test-Firmware ==="));
-    Serial.println(F("help               - this list"));
-    Serial.println(F("ping               - connection test"));
-    Serial.println(F("status             - sensor + actuator readout"));
-    Serial.println(F("stepper <steps>    - move stepper N steps (+/-)"));
-    Serial.println(F("press fwd|rev|stop - press DC motor"));
-    Serial.println(F("pusher fwd|rev|stop- pusher DC motor"));
-    Serial.println(F("servo <0..180>     - tube-servo angle (Huelsen-Schieber, einziger Servo)"));
-    Serial.println(F("solenoid 1|2 on|off|pulse <ms>"));
-    Serial.println(F("                   - 2x Heschen HS-0530B (Knock-Magnete)"));
-    Serial.println(F("hopper on|off|run <ms>"));
-    Serial.println(F("                   - 5V Huelsenmagazin-Motor"));
-    Serial.println(F("knock [<cycles>]   - Tabak-Dosis: beide Solenoide N-mal synchron"));
-    Serial.println(F("stop               - emergency stop ALL"));
-    Serial.println(F("==================================="));
-}
-
-// --- Befehlsverarbeitung ---
-void handleCommand(String cmd) {
+static void handleCommand(String cmd) {
     cmd.trim();
     if (cmd.length() == 0) return;
 
     lastCommandMs = millis();
     watchdogTripped = false;
 
-    if (cmd == "help") {
-        printHelp();
+    // --- Immer erlaubt ---
+    if (cmd == "ping")    { Serial.println(F("pong")); return; }
+    if (cmd == "help")    { printHelp(); return; }
+    if (cmd == "status")  { printStatus(); return; }
+    if (cmd == "stop")    { doStop(); return; }
+    if (cmd == "params")  { paramsPrintAll(); return; }
+
+    if (cmd.startsWith("get ")) {
+        String k = cmd.substring(4); k.trim();
+        long v;
+        if (paramsGetByName(k, v)) {
+            Serial.print(F("ok ")); Serial.print(k); Serial.print('='); Serial.println(v);
+        } else {
+            Serial.print(F("err unknown:")); Serial.println(k);
+        }
+        return;
     }
-    else if (cmd == "ping") {
-        Serial.println("pong");
+    if (cmd.startsWith("set ")) {
+        String rest = cmd.substring(4); rest.trim();
+        int sp = rest.indexOf(' ');
+        if (sp < 0) { Serial.println(F("err usage:set <key> <value>")); return; }
+        String k = rest.substring(0, sp);
+        long v   = rest.substring(sp + 1).toInt();
+        const char* err = "";
+        if (paramsSetByName(k, v, err)) {
+            Serial.print(F("ok ")); Serial.print(k); Serial.print('='); Serial.println(v);
+        } else {
+            Serial.print(F("err ")); Serial.print(err);
+            Serial.print(':'); Serial.println(k);
+        }
+        return;
     }
-    else if (cmd == "status") {
-        readSensors();
+
+    if (cmd == "home")  { startHome();  return; }
+    if (cmd == "stuff") { startStuff(); return; }
+    if (cmd.startsWith("step ")) {
+        startStep((uint8_t)cmd.substring(5).toInt());
+        return;
     }
-    else if (cmd == "stop") {
-        allMotorsOff();
-        stepper.stop();
-        Serial.println("ok stop");
-    }
-    else if (cmd.startsWith("stepper ")) {
+
+    // --- Manual: nur im IDLE ---
+    if (cmd.startsWith("stepper ")) {
+        if (!requireIdle()) return;
         long steps = cmd.substring(8).toInt();
         enableStepper();
+        stepper.setMaxSpeed(STEPPER_MAX_SPEED);
         stepper.move(steps);
-        Serial.print("ok stepper ");
-        Serial.println(steps);
+        Serial.print(F("ok stepper ")); Serial.println(steps);
+        return;
     }
-    else if (cmd.startsWith("press ")) {
-        setPressMotor(cmd.substring(6));
+    if (cmd.startsWith("press ")) {
+        if (!requireIdle()) return;
+        String d = cmd.substring(6); d.trim();
+        pressDrive(d.c_str());
+        Serial.print(F("ok press ")); Serial.println(d);
+        return;
     }
-    else if (cmd.startsWith("pusher ")) {
-        setPusherMotor(cmd.substring(7));
+    if (cmd.startsWith("pusher ")) {
+        if (!requireIdle()) return;
+        String d = cmd.substring(7); d.trim();
+        pusherDrive(d.c_str());
+        Serial.print(F("ok pusher ")); Serial.println(d);
+        return;
     }
-    else if (cmd.startsWith("servo ")) {
-        int angle = cmd.substring(6).toInt();
-        angle = constrain(angle, 0, 180);
+    if (cmd.startsWith("servo ")) {
+        if (!requireIdle()) return;
+        int angle = constrain(cmd.substring(6).toInt(), 0, 180);
         tubeServo.write(angle);
-        Serial.print("ok servo ");
-        Serial.println(angle);
+        Serial.print(F("ok servo ")); Serial.println(angle);
+        return;
     }
-    else if (cmd.startsWith("solenoid 1 ")) {
-        setSolenoid(PIN_SOLENOID_1, cmd.substring(11));
+    if (cmd.startsWith("solenoid 1 ")) {
+        if (!requireIdle()) return;
+        cmdSolenoid(PIN_SOLENOID_1, cmd.substring(11));
+        return;
     }
-    else if (cmd.startsWith("solenoid 2 ")) {
-        setSolenoid(PIN_SOLENOID_2, cmd.substring(11));
+    if (cmd.startsWith("solenoid 2 ")) {
+        if (!requireIdle()) return;
+        cmdSolenoid(PIN_SOLENOID_2, cmd.substring(11));
+        return;
     }
-    else if (cmd.startsWith("hopper ")) {
-        setHopper(cmd.substring(7));
+    if (cmd.startsWith("hopper ")) {
+        // hopper darf auch in stuffing manipuliert werden? Nein, Konsistenz.
+        // Außer "off" als Sicherheit:
+        String action = cmd.substring(7); action.trim();
+        if (action == "off") { cmdHopper(action); return; }
+        if (!requireIdle()) return;
+        cmdHopper(action);
+        return;
     }
-    else if (cmd == "knock") {
-        runKnock(KNOCK_CYCLES_DEFAULT);
+    if (cmd == "knock") {
+        if (!requireIdle()) return;
+        knockTargetCycles = 0;  // → nimmt params.knock_cycles
+        clearError();
+        currentMode = MODE_STEP;
+        enterStep(STEP_KNOCK);
+        Serial.println(F("ok knock"));
+        return;
     }
-    else if (cmd.startsWith("knock ")) {
-        runKnock((uint8_t) cmd.substring(6).toInt());
+    if (cmd.startsWith("knock ")) {
+        if (!requireIdle()) return;
+        uint8_t n = (uint8_t)cmd.substring(6).toInt();
+        if (n == 0) n = params.knock_cycles;
+        knockTargetCycles = n;
+        clearError();
+        currentMode = MODE_STEP;
+        enterStep(STEP_KNOCK);
+        Serial.print(F("ok knock ")); Serial.println(n);
+        return;
     }
-    else {
-        Serial.print("err unknown_command:");
-        Serial.println(cmd);
-    }
+
+    Serial.print(F("err unknown_command:")); Serial.println(cmd);
 }
 
-// --- Setup ---
+// =====================================================
+// Setup / Loop
+// =====================================================
+
 void setup() {
     Serial.begin(SERIAL_BAUD);
-    while (!Serial && millis() < 2000) { /* wait briefly */ }
+    while (!Serial && millis() < 2000) {}
 
-    // Pin-Modi: L298N Standard (Press/Pusher)
+    paramsBegin();   // lädt aus EEPROM oder schreibt Defaults
+
     pinMode(PIN_STEPPER_EN, OUTPUT);
     pinMode(PIN_PRESS_IN1, OUTPUT);
     pinMode(PIN_PRESS_IN2, OUTPUT);
     pinMode(PIN_PUSHER_IN3, OUTPUT);
     pinMode(PIN_PUSHER_IN4, OUTPUT);
-    pinMode(PIN_PRESS_ENA, OUTPUT);   // PWM
-    pinMode(PIN_PUSHER_ENB, OUTPUT);  // PWM
-
-    // Pin-Modi: MOSFET-Gates (Tabak-Solenoide + Hülsenmagazin-Motor)
+    pinMode(PIN_PRESS_ENA, OUTPUT);
+    pinMode(PIN_PUSHER_ENB, OUTPUT);
     pinMode(PIN_SOLENOID_1, OUTPUT);
     pinMode(PIN_SOLENOID_2, OUTPUT);
     pinMode(PIN_HOPPER_MOTOR, OUTPUT);
-    digitalWrite(PIN_SOLENOID_1, LOW);   // Solenoide explizit aus
+    digitalWrite(PIN_SOLENOID_1, LOW);
     digitalWrite(PIN_SOLENOID_2, LOW);
-    digitalWrite(PIN_HOPPER_MOTOR, LOW); // Motor aus
+    digitalWrite(PIN_HOPPER_MOTOR, LOW);
 
-    // Sensor-Eingänge
     pinMode(PIN_INIT_PRESS, INPUT);
     pinMode(PIN_INIT_PUSH_FRONT, INPUT);
     pinMode(PIN_INIT_PUSH_REAR, INPUT);
-    pinMode(PIN_MAGAZIN_SENSOR, INPUT_PULLUP);  // Opto-Modul Open-Collector-freundlich
+    pinMode(PIN_MAGAZIN_SENSOR, INPUT_PULLUP);
 
-    // Schrittmotor-Setup
     stepper.setMaxSpeed(STEPPER_MAX_SPEED);
     stepper.setAcceleration(STEPPER_ACCEL);
 
-    // Servo: nur Hülsen-Schieber (einziger Servo im Aufbau)
     tubeServo.attach(PIN_SERVO);
-    tubeServo.write(SERVO_POS_HOME);
+    tubeServo.write(params.servo_home);
 
-    // Sicher starten
     allMotorsOff();
     lastCommandMs = millis();
 
-    // Begrüßung
     Serial.println();
     Serial.print(F("ready firmware="));
     Serial.println(FIRMWARE_VERSION);
     Serial.println(F("type 'help' for commands"));
 }
 
-// --- Main Loop ---
 void loop() {
-    // 1) Serial-Befehle einlesen
+    // 1) Serial einlesen
     static String buffer;
     while (Serial.available() > 0) {
         char c = (char)Serial.read();
@@ -345,21 +738,27 @@ void loop() {
             }
         } else {
             buffer += c;
-            if (buffer.length() > 64) buffer = "";  // Schutz
+            if (buffer.length() > 64) buffer = "";
         }
     }
 
-    // 2) Schrittmotor non-blocking laufen lassen
+    // 2) Stepper non-blocking ticken
     stepper.run();
 
-    // 3) Watchdog: lange keine Kommunikation → alles aus
+    // 3) State-Machine (home/stuff/step) ticken
+    tickStateMachine();
+
+    // 4) Hopper-Background
+    tickHopper();
+
+    // 5) Watchdog — greift nur im IDLE
     if (!watchdogTripped &&
-        (millis() - lastCommandMs > WATCHDOG_TIMEOUT_MS)) {
-        // Nur beim allerersten Mal nach Boot nicht greifen
-        if (lastCommandMs > 0) {
-            allMotorsOff();
-            Serial.println("warn watchdog_timeout motors_off");
-            watchdogTripped = true;
-        }
+        currentMode == MODE_IDLE &&
+        (millis() - lastCommandMs > WATCHDOG_TIMEOUT_MS) &&
+        lastCommandMs > 0) {
+        allMotorsOff();
+        hopperEnabled = false;
+        Serial.println(F("warn watchdog_timeout"));
+        watchdogTripped = true;
     }
 }

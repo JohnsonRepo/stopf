@@ -1,0 +1,113 @@
+#!/usr/bin/env bash
+#
+# setup.sh — Bootstrap des Stopfmaschine-Backends auf dem Raspberry Pi.
+#
+# Idempotent: kann gefahrlos mehrfach laufen. Erkennt User, Repo-Pfad und
+# Serial-Port automatisch und generiert daraus die systemd-Unit.
+#
+# Aufruf auf dem Pi:
+#   cd ~/stopf/backend/pi
+#   bash scripts/setup.sh
+#
+set -euo pipefail
+
+# --- Pfade / User ermitteln ---------------------------------------------------
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"   # .../backend/pi/scripts
+PI_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"                        # .../backend/pi
+RUN_USER="${SUDO_USER:-$USER}"
+VENV="$PI_DIR/.venv"
+
+echo "==> Stopfmaschine Backend-Setup"
+echo "    User:      $RUN_USER"
+echo "    Backend:   $PI_DIR"
+echo "    venv:      $VENV"
+
+# --- 1) Systempakete ----------------------------------------------------------
+echo "==> Systempakete (python3-venv, avahi-daemon) ..."
+sudo apt-get update -qq
+sudo apt-get install -y -qq python3-venv python3-pip avahi-daemon
+
+# --- 2) Serielle Rechte -------------------------------------------------------
+# Damit das Backend ohne root /dev/ttyUSB0 bzw. /dev/ttyACM0 öffnen darf.
+if ! id -nG "$RUN_USER" | grep -qw dialout; then
+    echo "==> Füge $RUN_USER zur Gruppe 'dialout' hinzu (Logout nötig zum Greifen)"
+    sudo usermod -aG dialout "$RUN_USER"
+    NEED_RELOGIN=1
+else
+    echo "==> $RUN_USER ist bereits in 'dialout'"
+fi
+
+# --- 3) Serial-Port erkennen --------------------------------------------------
+# CH340-Klone melden sich meist als ttyUSB0, echte Nanos als ttyACM0.
+SERIAL_PORT="/dev/ttyACM0"
+if ls /dev/ttyUSB* >/dev/null 2>&1; then
+    SERIAL_PORT="$(ls /dev/ttyUSB* | head -n1)"
+elif ls /dev/ttyACM* >/dev/null 2>&1; then
+    SERIAL_PORT="$(ls /dev/ttyACM* | head -n1)"
+else
+    echo "    ! Kein ttyUSB/ttyACM gefunden — Nano angesteckt? Nutze Default $SERIAL_PORT"
+    echo "      (Das Backend macht zur Laufzeit ohnehin Auto-Detect.)"
+fi
+echo "==> Serial-Port: $SERIAL_PORT"
+
+# --- 4) Virtuelle Umgebung + Abhängigkeiten -----------------------------------
+if [ ! -d "$VENV" ]; then
+    echo "==> Erstelle venv ..."
+    python3 -m venv "$VENV"
+fi
+echo "==> Installiere Python-Abhängigkeiten (piwheels liefert ARM-Wheels) ..."
+"$VENV/bin/pip" install --quiet --upgrade pip
+"$VENV/bin/pip" install --quiet -r "$PI_DIR/requirements.txt"
+
+# --- 5) Schneller Import-Test -------------------------------------------------
+echo "==> Teste Import ..."
+( cd "$PI_DIR" && "$VENV/bin/python" -c "from app.main import app; print('    OK, API v' + app.version)" )
+
+# --- 6) systemd-Unit generieren ----------------------------------------------
+echo "==> Schreibe systemd-Unit /etc/systemd/system/stopfmaschine.service ..."
+sudo tee /etc/systemd/system/stopfmaschine.service >/dev/null <<UNIT
+[Unit]
+Description=Stopfmaschine FastAPI Backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=$RUN_USER
+WorkingDirectory=$PI_DIR
+Environment="STOPF_SERIAL_PORT=$SERIAL_PORT"
+ExecStart=$VENV/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+sudo systemctl daemon-reload
+sudo systemctl enable stopfmaschine >/dev/null 2>&1 || true
+sudo systemctl restart stopfmaschine
+echo "==> Dienst gestartet."
+
+# --- 7) avahi / mDNS ----------------------------------------------------------
+echo "==> Installiere mDNS-Service (_stopf._tcp) ..."
+sudo cp "$SCRIPT_DIR/avahi-stopf.service" /etc/avahi/services/stopf.service
+sudo systemctl reload avahi-daemon || sudo systemctl restart avahi-daemon
+
+# --- Fertig -------------------------------------------------------------------
+HOSTNAME_LOCAL="$(hostname).local"
+echo ""
+echo "============================================================"
+echo " Setup fertig."
+echo "   Status:   sudo systemctl status stopfmaschine"
+echo "   Logs:     journalctl -u stopfmaschine -f"
+echo "   Test:     curl http://localhost:8000/"
+echo "   Vom Mac:  http://$HOSTNAME_LOCAL:8000/docs"
+echo "============================================================"
+if [ "${NEED_RELOGIN:-0}" = "1" ]; then
+    echo ""
+    echo " ! WICHTIG: Du wurdest neu zur Gruppe 'dialout' hinzugefügt."
+    echo "   Der Dienst läuft als systemd-Service und greift die Gruppe"
+    echo "   beim Start — ein Reboot stellt sicher, dass alles passt:"
+    echo "       sudo reboot"
+fi

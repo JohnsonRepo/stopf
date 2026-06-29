@@ -1,11 +1,14 @@
 """
 nano_client.py
-Asynchrone Serial-Kommunikation mit dem Arduino Nano.
+Asynchroner Serial-Client für den Arduino Nano (Firmware v0.3.0).
 
-Eine Befehlsausführung ist hier streng seriell: send() schickt
-einen Befehl, wartet auf eine Antwortzeile und gibt sie zurück.
-Damit bleibt das Protokoll einfach und deterministisch.
+Eigenschaften:
+- Eine Befehlsausführung ist streng seriell (asyncio.Lock).
+- Auto-Reconnect: ist der Port weg, versucht jeder send() einen
+  einmaligen Reconnect, bevor er aufgibt.
+- Strukturierte Helper für status/params/get/set.
 """
+from __future__ import annotations
 
 import asyncio
 import logging
@@ -13,6 +16,9 @@ from typing import Optional
 
 import serial
 import serial.tools.list_ports
+
+from .status_parser import parse
+from .schemas import MachineStatus
 
 logger = logging.getLogger(__name__)
 
@@ -25,51 +31,106 @@ class NanoClient:
         self._ser: Optional[serial.Serial] = None
         self._lock = asyncio.Lock()
 
-    async def connect(self) -> None:
-        """Öffnet die Serial-Verbindung. Auto-Detect, wenn der angegebene Port fehlt."""
-        try:
-            self._ser = serial.Serial(self.port, self.baud, timeout=self.timeout)
-            logger.info(f"Connected to Nano on {self.port}")
-        except serial.SerialException:
-            # Versuche Auto-Detect
-            ports = list(serial.tools.list_ports.comports())
-            for p in ports:
-                if "Arduino" in (p.description or "") or "ttyACM" in p.device or "ttyUSB" in p.device:
-                    try:
-                        self._ser = serial.Serial(p.device, self.baud, timeout=self.timeout)
-                        self.port = p.device
-                        logger.info(f"Auto-detected Nano on {self.port}")
-                        break
-                    except serial.SerialException:
-                        continue
-            if self._ser is None:
-                logger.error("No Arduino Nano found on any serial port.")
-                return
+    # -------- Connection --------
 
-        # Nano resettet beim Verbinden → kurz warten und Begrüßung leeren
+    async def connect(self) -> bool:
+        if await self._open(self.port):
+            return True
+        # Auto-Detect
+        for p in serial.tools.list_ports.comports():
+            desc = (p.description or "").lower()
+            if any(s in p.device for s in ("ttyACM", "ttyUSB")) or "arduino" in desc or "ch340" in desc:
+                if await self._open(p.device):
+                    self.port = p.device
+                    return True
+        logger.error("No Arduino Nano found.")
+        return False
+
+    async def _open(self, port: str) -> bool:
+        try:
+            self._ser = serial.Serial(port, self.baud, timeout=self.timeout)
+            logger.info(f"Connected to Nano on {port}")
+        except (serial.SerialException, OSError):
+            self._ser = None
+            return False
+        # Nano resettet beim Verbinden — kurz warten + Begrüßung leeren
         await asyncio.sleep(2.0)
-        self._ser.reset_input_buffer()
+        try:
+            self._ser.reset_input_buffer()
+        except (serial.SerialException, OSError):
+            pass
+        return True
 
     async def disconnect(self) -> None:
         if self._ser and self._ser.is_open:
-            self._ser.close()
-            logger.info("Serial connection closed")
+            try:
+                self._ser.close()
+            finally:
+                logger.info("Serial connection closed")
+
+    @property
+    def is_connected(self) -> bool:
+        return self._ser is not None and self._ser.is_open
+
+    # -------- Raw send --------
 
     async def send(self, command: str) -> str:
-        """Sendet einen Befehl und liefert die erste Antwortzeile zurück."""
-        if self._ser is None or not self._ser.is_open:
-            return "err not_connected"
-
+        """Sendet einen Befehl, liefert die erste Antwortzeile."""
         async with self._lock:
+            if not self.is_connected:
+                if not await self.connect():
+                    return "err not_connected"
+
             loop = asyncio.get_event_loop()
             try:
                 payload = (command.strip() + "\n").encode("utf-8")
                 await loop.run_in_executor(None, self._ser.write, payload)
-                # Antwortzeile lesen (blockierend, daher in Executor)
                 raw = await loop.run_in_executor(None, self._ser.readline)
                 reply = raw.decode("utf-8", errors="replace").strip()
                 logger.debug(f">> {command}  <<  {reply}")
                 return reply or "err no_reply"
-            except serial.SerialException as e:
-                logger.exception("Serial error")
+            except (serial.SerialException, OSError) as e:
+                logger.warning(f"Serial error, dropping connection: {e}")
+                try:
+                    if self._ser:
+                        self._ser.close()
+                finally:
+                    self._ser = None
                 return f"err serial:{e}"
+
+    # -------- Structured helpers --------
+
+    async def get_status(self) -> MachineStatus:
+        reply = await self.send("status")
+        if reply.startswith("err"):
+            return MachineStatus(connected=False, state="error", error=reply)
+        parsed = parse(reply)
+        if parsed.get("_kind") != "status":
+            return MachineStatus(connected=True, state="error",
+                                 error=f"bad_status:{reply}")
+        # _kind aus dict werfen, MachineStatus akzeptiert den Rest
+        parsed.pop("_kind", None)
+        # error="" → None
+        if parsed.get("error") in ("", None):
+            parsed["error"] = None
+        try:
+            return MachineStatus(connected=True, **parsed)
+        except Exception as e:
+            logger.exception("status parse failed")
+            return MachineStatus(connected=True, state="error", error=f"parse:{e}")
+
+    async def get_params(self) -> dict[str, int]:
+        reply = await self.send("params")
+        parsed = parse(reply)
+        if parsed.get("_kind") != "ok":
+            return {}
+        parsed.pop("_kind", None)
+        parsed.pop("sub", None)
+        return {k: int(v) for k, v in parsed.items() if isinstance(v, int)}
+
+    async def set_param(self, key: str, value: int) -> tuple[bool, str]:
+        reply = await self.send(f"set {key} {value}")
+        parsed = parse(reply)
+        if parsed.get("_kind") == "ok":
+            return True, reply
+        return False, reply

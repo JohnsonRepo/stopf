@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Diese Keys in die Target-Info des Xcode-Projekts übernehmen
+  (Target ▸ Info ▸ Custom iOS Target Properties).
+  Dies ist KEINE vollständige Info.plist — nur die Stopf-spezifischen Ergänzungen.
+-->
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSLocalNetworkUsageDescription</key>
+    <string>Die App sucht die Stopfmaschine im lokalen Netzwerk und steuert sie.</string>
+
+    <key>NSBonjourServices</key>
+    <array>
+        <string>_stopf._tcp</string>
+    </array>
+
+    <key>NSAppTransportSecurity</key>
+    <dict>
+        <!-- Erlaubt Klartext-HTTP zu .local-Hosts und privaten IPs (lokales Netz). -->
+        <key>NSAllowsLocalNetworking</key>
+        <true/>
+    </dict>
+</dict>
+</plist>

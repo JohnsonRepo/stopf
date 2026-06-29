@@ -1,0 +1,26 @@
+# Systemd-Unit, damit das Backend beim Pi-Boot automatisch startet.
+# Installation:
+#   sudo cp scripts/stopfmaschine.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now stopfmaschine
+#
+# Logs ansehen:  journalctl -u stopfmaschine -f
+#
+# WICHTIG: Pfade an deine Installation anpassen (User "pi" und
+# /home/pi/stopf wird angenommen).
+[Unit]
+Description=Stopfmaschine FastAPI Backend
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/stopf/backend/pi
+Environment="STOPF_SERIAL_PORT=/dev/ttyACM0"
+ExecStart=/home/pi/stopf/backend/pi/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

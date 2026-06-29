@@ -1,0 +1,28 @@
+<?xml version="1.0" standalone='no'?>
+<!DOCTYPE service-group SYSTEM "avahi-service.dtd">
+<!--
+  mDNS-Service für die Stopfmaschine.
+  Installation auf dem Pi:
+
+    sudo cp scripts/avahi-stopf.service /etc/avahi/services/stopf.service
+    sudo systemctl reload avahi-daemon
+
+  Danach ist der Pi unter "stopf.local" erreichbar (HTTP, Port 8000).
+  Die iOS-App kann via Bonjour-Browser den Service "_stopf._tcp" finden.
+-->
+<service-group>
+  <name replace-wildcards="yes">Stopfmaschine on %h</name>
+
+  <service>
+    <type>_stopf._tcp</type>
+    <port>8000</port>
+    <txt-record>version=0.3.0</txt-record>
+    <txt-record>path=/</txt-record>
+  </service>
+
+  <service>
+    <type>_http._tcp</type>
+    <port>8000</port>
+    <txt-record>path=/docs</txt-record>
+  </service>
+</service-group>
