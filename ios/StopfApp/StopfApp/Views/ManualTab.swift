@@ -139,18 +139,15 @@ struct ManualTab: View {
                 ForEach([1, 2], id: \.self) { which in
                     HStack(spacing: 10) {
                         Text("Solenoid \(which)").frame(width: 90, alignment: .leading)
-                        ActionButton(title: "Puls", tint: .orange, disabled: !ready) {
+                        ActionButton(title: "Puls (80 ms)", tint: .orange, disabled: !ready) {
                             app.fire { try await $0.solenoid(which, action: "pulse", ms: 80) }
-                        }
-                        ActionButton(title: "An", tint: .orange, disabled: !ready) {
-                            app.fire { try await $0.solenoid(which, action: "on") }
                         }
                         ActionButton(title: "Aus", tint: .gray, disabled: !ready) {
                             app.fire { try await $0.solenoid(which, action: "off") }
                         }
                     }
                 }
-                Text("„An“ dauerhaft nur kurz — Heschen-Magnete werden heiß.")
+                Text("Nur Puls — dauerhaftes Halten ist deaktiviert (schützt die Heschen-Magnete).")
                     .font(.caption2).foregroundStyle(.secondary)
             }
         } label: {
