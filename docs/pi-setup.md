@@ -173,6 +173,38 @@ Empfehlung: Erst alles fertig einrichten und testen, dann Overlay FS aktivieren.
 
 ---
 
+## 9. Nano-Firmware aktualisieren (über den Pi)
+
+Der Nano bleibt am Pi-USB — du musst ihn nicht abstecken. Die Firmware wird auf
+dem **Mac** gebaut (dort läuft PlatformIO), das fertige `.hex` per `scp` auf den
+Pi kopiert, und der Pi flasht mit `avrdude`.
+
+**Auf dem Mac:**
+```bash
+cd "<Projektpfad>/firmware/nano"
+pio run                                    # baut .pio/build/nano/firmware.hex
+scp .pio/build/nano/firmware.hex maschine@stopf.local:/tmp/firmware.hex
+```
+
+**Auf dem Pi:**
+```bash
+cd ~/stopf/backend/pi
+bash scripts/flash-nano.sh                 # stoppt Backend, flasht, startet Backend
+```
+
+Das Skript gibt den Serial-Port frei (Backend stoppen ist sonst der häufigste
+Fehler), erkennt den Port automatisch und nutzt Baud **57600** (CH340-Klon mit
+altem Bootloader). Bei `not in sync` mit `115200` erneut:
+`bash scripts/flash-nano.sh /tmp/firmware.hex 115200`.
+
+> Alternativ alles in einem vom Mac aus:
+> ```bash
+> ssh maschine@stopf.local "cd ~/stopf/backend/pi && bash scripts/flash-nano.sh"
+> ```
+> (vorher das `.hex` wie oben per scp kopieren)
+
+---
+
 ## Troubleshooting
 
 **`stopf.local` löst nicht auf (Mac/iPhone finden den Pi nicht)**
