@@ -21,6 +21,8 @@ Endpoints:
     POST /manual/solenoid/{1|2}     {"action":"on|off|pulse","ms":?}
     POST /manual/hopper             {"action":"on|off|test","ms":?}
     POST /manual/knock              {"cycles": ?}
+    POST /system/shutdown           Pi sicher herunterfahren (stop + poweroff)
+    POST /system/reboot             Pi neu starten (stop + reboot)
     WS   /ws/status                 5 Hz Push (200 ms)
 
 Start:
@@ -33,9 +35,11 @@ from __future__ import annotations
 
 import logging
 import os
+import subprocess
+import time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException, Path, WebSocket, WebSocketDisconnect
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Path, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .broadcaster import StatusBroadcaster
@@ -219,6 +223,41 @@ async def m_knock(req: KnockRequest):
     if req.cycles is None:
         return await _send_cmd("knock")
     return await _send_cmd(f"knock {req.cycles}")
+
+
+# -------- System (Power) --------
+
+def _power_action(action: str) -> None:
+    """Läuft als BackgroundTask, NACHDEM die HTTP-Antwort raus ist.
+    Kurze Verzögerung, damit App/WS die Antwort sicher erhalten."""
+    time.sleep(1.0)
+    try:
+        # -n = non-interaktiv: scheitert sofort statt auf ein Passwort zu warten.
+        subprocess.run(["sudo", "-n", action], check=True)
+    except Exception:  # noqa: BLE001
+        logger.exception("Power-Aktion '%s' fehlgeschlagen", action)
+
+
+async def _power(action: str, background_tasks: BackgroundTasks) -> CommandResponse:
+    # Maschine zuerst sicher stoppen — der Nano läuft sonst nach dem Pi-Aus weiter.
+    stop_reply = await nano.send("stop")
+    background_tasks.add_task(_power_action, action)
+    return CommandResponse(
+        sent=action,
+        reply=f"machine stopped ({stop_reply}); {action} in 1s",
+        ok=True,
+        parsed={"_kind": "system", "action": action},
+    )
+
+
+@app.post("/system/shutdown", response_model=CommandResponse, summary="Pi herunterfahren")
+async def system_shutdown(background_tasks: BackgroundTasks):
+    return await _power("poweroff", background_tasks)
+
+
+@app.post("/system/reboot", response_model=CommandResponse, summary="Pi neu starten")
+async def system_reboot(background_tasks: BackgroundTasks):
+    return await _power("reboot", background_tasks)
 
 
 # -------- WebSocket --------

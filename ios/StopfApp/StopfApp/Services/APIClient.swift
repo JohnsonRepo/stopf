@@ -144,6 +144,15 @@ struct APIClient {
     @discardableResult func knock(cycles: Int? = nil) async throws -> CommandResponse {
         try await command("/manual/knock", body: KnockBody(cycles: cycles))
     }
+
+    // MARK: - System (Power)
+
+    @discardableResult func shutdown() async throws -> CommandResponse {
+        try await command("/system/shutdown")
+    }
+    @discardableResult func reboot() async throws -> CommandResponse {
+        try await command("/system/reboot")
+    }
 }
 
 enum MotorDirection: String { case fwd, rev, stop }

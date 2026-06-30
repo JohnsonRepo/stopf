@@ -135,6 +135,44 @@ Der Dienst startet automatisch beim Boot und nach Abstürzen (`Restart=on-failur
 
 ---
 
+## 8. Sauberes Herunterfahren (wichtig!)
+
+**Nie einfach den Strom (12 V) ziehen, während der Pi läuft** — ein hartes
+Abschalten während eines SD-Schreibvorgangs kann das Dateisystem beschädigen
+(dann bootet der Pi nicht mehr und muss neu geflasht werden).
+
+Stattdessen den Pi vorher **sauber herunterfahren**:
+
+- **In der App:** Tab *Verbindung* → *System* → **Pi herunterfahren** → warten bis
+  die grüne LED aus ist → dann 12 V trennen. (`setup.sh` richtet die nötige
+  `sudo`-Regel automatisch ein — nur `poweroff`/`reboot`, sonst nichts.)
+- **Per SSH:** `sudo poweroff`, dann LED-Aus abwarten, dann Strom trennen.
+
+### Kugelsicher: Read-only-Dateisystem (Overlay FS)
+
+Für ein Gerät ohne echten Aus-Schalter ist das die robusteste Lösung — danach
+kann **kein** Stromziehen mehr die Karte beschädigen:
+
+```bash
+sudo raspi-config        # → Performance Options → Overlay File System → Enable
+sudo reboot
+```
+
+Das Root-Dateisystem liegt dann schreibgeschützt im RAM. **Nachteil:** Änderungen
+(auch `update.sh`) sind erst nach Deaktivieren wieder dauerhaft:
+
+```bash
+sudo raspi-config        # Overlay FS → Disable
+sudo reboot
+# ... update.sh / Änderungen ...
+sudo raspi-config        # Overlay FS → Enable
+sudo reboot
+```
+
+Empfehlung: Erst alles fertig einrichten und testen, dann Overlay FS aktivieren.
+
+---
+
 ## Troubleshooting
 
 **`stopf.local` löst nicht auf (Mac/iPhone finden den Pi nicht)**
@@ -159,3 +197,11 @@ Der Dienst startet automatisch beim Boot und nach Abstürzen (`Restart=on-failur
 **pip-Install ist langsam / bricht ab (Pi Zero 2 W hat wenig RAM)**
 - piwheels liefert vorgebaute ARM-Wheels — normalerweise kein Kompilieren nötig
 - Bei OOM: temporär Swap erhöhen (`sudo dphys-swapfile ...`) oder Pakete einzeln
+
+**Pi bootet gar nicht mehr / nicht im Netz (grüne LED flackert nicht)**
+- Meist Folge von **hartem Stromabschalten** → SD-Karte korrupt.
+- Per Mini-HDMI an Monitor prüfen (Dateisystem-Fehler sichtbar?).
+- Lösung: SD **neu flashen** (Abschnitt 1), dann `git clone` + `setup.sh` —
+  dank GitHub in ~15 Min wieder einsatzbereit.
+- **Danach unbedingt** sauberes Herunterfahren nutzen (Abschnitt 8), sonst
+  passiert es wieder.

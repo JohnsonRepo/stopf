@@ -89,7 +89,28 @@ sudo systemctl enable stopfmaschine >/dev/null 2>&1 || true
 sudo systemctl restart stopfmaschine
 echo "==> Dienst gestartet."
 
-# --- 7) avahi / mDNS ----------------------------------------------------------
+# --- 7) sudo-Regel für sauberes Herunterfahren aus der App --------------------
+# Der Backend-User darf NUR poweroff/reboot ohne Passwort ausführen — sonst nichts.
+# Damit kann die App den Pi sicher herunterfahren, statt hart den Strom zu ziehen
+# (verhindert SD-Karten-Korruption).
+echo "==> Richte sudo-Regel für Shutdown/Reboot ein ..."
+POWEROFF_BIN="$(command -v poweroff || echo /usr/sbin/poweroff)"
+REBOOT_BIN="$(command -v reboot || echo /usr/sbin/reboot)"
+SUDOERS_TMP="$(mktemp)"
+cat > "$SUDOERS_TMP" <<SUDO
+$RUN_USER ALL=(root) NOPASSWD: $POWEROFF_BIN, $REBOOT_BIN
+SUDO
+# Erst validieren, dann erst installieren (kaputte sudoers = Aussperrung!)
+if sudo visudo -cf "$SUDOERS_TMP" >/dev/null 2>&1; then
+    sudo cp "$SUDOERS_TMP" /etc/sudoers.d/stopf-power
+    sudo chmod 0440 /etc/sudoers.d/stopf-power
+    echo "    OK: App darf poweroff/reboot."
+else
+    echo "    ! sudoers-Validierung fehlgeschlagen — übersprungen (App-Shutdown deaktiviert)."
+fi
+rm -f "$SUDOERS_TMP"
+
+# --- 8) avahi / mDNS ----------------------------------------------------------
 echo "==> Installiere mDNS-Service (_stopf._tcp) ..."
 sudo cp "$SCRIPT_DIR/avahi-stopf.service" /etc/avahi/services/stopf.service
 sudo systemctl reload avahi-daemon || sudo systemctl restart avahi-daemon

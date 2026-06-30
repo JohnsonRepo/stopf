@@ -12,6 +12,8 @@ struct SettingsTab: View {
     @State private var portField: String = ""
     @State private var testing = false
     @State private var resolving: String?   // id des gerade aufgelösten Service
+    @State private var confirmShutdown = false
+    @State private var confirmReboot = false
 
     var body: some View {
         NavigationStack {
@@ -20,6 +22,7 @@ struct SettingsTab: View {
                 discoverySection
                 manualSection
                 testSection
+                systemSection
             }
             .navigationTitle("Verbindung")
             .onAppear {
@@ -172,6 +175,48 @@ struct SettingsTab: View {
             }
         } footer: {
             Text("„Backend“ ist der Pi, „Nano“ die serielle Verbindung Pi → Arduino.")
+        }
+    }
+
+    // MARK: - System (Power)
+
+    private var systemSection: some View {
+        Section {
+            Button(role: .destructive) {
+                confirmShutdown = true
+            } label: {
+                Label("Pi herunterfahren", systemImage: "power")
+            }
+            .disabled(!app.isLive)
+
+            Button {
+                confirmReboot = true
+            } label: {
+                Label("Pi neu starten", systemImage: "arrow.clockwise.circle")
+            }
+            .disabled(!app.isLive)
+        } header: {
+            Text("System")
+        } footer: {
+            Text("Immer herunterfahren, bevor du den Strom (12 V) trennst — schützt die SD-Karte vor Beschädigung.")
+        }
+        .confirmationDialog("Pi herunterfahren?", isPresented: $confirmShutdown, titleVisibility: .visible) {
+            Button("Herunterfahren", role: .destructive) {
+                app.fire { try await $0.shutdown() }
+                app.showToast("Pi fährt herunter — warte bis die grüne LED aus ist, dann 12 V trennen.")
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Die Maschine wird gestoppt und der Pi heruntergefahren. Die App verliert danach die Verbindung.")
+        }
+        .confirmationDialog("Pi neu starten?", isPresented: $confirmReboot, titleVisibility: .visible) {
+            Button("Neu starten", role: .destructive) {
+                app.fire { try await $0.reboot() }
+                app.showToast("Pi startet neu — in ~30 s wieder verbunden.")
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Die Maschine wird gestoppt und der Pi neu gestartet.")
         }
     }
 
