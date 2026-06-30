@@ -26,6 +26,7 @@ struct ManualTab: View {
                         NotReadyBanner(text: "Maschine ist beschäftigt (\(app.status.state.displayName)). Manuelle Befehle sind gesperrt.")
                     }
 
+                    sensorsSection
                     pressPusherSection
                     servoSection
                     solenoidSection
@@ -39,6 +40,29 @@ struct ManualTab: View {
             }
             .navigationTitle("Handbetrieb")
             .scrollDismissesKeyboard(.interactively)
+        }
+    }
+
+    // MARK: - Sensoren (Live)
+
+    private var sensorsSection: some View {
+        let s = app.status
+        return GroupBox {
+            VStack(spacing: 0) {
+                SensorRow(name: "Initiator Presse", pin: "A0",
+                          active: s.press, live: app.isLive)
+                Divider()
+                SensorRow(name: "Initiator Pusher vorn", pin: "A1",
+                          active: s.pushFront, live: app.isLive)
+                Divider()
+                SensorRow(name: "Initiator Pusher hinten", pin: "A2",
+                          active: s.pushRear, live: app.isLive)
+                Divider()
+                SensorRow(name: "Magazin-Lichtschranke", pin: "A5",
+                          active: s.magazin, activeColor: .blue, live: app.isLive)
+            }
+        } label: {
+            Label("Sensoren (live)", systemImage: "dot.radiowaves.left.and.right")
         }
     }
 

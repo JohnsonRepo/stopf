@@ -5,6 +5,43 @@
 
 import SwiftUI
 
+/// Große, gut lesbare Sensor-Zeile für das Live-Panel im Handbetrieb.
+/// Zeigt Name + Pin + Zustand („AUSGELÖST" / „frei") mit großem Indikator.
+struct SensorRow: View {
+    let name: String
+    let pin: String
+    let active: Bool
+    var activeColor: Color = .green
+    var live: Bool = true
+
+    var body: some View {
+        HStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(active ? activeColor : Color.secondary.opacity(0.22))
+                    .frame(width: 22, height: 22)
+                if active {
+                    Circle()
+                        .stroke(activeColor.opacity(0.35), lineWidth: 6)
+                        .frame(width: 22, height: 22)
+                }
+            }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(name).font(.callout.weight(.medium))
+                Text(pin).font(.caption2).foregroundStyle(.secondary)
+            }
+            Spacer()
+            Text(!live ? "—" : (active ? "AUSGELÖST" : "frei"))
+                .font(.caption.weight(.bold))
+                .foregroundStyle(!live ? .secondary : (active ? activeColor : .secondary))
+                .monospacedDigit()
+        }
+        .padding(.vertical, 7)
+        .opacity(live ? 1 : 0.5)
+        .animation(.snappy(duration: 0.12), value: active)
+    }
+}
+
 /// Kleiner Status-Punkt mit Label (für Sensor-/Aktor-Anzeige).
 struct StatusDot: View {
     let label: String
