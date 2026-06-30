@@ -8,6 +8,9 @@ startet das Backend automatisch beim Booten.
 iPhone  ──WLAN──►  Pi Zero 2 W (stopf.local:8000)  ──USB──►  Arduino Nano
 ```
 
+> Für den Betrieb **ohne Heim-Router** (Pi als eigener Access Point) siehe
+> [pi-network.md](pi-network.md).
+
 ---
 
 ## 1. SD-Karte flashen (am Mac)
