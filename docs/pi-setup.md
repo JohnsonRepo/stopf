@@ -226,6 +226,22 @@ altem Bootloader). Bei `not in sync` mit `115200` erneut:
 - In der App manuell `stopf.local` + Port `8000` eintragen
 - Local-Network-Permission beim ersten Start erlaubt?
 
+**Verbindung klappt erst nach mehreren Versuchen / WLAN zeitweise weg**
+- Klassiker beim Pi Zero 2 W: **WLAN-Energiesparmodus**. `setup.sh` schaltet ihn
+  ab (`/etc/NetworkManager/conf.d/wifi-powersave-off.conf`). Sofort-Test:
+  `sudo iwconfig wlan0 power off`.
+- Prüfen ob aktiv: `iwconfig wlan0 | grep "Power Management"` → sollte `off` sein.
+- Nach Boot braucht das Backend ~15-20 s, bis es erreichbar ist — kurz warten.
+- Stabilste Adresse: im Router eine **DHCP-Reservierung** (feste IP) für den Pi.
+
+**Pi wird nach 2-3 Neustarts instabil / muss neu geflasht werden**
+- Ursache: **hartes Stromabschalten** + evtl. **Unterspannung** beschädigen die SD.
+- Unterspannung prüfen: `vcgencmd get_throttled` → `0x0` = ok, sonst besseres/eigenes
+  5-V-Netzteil (≥ 2 A, getrennt von der Motor-Schiene).
+- **Endgültige Abhilfe: Overlay-FS aktivieren** (Abschnitt 8) — dann ist Stromziehen
+  völlig ungefährlich.
+- Gute Marken-SD-Karte (echte A1/A2) verwenden.
+
 **pip-Install ist langsam / bricht ab (Pi Zero 2 W hat wenig RAM)**
 - piwheels liefert vorgebaute ARM-Wheels — normalerweise kein Kompilieren nötig
 - Bei OOM: temporär Swap erhöhen (`sudo dphys-swapfile ...`) oder Pakete einzeln

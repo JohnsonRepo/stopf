@@ -115,6 +115,22 @@ echo "==> Installiere mDNS-Service (_stopf._tcp) ..."
 sudo cp "$SCRIPT_DIR/avahi-stopf.service" /etc/avahi/services/stopf.service
 sudo systemctl reload avahi-daemon || sudo systemctl restart avahi-daemon
 
+# --- 9) WLAN-Energiesparmodus abschalten --------------------------------------
+# Der Pi Zero 2 W wird sonst per WLAN-Powersave zeitweise unansprechbar
+# ("Verbindung klappt erst nach mehreren Versuchen"). Auf einem netzgespeisten
+# Gerät bringt Powersave nichts — dauerhaft aus.
+if [ -d /etc/NetworkManager ]; then
+    echo "==> Schalte WLAN-Energiesparmodus ab (NetworkManager) ..."
+    sudo tee /etc/NetworkManager/conf.d/wifi-powersave-off.conf >/dev/null <<'PSAVE'
+[connection]
+wifi.powersave = 2
+PSAVE
+    sudo systemctl restart NetworkManager || true
+else
+    # Fallback ohne NetworkManager
+    sudo iwconfig wlan0 power off 2>/dev/null || true
+fi
+
 # --- Fertig -------------------------------------------------------------------
 HOSTNAME_LOCAL="$(hostname).local"
 echo ""
