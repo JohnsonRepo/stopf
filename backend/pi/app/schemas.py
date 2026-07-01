@@ -85,7 +85,8 @@ class MotorRequest(BaseModel):
 
 
 class SolenoidRequest(BaseModel):
-    action: Literal["on", "off", "pulse"]
+    # Dauer-ON ist deaktiviert (Magnet-Schutz) — nur off/pulse.
+    action: Literal["off", "pulse"]
     ms: Optional[int] = Field(None, ge=1, le=1000)
 
 

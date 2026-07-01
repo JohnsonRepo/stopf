@@ -25,7 +25,7 @@
 //   press fwd|rev|stop       - DC-Motor Presse (PWM aus params.press_pwm)
 //   pusher fwd|rev|stop      - DC-Motor Pusher (PWM aus params.pusher_pwm)
 //   servo <0..180>           - Hülsen-Schieber-Servo
-//   solenoid 1|2 on|off|pulse <ms>
+//   solenoid 1|2 off|pulse <ms>   (Dauer-ON deaktiviert — Magnet-Schutz)
 //   hopper on|off|test <ms>  - on = Background-Cycle, test = einmaliger Run
 //   knock [<cycles>]         - läuft als Step (kann via stop abgebrochen werden)
 // =====================================================
@@ -494,7 +494,7 @@ static void printHelp() {
     Serial.println(F("press fwd|rev|stop  (PWM aus params.press_pwm)"));
     Serial.println(F("pusher fwd|rev|stop (PWM aus params.pusher_pwm)"));
     Serial.println(F("servo <0..180>"));
-    Serial.println(F("solenoid 1|2 on|off|pulse <ms>"));
+    Serial.println(F("solenoid 1|2 off|pulse <ms>   (Dauer-ON deaktiviert)"));
     Serial.println(F("hopper on|off|test <ms>   (on = 10s/20s Cycle)"));
     Serial.println(F("knock [<cycles>]"));
     Serial.println(F("========================="));
@@ -513,8 +513,12 @@ static bool requireIdle() {
 static void cmdSolenoid(uint8_t pin, const String& action) {
     const char* name = (pin == PIN_SOLENOID_1) ? "sol1" : "sol2";
     if (action == "on") {
-        digitalWrite(pin, HIGH);
-        Serial.print(F("ok ")); Serial.print(name); Serial.println(F(" on"));
+        // Dauer-ON ist DEAKTIVIERT. Die Heschen-Magnete sind nicht für
+        // Dauerbetrieb ausgelegt (hat schon eine Sicherung gekostet). Es gibt
+        // nur noch pulse/off — so kann kein Pfad (App, API, Serial) einen
+        // Magneten dauerhaft halten. Pin sicherheitshalber auf LOW.
+        digitalWrite(pin, LOW);
+        Serial.print(F("err on_disabled ")); Serial.println(name);
     } else if (action == "off") {
         digitalWrite(pin, LOW);
         Serial.print(F("ok ")); Serial.print(name); Serial.println(F(" off"));

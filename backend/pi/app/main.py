@@ -18,7 +18,7 @@ Endpoints:
     POST /manual/press              {"direction":"fwd|rev|stop"}
     POST /manual/pusher             {"direction":"fwd|rev|stop"}
     POST /manual/servo              {"angle": 0..180}
-    POST /manual/solenoid/{1|2}     {"action":"on|off|pulse","ms":?}
+    POST /manual/solenoid/{1|2}     {"action":"off|pulse","ms":?}  (Dauer-ON deaktiviert)
     POST /manual/hopper             {"action":"on|off|test","ms":?}
     POST /manual/knock              {"cycles": ?}
     POST /system/shutdown           Pi sicher herunterfahren (stop + poweroff)

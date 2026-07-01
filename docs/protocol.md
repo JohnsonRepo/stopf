@@ -73,10 +73,10 @@ Wichtige Positionen (siehe `config.h`):
 
 | Befehl | Antwort | Beschreibung |
 |---|---|---|
-| `solenoid 1 on` | `ok sol1 on` | Hubmagnet #1 (Front-Knock) ein |
+| `solenoid 1 pulse <ms>` | `ok sol1 pulse <ms>` | Hubmagnet #1 (Front-Knock) für ms an, dann aus (max 1000 ms) |
 | `solenoid 1 off` | `ok sol1 off` | Hubmagnet #1 aus |
-| `solenoid 1 pulse <ms>` | `ok sol1 pulse <ms>` | Hubmagnet #1 für ms an, dann aus (max 1000 ms — Schutz vor Überhitzung) |
-| `solenoid 2 on\|off\|pulse <ms>` | wie #1 | Hubmagnet #2 (Top-Druck) |
+| `solenoid 1 on` | `err on_disabled sol1` | **Dauer-ON deaktiviert** (Magnet-Schutz, ab v0.3.1) |
+| `solenoid 2 off\|pulse <ms>` | wie #1 | Hubmagnet #2 (Top-Druck) |
 | `knock` | `ok knock start cycles=8` ... `ok knock done` | Komplette Knock-Sequenz mit Default-Cycles (8) |
 | `knock <n>` | wie oben | mit `n` statt Default |
 

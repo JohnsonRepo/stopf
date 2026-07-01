@@ -10,7 +10,8 @@
 #define SERIAL_BAUD 115200
 #endif
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.3.0"   // v0.3: EEPROM-Params, kooperative State-Machine, Background-Hopper
+#define FIRMWARE_VERSION "0.3.1"   // v0.3.1: Solenoid Dauer-ON deaktiviert (Magnet-Schutz)
+                                   // v0.3:   EEPROM-Params, kooperative State-Machine, Background-Hopper
 #endif
 
 // --- Sicherheit / Limits ---
