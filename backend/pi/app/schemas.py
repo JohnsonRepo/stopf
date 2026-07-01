@@ -47,7 +47,7 @@ class Params(BaseModel):
     hopper_on_ms:          Optional[int] = Field(None, ge=100, le=60000)
     hopper_off_ms:         Optional[int] = Field(None, ge=100, le=60000)
     press_rev_ms:          Optional[int] = Field(None, ge=50,  le=10000)
-    press_fwd_timeout_ms:  Optional[int] = Field(None, ge=100, le=10000)
+    press_fwd_timeout_ms:  Optional[int] = Field(None, ge=100, le=15000)
     press_pwm:             Optional[int] = Field(None, ge=60,  le=255)
     pusher_fwd_timeout_ms: Optional[int] = Field(None, ge=100, le=10000)
     pusher_rev_timeout_ms: Optional[int] = Field(None, ge=100, le=10000)

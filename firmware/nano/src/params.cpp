@@ -30,7 +30,7 @@ static const ParamDesc PARAM_TABLE[] = {
     { "hopper_on_ms",          PT_U16, offsetof(Params, hopper_on_ms),          100, 60000 },
     { "hopper_off_ms",         PT_U16, offsetof(Params, hopper_off_ms),         100, 60000 },
     { "press_rev_ms",          PT_U16, offsetof(Params, press_rev_ms),          50,  10000 },
-    { "press_fwd_timeout_ms",  PT_U16, offsetof(Params, press_fwd_timeout_ms),  100, 10000 },
+    { "press_fwd_timeout_ms",  PT_U16, offsetof(Params, press_fwd_timeout_ms),  100, 15000 },
     { "press_pwm",             PT_U8,  offsetof(Params, press_pwm),             60,  255   },
     { "pusher_fwd_timeout_ms", PT_U16, offsetof(Params, pusher_fwd_timeout_ms), 100, 10000 },
     { "pusher_rev_timeout_ms", PT_U16, offsetof(Params, pusher_rev_timeout_ms), 100, 10000 },

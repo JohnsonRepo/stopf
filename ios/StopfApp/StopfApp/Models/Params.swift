@@ -69,7 +69,7 @@ enum ParamCatalog {
         // Presse
         .init(key: "press_pwm",             label: "Drehzahl (PWM)",        group: .press,  minVal: 60,  maxVal: 255,   unit: "",      step: 5),
         .init(key: "press_rev_ms",          label: "Rücklauf-Dauer",        group: .press,  minVal: 50,  maxVal: 10000, unit: "ms",    step: 50),
-        .init(key: "press_fwd_timeout_ms",  label: "Vorlauf-Timeout",       group: .press,  minVal: 100, maxVal: 10000, unit: "ms",    step: 100),
+        .init(key: "press_fwd_timeout_ms",  label: "Vorlauf-Timeout",       group: .press,  minVal: 100, maxVal: 15000, unit: "ms",    step: 100),
         // Pusher
         .init(key: "pusher_pwm",            label: "Drehzahl (PWM)",        group: .pusher, minVal: 60,  maxVal: 255,   unit: "",      step: 5),
         .init(key: "pusher_fwd_timeout_ms", label: "Vorlauf-Timeout",       group: .pusher, minVal: 100, maxVal: 10000, unit: "ms",    step: 100),
