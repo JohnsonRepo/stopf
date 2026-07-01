@@ -15,6 +15,10 @@ struct SettingsTab: View {
     @State private var confirmShutdown = false
     @State private var confirmReboot = false
     @State private var confirmUpdate = false
+    @State private var confirmUpdate2 = false
+
+    /// Update nur möglich, wenn verbunden UND der Pi Internet hat.
+    private var canUpdate: Bool { app.isLive && (app.lastHealth?.internet ?? false) }
 
     var body: some View {
         NavigationStack {
@@ -30,6 +34,8 @@ struct SettingsTab: View {
                 hostField = app.host
                 portField = String(app.port)
                 app.discovery.start()
+                // Health (inkl. Internet-Status) frisch holen → Update-Button-Gating
+                Task { await app.testConnection() }
             }
         }
     }
@@ -168,6 +174,12 @@ struct SettingsTab: View {
                         .labelStyle(.titleAndIcon)
                 }
                 LabeledContent("Port", value: h.nanoPort)
+                LabeledContent("Internet") {
+                    Label(h.internet == true ? "verbunden" : "getrennt",
+                          systemImage: h.internet == true ? "wifi" : "wifi.slash")
+                        .foregroundStyle(h.internet == true ? .green : .secondary)
+                        .labelStyle(.titleAndIcon)
+                }
             }
             if let e = app.lastError {
                 Label(e, systemImage: "exclamationmark.triangle.fill")
@@ -188,7 +200,7 @@ struct SettingsTab: View {
             } label: {
                 Label("Backend aktualisieren", systemImage: "arrow.down.circle")
             }
-            .disabled(!app.isLive)
+            .disabled(!canUpdate)
 
             Button(role: .destructive) {
                 confirmShutdown = true
@@ -206,16 +218,32 @@ struct SettingsTab: View {
         } header: {
             Text("System")
         } footer: {
-            Text("Update holt den neuesten Code (git pull) und startet den Dienst neu — braucht Internet (Client-Modus). Vor dem Stromtrennen immer herunterfahren (schützt die SD-Karte).")
+            Text(canUpdate
+                 ? "Update holt den neuesten Code (git pull) und startet den Dienst neu. Vor dem Stromtrennen immer herunterfahren (schützt die SD-Karte)."
+                 : "Update ist nur möglich, wenn der Pi Internet hat (Client-Modus). Im AP-Modus deaktiviert.")
         }
+        // Schritt 1
         .confirmationDialog("Backend aktualisieren?", isPresented: $confirmUpdate, titleVisibility: .visible) {
-            Button("Aktualisieren") {
+            Button("Weiter …") {
+                // kleiner Versatz, damit der zweite Dialog zuverlässig erscheint
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(300))
+                    confirmUpdate2 = true
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Holt den neuesten Stand von GitHub und startet das Backend neu. Die App verliert dabei kurz die Verbindung.")
+        }
+        // Schritt 2 (zweite Bestätigung)
+        .confirmationDialog("Wirklich jetzt aktualisieren?", isPresented: $confirmUpdate2, titleVisibility: .visible) {
+            Button("Jetzt aktualisieren", role: .destructive) {
                 app.fire { try await $0.update() }
                 app.showToast("Update läuft — git pull + Neustart, in ~30-60 s wieder verbunden.")
             }
             Button("Abbrechen", role: .cancel) {}
         } message: {
-            Text("Holt den neuesten Stand von GitHub und startet das Backend neu. Die App verliert kurz die Verbindung. Nur im Client-Modus (Internet nötig).")
+            Text("Der laufende Betrieb wird unterbrochen. Nur fortfahren, wenn die Maschine nicht gerade stopft.")
         }
         .confirmationDialog("Pi herunterfahren?", isPresented: $confirmShutdown, titleVisibility: .visible) {
             Button("Herunterfahren", role: .destructive) {

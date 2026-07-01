@@ -186,9 +186,10 @@ struct HealthInfo: Codable {
     let version: String
     let nanoConnected: Bool
     let nanoPort: String
+    let internet: Bool?          // optional: ältere Backends senden es evtl. nicht
 
     enum CodingKeys: String, CodingKey {
-        case service, version
+        case service, version, internet
         case nanoConnected = "nano_connected"
         case nanoPort = "nano_port"
     }

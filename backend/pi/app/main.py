@@ -34,8 +34,10 @@ Start:
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
+import socket
 import subprocess
 import time
 from contextlib import asynccontextmanager
@@ -105,6 +107,32 @@ async def _send_cmd(cmd: str) -> CommandResponse:
     return CommandResponse(sent=cmd, reply=reply, ok=ok, parsed=parsed)
 
 
+# -------- Internet-Erreichbarkeit (für App-Update-Gating) --------
+
+_internet_cache = {"ok": False, "ts": 0.0}
+_INTERNET_TTL = 20.0   # Sekunden — Ergebnis kurz cachen, Probe ist teuer
+
+
+def _probe_internet() -> bool:
+    """Blockierend: TCP zu github.com:443 (genau das, was git pull braucht)."""
+    try:
+        with socket.create_connection(("github.com", 443), timeout=2):
+            return True
+    except OSError:
+        return False
+
+
+async def _internet_ok() -> bool:
+    now = time.time()
+    if now - _internet_cache["ts"] < _INTERNET_TTL:
+        return _internet_cache["ok"]
+    loop = asyncio.get_event_loop()
+    ok = await loop.run_in_executor(None, _probe_internet)   # Event-Loop nicht blocken
+    _internet_cache["ok"] = ok
+    _internet_cache["ts"] = now
+    return ok
+
+
 # -------- Health + Status --------
 
 @app.get("/", summary="Health check")
@@ -114,6 +142,7 @@ async def root():
         "version": app.version,
         "nano_connected": nano.is_connected,
         "nano_port": nano.port,
+        "internet": await _internet_ok(),
     }
 
 
@@ -285,6 +314,8 @@ async def system_update(background_tasks: BackgroundTasks):
     if not os.path.isdir(os.path.join(_REPO_ROOT, ".git")):
         raise HTTPException(400, "kein Git-Deployment — Update nur bei 'git clone' möglich")
     # Braucht Internet — im AP-Modus schlägt git pull fehl (dann bleibt alter Stand).
+    if not await _internet_ok():
+        raise HTTPException(400, "keine Internetverbindung — Update nur im Client-Modus")
     background_tasks.add_task(_run_update)
     return CommandResponse(
         sent="update",
