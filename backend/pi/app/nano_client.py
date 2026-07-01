@@ -85,17 +85,21 @@ class NanoClient:
             try:
                 payload = (command.strip() + "\n").encode("utf-8")
                 # Stale/unsolicited Zeilen verwerfen, damit die gelesene Antwort
-                # garantiert zu DIESEM Befehl gehört. Ohne das kann ein einmal in
-                # den Timeout gelaufener readline die Zuordnung Befehl↔Antwort um
-                # eins verschieben (Desync mit dem 200-ms-Broadcaster) — dann
-                # bekam z.B. `params` eine `status`-Zeile → leere Parameter.
-                await loop.run_in_executor(None, self._ser.reset_input_buffer)
+                # garantiert zu DIESEM Befehl gehört (Desync mit dem 200-ms-
+                # Broadcaster). BEST-EFFORT: reset_input_buffer (tcflush) kann bei
+                # einem USB-Serial-Glitch termios.error/EIO werfen — das darf den
+                # Tick NICHT killen. Bei echtem Portausfall greift der write/readline
+                # weiter unten + der breite except → Reconnect.
+                try:
+                    await loop.run_in_executor(None, self._ser.reset_input_buffer)
+                except Exception:  # noqa: BLE001 — termios.error ist KEIN OSError
+                    pass
                 await loop.run_in_executor(None, self._ser.write, payload)
                 raw = await loop.run_in_executor(None, self._ser.readline)
                 reply = raw.decode("utf-8", errors="replace").strip()
                 logger.debug(f">> {command}  <<  {reply}")
                 return reply or "err no_reply"
-            except (serial.SerialException, OSError) as e:
+            except Exception as e:  # breit fangen: termios.error ist KEIN OSError
                 logger.warning(f"Serial error, dropping connection: {e}")
                 try:
                     if self._ser:
