@@ -102,6 +102,13 @@ struct APIClient {
         try await request("/params", as: [String: Int].self)
     }
 
+    func events() async throws -> [EventItem] {
+        try await request("/events", as: [EventItem].self)
+    }
+    @discardableResult func clearEvents() async throws -> CommandResponse {
+        try await command("/events", method: "DELETE")
+    }
+
     @discardableResult
     func setParam(_ key: String, _ value: Int) async throws -> CommandResponse {
         try await command("/params/\(key)", method: "PUT", query: ["value": String(value)])
@@ -182,6 +189,15 @@ private struct KnockBody: Encodable {
         try c.encodeIfPresent(cycles, forKey: .cycles)
     }
     enum CodingKeys: String, CodingKey { case cycles }
+}
+
+struct EventItem: Codable, Identifiable {
+    let ts: Double
+    let level: String     // "info" | "warn" | "error"
+    let message: String
+
+    var id: String { "\(ts)-\(message)" }
+    var date: Date { Date(timeIntervalSince1970: ts) }
 }
 
 struct HealthInfo: Codable {

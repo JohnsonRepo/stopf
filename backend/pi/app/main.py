@@ -47,6 +47,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Path, WebSocket, We
 from fastapi.middleware.cors import CORSMiddleware
 
 from .broadcaster import StatusBroadcaster
+from .event_log import event_log
 from .nano_client import NanoClient
 from .schemas import (
     CommandResponse,
@@ -75,6 +76,7 @@ broadcaster = StatusBroadcaster(nano, interval_ms=200)
 async def lifespan(app: FastAPI):
     await nano.connect()
     await broadcaster.start()
+    event_log.info(f"Backend gestartet (v{app.version})")
     try:
         yield
     finally:
@@ -150,6 +152,19 @@ async def root():
 @app.get("/status", response_model=MachineStatus, summary="Parsed Maschinenstatus")
 async def status():
     return await nano.get_status()
+
+
+# -------- Ereignis-Protokoll --------
+
+@app.get("/events", summary="Ereignis-Protokoll (neueste zuerst)")
+async def get_events():
+    return event_log.list()
+
+
+@app.delete("/events", response_model=CommandResponse, summary="Protokoll leeren")
+async def clear_events():
+    event_log.clear()
+    return CommandResponse(sent="clear-events", reply="cleared", ok=True, parsed=None)
 
 
 # -------- Parameter --------
@@ -270,6 +285,7 @@ def _power_action(action: str) -> None:
 
 
 async def _power(action: str, background_tasks: BackgroundTasks) -> CommandResponse:
+    event_log.warn(f"System-Aktion: {action}")
     # Maschine zuerst sicher stoppen — der Nano läuft sonst nach dem Pi-Aus weiter.
     stop_reply = await nano.send("stop")
     background_tasks.add_task(_power_action, action)
@@ -318,6 +334,7 @@ async def system_flash_nano():
     # stopf-flash (eigene cgroup) → avrdude überlebt den Backend-Stop.
     if not os.path.isfile(_NANO_HEX):
         raise HTTPException(400, "kein firmware.hex im Repo — erst bauen/committen + git pull")
+    event_log.warn("Nano-Flash ausgelöst")
     try:
         subprocess.run(
             ["sudo", "-n", "systemctl", "start", "--no-block", "stopf-flash.service"],
@@ -341,6 +358,7 @@ async def system_update(background_tasks: BackgroundTasks):
     # Braucht Internet — im AP-Modus schlägt git pull fehl (dann bleibt alter Stand).
     if not await _internet_ok():
         raise HTTPException(400, "keine Internetverbindung — Update nur im Client-Modus")
+    event_log.info("Update ausgelöst (git pull + Neustart)")
     background_tasks.add_task(_run_update)
     return CommandResponse(
         sent="update",

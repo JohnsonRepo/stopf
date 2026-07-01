@@ -35,6 +35,7 @@ struct SettingsTab: View {
                 discoverySection
                 manualSection
                 testSection
+                logSection
                 systemSection
             }
             .navigationTitle("Verbindung")
@@ -196,6 +197,20 @@ struct SettingsTab: View {
             }
         } footer: {
             Text("„Backend“ ist der Pi, „Nano“ die serielle Verbindung Pi → Arduino.")
+        }
+    }
+
+    // MARK: - Protokoll
+
+    private var logSection: some View {
+        Section {
+            NavigationLink {
+                EventLogView()
+            } label: {
+                Label("Fehlerprotokoll", systemImage: "list.bullet.rectangle")
+            }
+        } footer: {
+            Text("Zustandswechsel, Fehler und Verbindungsabbrüche seit dem letzten Backend-Start.")
         }
     }
 

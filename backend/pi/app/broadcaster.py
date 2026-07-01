@@ -11,6 +11,7 @@ from typing import Set
 
 from fastapi import WebSocket
 
+from .event_log import event_log
 from .nano_client import NanoClient
 
 logger = logging.getLogger(__name__)
@@ -23,6 +24,7 @@ class StatusBroadcaster:
         self._clients: Set[WebSocket] = set()
         self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
+        self._last = None   # vorheriger MachineStatus für Übergangs-Erkennung
 
     async def start(self) -> None:
         if self._task is None or self._task.done():
@@ -53,6 +55,7 @@ class StatusBroadcaster:
             interval = self._interval if self._clients else idle_interval
             try:
                 status = await self._nano.get_status()
+                self._note_transitions(status)
                 payload = status.model_dump()
                 if self._clients:
                     dead = []
@@ -69,3 +72,25 @@ class StatusBroadcaster:
                 await asyncio.wait_for(self._stop.wait(), timeout=interval)
             except asyncio.TimeoutError:
                 pass
+
+    def _note_transitions(self, s) -> None:
+        """Erkennt relevante Übergänge und schreibt sie ins Ereignis-Protokoll."""
+        last = self._last
+        self._last = s
+        if last is None:
+            return
+        # Nano-Verbindung
+        if s.connected != last.connected:
+            if s.connected:
+                event_log.info("Nano wieder verbunden")
+            else:
+                event_log.warn("Nano-Verbindung verloren")
+        # Zustandswechsel (inkl. Fehler + möglicher Reset)
+        if s.state != last.state:
+            if s.state == "error":
+                event_log.error(f"Fehler: {s.error or '?'} (bei Schritt {last.step})")
+            elif last.state in ("stuffing", "homing", "step") and s.state == "idle":
+                # Sequenz endete/abgebrochen — bei laufender Sequenz oft ein Nano-Reset
+                event_log.warn(f"Ablauf beendet/abgebrochen (war {last.state}, Schritt {last.step})")
+            else:
+                event_log.info(f"Zustand: {last.state} → {s.state}")
