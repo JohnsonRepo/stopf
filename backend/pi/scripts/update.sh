@@ -59,7 +59,7 @@ echo "==> Import-Test ..."
 
 # --- 4) Dienst neu starten -----------------------------------------------
 echo "==> Starte $SERVICE neu ..."
-sudo systemctl restart "$SERVICE"
+sudo -n systemctl restart "$SERVICE"
 sleep 1
 systemctl is-active --quiet "$SERVICE" && echo "    läuft." || {
     echo " ! Dienst nicht aktiv — Log:"; journalctl -u "$SERVICE" -n 15 --no-pager; exit 1;

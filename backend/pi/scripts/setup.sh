@@ -89,24 +89,26 @@ sudo systemctl enable stopfmaschine >/dev/null 2>&1 || true
 sudo systemctl restart stopfmaschine
 echo "==> Dienst gestartet."
 
-# --- 7) sudo-Regel für sauberes Herunterfahren aus der App --------------------
-# Der Backend-User darf NUR poweroff/reboot ohne Passwort ausführen — sonst nichts.
-# Damit kann die App den Pi sicher herunterfahren, statt hart den Strom zu ziehen
-# (verhindert SD-Karten-Korruption).
-echo "==> Richte sudo-Regel für Shutdown/Reboot ein ..."
+# --- 7) sudo-Regeln für App-gesteuerte System-Aktionen ------------------------
+# Der Backend-User darf NUR diese eng begrenzten Kommandos ohne Passwort:
+#   - poweroff/reboot  → sauberes Herunterfahren aus der App (SD-Schutz)
+#   - systemctl restart stopfmaschine → Selbst-Neustart nach App-Update
+# Sonst nichts.
+echo "==> Richte sudo-Regeln für Shutdown/Reboot/Update ein ..."
 POWEROFF_BIN="$(command -v poweroff || echo /usr/sbin/poweroff)"
 REBOOT_BIN="$(command -v reboot || echo /usr/sbin/reboot)"
+SYSTEMCTL_BIN="$(command -v systemctl || echo /usr/bin/systemctl)"
 SUDOERS_TMP="$(mktemp)"
 cat > "$SUDOERS_TMP" <<SUDO
-$RUN_USER ALL=(root) NOPASSWD: $POWEROFF_BIN, $REBOOT_BIN
+$RUN_USER ALL=(root) NOPASSWD: $POWEROFF_BIN, $REBOOT_BIN, $SYSTEMCTL_BIN restart stopfmaschine
 SUDO
 # Erst validieren, dann erst installieren (kaputte sudoers = Aussperrung!)
 if sudo visudo -cf "$SUDOERS_TMP" >/dev/null 2>&1; then
     sudo cp "$SUDOERS_TMP" /etc/sudoers.d/stopf-power
     sudo chmod 0440 /etc/sudoers.d/stopf-power
-    echo "    OK: App darf poweroff/reboot."
+    echo "    OK: App darf poweroff/reboot + Dienst-Neustart (Update)."
 else
-    echo "    ! sudoers-Validierung fehlgeschlagen — übersprungen (App-Shutdown deaktiviert)."
+    echo "    ! sudoers-Validierung fehlgeschlagen — übersprungen (App-Shutdown/Update deaktiviert)."
 fi
 rm -f "$SUDOERS_TMP"
 

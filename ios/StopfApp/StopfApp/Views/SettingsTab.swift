@@ -14,6 +14,7 @@ struct SettingsTab: View {
     @State private var resolving: String?   // id des gerade aufgelösten Service
     @State private var confirmShutdown = false
     @State private var confirmReboot = false
+    @State private var confirmUpdate = false
 
     var body: some View {
         NavigationStack {
@@ -182,6 +183,13 @@ struct SettingsTab: View {
 
     private var systemSection: some View {
         Section {
+            Button {
+                confirmUpdate = true
+            } label: {
+                Label("Backend aktualisieren", systemImage: "arrow.down.circle")
+            }
+            .disabled(!app.isLive)
+
             Button(role: .destructive) {
                 confirmShutdown = true
             } label: {
@@ -198,7 +206,16 @@ struct SettingsTab: View {
         } header: {
             Text("System")
         } footer: {
-            Text("Immer herunterfahren, bevor du den Strom (12 V) trennst — schützt die SD-Karte vor Beschädigung.")
+            Text("Update holt den neuesten Code (git pull) und startet den Dienst neu — braucht Internet (Client-Modus). Vor dem Stromtrennen immer herunterfahren (schützt die SD-Karte).")
+        }
+        .confirmationDialog("Backend aktualisieren?", isPresented: $confirmUpdate, titleVisibility: .visible) {
+            Button("Aktualisieren") {
+                app.fire { try await $0.update() }
+                app.showToast("Update läuft — git pull + Neustart, in ~30-60 s wieder verbunden.")
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Holt den neuesten Stand von GitHub und startet das Backend neu. Die App verliert kurz die Verbindung. Nur im Client-Modus (Internet nötig).")
         }
         .confirmationDialog("Pi herunterfahren?", isPresented: $confirmShutdown, titleVisibility: .visible) {
             Button("Herunterfahren", role: .destructive) {

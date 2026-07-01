@@ -23,6 +23,7 @@ Endpoints:
     POST /manual/knock              {"cycles": ?}
     POST /system/shutdown           Pi sicher herunterfahren (stop + poweroff)
     POST /system/reboot             Pi neu starten (stop + reboot)
+    POST /system/update             git pull + Abhängigkeiten + Dienst-Neustart
     WS   /ws/status                 5 Hz Push (200 ms)
 
 Start:
@@ -258,6 +259,39 @@ async def system_shutdown(background_tasks: BackgroundTasks):
 @app.post("/system/reboot", response_model=CommandResponse, summary="Pi neu starten")
 async def system_reboot(background_tasks: BackgroundTasks):
     return await _power("reboot", background_tasks)
+
+
+# -------- System (Update) --------
+
+_PI_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))   # backend/pi
+_REPO_ROOT = os.path.dirname(os.path.dirname(_PI_DIR))                  # Repo-Wurzel
+_UPDATE_SH = os.path.join(_PI_DIR, "scripts", "update.sh")
+
+
+def _run_update() -> None:
+    """BackgroundTask: git pull + pip + Dienst-Neustart via update.sh.
+    Der Neustart killt am Ende auch diesen Prozess — git pull/pip sind bis
+    dahin fertig, und systemd führt den Restart-Job selbst zu Ende."""
+    time.sleep(1.0)
+    try:
+        subprocess.run(["bash", _UPDATE_SH], check=False)
+    except Exception:  # noqa: BLE001
+        logger.exception("Update fehlgeschlagen")
+
+
+@app.post("/system/update", response_model=CommandResponse, summary="Backend aktualisieren (git pull + Neustart)")
+async def system_update(background_tasks: BackgroundTasks):
+    # Nur bei Git-Deployment möglich (update.sh macht git pull).
+    if not os.path.isdir(os.path.join(_REPO_ROOT, ".git")):
+        raise HTTPException(400, "kein Git-Deployment — Update nur bei 'git clone' möglich")
+    # Braucht Internet — im AP-Modus schlägt git pull fehl (dann bleibt alter Stand).
+    background_tasks.add_task(_run_update)
+    return CommandResponse(
+        sent="update",
+        reply="Update gestartet — git pull + Neustart, in ~30-60 s wieder verbunden",
+        ok=True,
+        parsed={"_kind": "system", "action": "update"},
+    )
 
 
 # -------- WebSocket --------

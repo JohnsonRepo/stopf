@@ -153,6 +153,9 @@ struct APIClient {
     @discardableResult func reboot() async throws -> CommandResponse {
         try await command("/system/reboot")
     }
+    @discardableResult func update() async throws -> CommandResponse {
+        try await command("/system/update")
+    }
 }
 
 enum MotorDirection: String { case fwd, rev, stop }

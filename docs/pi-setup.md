@@ -129,9 +129,15 @@ curl http://localhost:8000/status      # geparster Maschinenstatus
 | Logs live | `journalctl -u stopfmaschine -f` |
 | Neustart | `sudo systemctl restart stopfmaschine` |
 | Stoppen | `sudo systemctl stop stopfmaschine` |
-| Nach Code-Update | erneut `rsync`/`git pull`, dann `restart` |
+| Nach Code-Update | `update.sh` (SSH) **oder** App → Verbindung → System → *Backend aktualisieren* |
 
 Der Dienst startet automatisch beim Boot und nach Abstürzen (`Restart=on-failure`).
+
+**Update aus der App:** Tab *Verbindung* → *System* → **Backend aktualisieren** löst
+`git pull` + Abhängigkeiten + Dienst-Neustart auf dem Pi aus (nutzt intern
+`update.sh`). Braucht Internet → nur im **Client-Modus**, nicht im AP-Modus.
+Die App verliert kurz die Verbindung und ist nach ~30-60 s wieder da; die neue
+Version steht dann unter *Verbindung testen*.
 
 ---
 
