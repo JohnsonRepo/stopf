@@ -84,6 +84,12 @@ class NanoClient:
             loop = asyncio.get_event_loop()
             try:
                 payload = (command.strip() + "\n").encode("utf-8")
+                # Stale/unsolicited Zeilen verwerfen, damit die gelesene Antwort
+                # garantiert zu DIESEM Befehl gehört. Ohne das kann ein einmal in
+                # den Timeout gelaufener readline die Zuordnung Befehl↔Antwort um
+                # eins verschieben (Desync mit dem 200-ms-Broadcaster) — dann
+                # bekam z.B. `params` eine `status`-Zeile → leere Parameter.
+                await loop.run_in_executor(None, self._ser.reset_input_buffer)
                 await loop.run_in_executor(None, self._ser.write, payload)
                 raw = await loop.run_in_executor(None, self._ser.readline)
                 reply = raw.decode("utf-8", errors="replace").strip()
