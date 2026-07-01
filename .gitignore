@@ -14,6 +14,8 @@ build/
 *.hex
 *.elf
 *.bin
+# Ausnahme: der eingecheckte Prebuilt-Hex, den die App zum Nano-Flashen nutzt
+!firmware/nano/firmware.hex
 
 # Arduino IDE
 *.ino.with_bootloader.*

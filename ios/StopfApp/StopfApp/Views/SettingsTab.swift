@@ -16,9 +16,17 @@ struct SettingsTab: View {
     @State private var confirmReboot = false
     @State private var confirmUpdate = false
     @State private var confirmUpdate2 = false
+    @State private var confirmFlash = false
+    @State private var confirmFlash2 = false
 
     /// Update nur möglich, wenn verbunden UND der Pi Internet hat.
     private var canUpdate: Bool { app.isLive && (app.lastHealth?.internet ?? false) }
+
+    private var systemFooter: String {
+        canUpdate
+        ? "Update holt den neuesten Code (git pull) und startet den Dienst neu. Vor dem Stromtrennen immer herunterfahren (schützt die SD-Karte)."
+        : "Update ist nur möglich, wenn der Pi Internet hat (Client-Modus). Im AP-Modus deaktiviert."
+    }
 
     var body: some View {
         NavigationStack {
@@ -202,6 +210,13 @@ struct SettingsTab: View {
             }
             .disabled(!canUpdate)
 
+            Button {
+                confirmFlash = true
+            } label: {
+                Label("Nano-Firmware flashen", systemImage: "cpu")
+            }
+            .disabled(!app.isReady)
+
             Button(role: .destructive) {
                 confirmShutdown = true
             } label: {
@@ -218,9 +233,7 @@ struct SettingsTab: View {
         } header: {
             Text("System")
         } footer: {
-            Text(canUpdate
-                 ? "Update holt den neuesten Code (git pull) und startet den Dienst neu. Vor dem Stromtrennen immer herunterfahren (schützt die SD-Karte)."
-                 : "Update ist nur möglich, wenn der Pi Internet hat (Client-Modus). Im AP-Modus deaktiviert.")
+            Text(systemFooter)
         }
         // Schritt 1
         .confirmationDialog("Backend aktualisieren?", isPresented: $confirmUpdate, titleVisibility: .visible) {
@@ -244,6 +257,28 @@ struct SettingsTab: View {
             Button("Abbrechen", role: .cancel) {}
         } message: {
             Text("Der laufende Betrieb wird unterbrochen. Nur fortfahren, wenn die Maschine nicht gerade stopft.")
+        }
+        // Nano-Flash Schritt 1
+        .confirmationDialog("Nano-Firmware flashen?", isPresented: $confirmFlash, titleVisibility: .visible) {
+            Button("Weiter …") {
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(300))
+                    confirmFlash2 = true
+                }
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Überschreibt die Firmware auf dem Nano mit dem Stand im Repo (firmware.hex). Vorher „Backend aktualisieren“, damit der neueste Hex da ist.")
+        }
+        // Nano-Flash Schritt 2 (zweite Bestätigung)
+        .confirmationDialog("Wirklich jetzt flashen?", isPresented: $confirmFlash2, titleVisibility: .visible) {
+            Button("Jetzt flashen", role: .destructive) {
+                app.fire { try await $0.flashNano() }
+                app.showToast("Nano wird geflasht — Backend pausiert ~20-40 s. Nicht den Strom trennen!")
+            }
+            Button("Abbrechen", role: .cancel) {}
+        } message: {
+            Text("Der Flash-Vorgang darf NICHT unterbrochen werden (kein Stromtrennen). Nur im Ruhezustand ausführen.")
         }
         .confirmationDialog("Pi herunterfahren?", isPresented: $confirmShutdown, titleVisibility: .visible) {
             Button("Herunterfahren", role: .destructive) {

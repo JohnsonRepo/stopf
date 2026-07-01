@@ -2,35 +2,42 @@
 #
 # flash-nano.sh — Nano-Firmware vom Pi aus flashen (Nano hängt am Pi-USB).
 #
-# Workflow:
-#   1) Auf dem MAC die Firmware bauen + .hex auf den Pi kopieren:
-#        cd firmware/nano && pio run
-#        scp .pio/build/nano/firmware.hex maschine@stopf.local:/tmp/firmware.hex
-#   2) Auf dem PI dieses Skript ausführen:
-#        cd ~/stopf/backend/pi && bash scripts/flash-nano.sh
+# Default flasht den ins Repo eingecheckten Hex (firmware/nano/firmware.hex),
+# den `git pull` / der App-Update mitbringt. So kann auch die App flashen,
+# ohne dass auf dem Pi eine Toolchain nötig ist.
 #
-# Das Skript stoppt das Backend (gibt den Serial-Port frei), flasht mit
-# avrdude und startet das Backend wieder.
+# Aufruf:
+#   bash scripts/flash-nano.sh                 # eingecheckter Repo-Hex
+#   bash scripts/flash-nano.sh /pfad/x.hex     # anderer Hex
+#   bash scripts/flash-nano.sh <hex> 115200    # anderer Baud (neuer Bootloader)
+#
+# Stoppt das Backend (gibt den Serial-Port frei), flasht mit avrdude und
+# startet das Backend wieder. Wird von der App über den Dienst stopf-flash
+# ausgelöst (eigene cgroup → überlebt den Backend-Stop).
 #
 set -euo pipefail
 
-HEX="${1:-/tmp/firmware.hex}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_HEX="$(cd "$SCRIPT_DIR/../../.." && pwd)/firmware/nano/firmware.hex"
+
+HEX="${1:-$REPO_HEX}"
 BAUD="${2:-57600}"          # CH340-Klon mit altem Bootloader = 57600; neuere Nanos = 115200
 SERVICE="stopfmaschine"
 
-# avrdude vorhanden?
+# avrdude vorhanden? (Interaktiv nachinstallieren; im Dienst ist es via setup.sh da.)
 if ! command -v avrdude >/dev/null 2>&1; then
     echo "==> Installiere avrdude ..."
-    sudo apt-get update -qq && sudo apt-get install -y -qq avrdude
+    sudo -n apt-get install -y -qq avrdude || {
+        echo "FEHLER: avrdude fehlt und konnte nicht installiert werden."
+        exit 1
+    }
 fi
 
 # Hex vorhanden?
 if [ ! -f "$HEX" ]; then
     echo "FEHLER: Hex-Datei nicht gefunden: $HEX"
-    echo ""
-    echo "Erst auf dem Mac bauen und kopieren:"
-    echo "  cd firmware/nano && pio run"
-    echo "  scp .pio/build/nano/firmware.hex $(whoami)@$(hostname).local:/tmp/firmware.hex"
+    echo "Erwartet den eingecheckten Hex: $REPO_HEX"
+    echo "Auf dem Mac bauen + committen: cd firmware/nano && pio run && cp .pio/build/nano/firmware.hex firmware.hex"
     exit 1
 fi
 
@@ -47,7 +54,7 @@ echo "==> Port: $PORT   Baud: $BAUD   Hex: $HEX"
 
 # WICHTIG: Backend muss den Port freigeben.
 echo "==> Stoppe $SERVICE (gibt Serial-Port frei) ..."
-sudo systemctl stop "$SERVICE" 2>/dev/null || true
+sudo -n systemctl stop "$SERVICE" 2>/dev/null || true
 sleep 1
 
 echo "==> Flashe Firmware ..."
@@ -57,7 +64,7 @@ RC=$?
 set -e
 
 echo "==> Starte $SERVICE wieder ..."
-sudo systemctl start "$SERVICE"
+sudo -n systemctl start "$SERVICE"
 
 echo ""
 if [ "$RC" -eq 0 ]; then

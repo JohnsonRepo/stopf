@@ -156,6 +156,9 @@ struct APIClient {
     @discardableResult func update() async throws -> CommandResponse {
         try await command("/system/update")
     }
+    @discardableResult func flashNano() async throws -> CommandResponse {
+        try await command("/system/flash-nano")
+    }
 }
 
 enum MotorDirection: String { case fwd, rev, stop }

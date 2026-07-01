@@ -209,6 +209,22 @@ altem Bootloader). Bei `not in sync` mit `115200` erneut:
 > ```
 > (vorher das `.hex` wie oben per scp kopieren)
 
+### Flashen aus der App (ohne SSH)
+
+Dafür muss der kompilierte Hex **im Repo** liegen (`firmware/nano/firmware.hex`).
+Nach jeder Firmware-Änderung auf dem **Mac** einchecken:
+```bash
+cd firmware/nano && pio run && cp .pio/build/nano/firmware.hex firmware.hex
+git add firmware.hex && git commit -m "fw: rebuild hex" && git push
+```
+Dann auf dem iPhone:
+1. **Verbindung → System → Backend aktualisieren** (holt den neuen Hex per git pull)
+2. **Verbindung → System → Nano-Firmware flashen** (zwei Bestätigungen)
+
+Der Flash läuft im separaten Dienst `stopf-flash` (eigene cgroup), stoppt kurz
+das Backend, flasht mit avrdude und startet das Backend wieder. **Während des
+Flashens nicht den Strom trennen.** Nur im Ruhezustand möglich.
+
 ---
 
 ## Troubleshooting

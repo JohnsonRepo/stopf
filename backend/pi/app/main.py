@@ -24,6 +24,7 @@ Endpoints:
     POST /system/shutdown           Pi sicher herunterfahren (stop + poweroff)
     POST /system/reboot             Pi neu starten (stop + reboot)
     POST /system/update             git pull + Abhängigkeiten + Dienst-Neustart
+    POST /system/flash-nano         Nano-Firmware (firmware.hex) via avrdude flashen
     WS   /ws/status                 5 Hz Push (200 ms)
 
 Start:
@@ -306,6 +307,30 @@ def _run_update() -> None:
         subprocess.run(["bash", _UPDATE_SH], check=False)
     except Exception:  # noqa: BLE001
         logger.exception("Update fehlgeschlagen")
+
+
+_NANO_HEX = os.path.join(_REPO_ROOT, "firmware", "nano", "firmware.hex")
+
+
+@app.post("/system/flash-nano", response_model=CommandResponse, summary="Nano-Firmware flashen")
+async def system_flash_nano():
+    # Flasht den ins Repo eingecheckten Hex. Läuft im separaten Dienst
+    # stopf-flash (eigene cgroup) → avrdude überlebt den Backend-Stop.
+    if not os.path.isfile(_NANO_HEX):
+        raise HTTPException(400, "kein firmware.hex im Repo — erst bauen/committen + git pull")
+    try:
+        subprocess.run(
+            ["sudo", "-n", "systemctl", "start", "--no-block", "stopf-flash.service"],
+            check=True,
+        )
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(500, f"Flash-Dienst-Start fehlgeschlagen: {e}")
+    return CommandResponse(
+        sent="flash-nano",
+        reply="Flashen gestartet — Backend pausiert ~20-40 s, dann wieder verbunden",
+        ok=True,
+        parsed={"_kind": "system", "action": "flash-nano"},
+    )
 
 
 @app.post("/system/update", response_model=CommandResponse, summary="Backend aktualisieren (git pull + Neustart)")

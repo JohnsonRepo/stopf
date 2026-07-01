@@ -23,9 +23,9 @@ echo "    Backend:   $PI_DIR"
 echo "    venv:      $VENV"
 
 # --- 1) Systempakete ----------------------------------------------------------
-echo "==> Systempakete (python3-venv, avahi-daemon) ..."
+echo "==> Systempakete (python3-venv, avahi-daemon, avrdude) ..."
 sudo apt-get update -qq
-sudo apt-get install -y -qq python3-venv python3-pip avahi-daemon
+sudo apt-get install -y -qq python3-venv python3-pip avahi-daemon avrdude
 
 # --- 2) Serielle Rechte -------------------------------------------------------
 # Damit das Backend ohne root /dev/ttyUSB0 bzw. /dev/ttyACM0 öffnen darf.
@@ -84,6 +84,21 @@ RestartSec=3
 WantedBy=multi-user.target
 UNIT
 
+# Oneshot-Dienst zum Nano-Flashen (von der App ausgelöst). Läuft in EIGENER
+# cgroup → das Stoppen von stopfmaschine (durch flash-nano.sh) killt avrdude
+# nicht. Kein enable/start — wird per `systemctl start` on-demand getriggert.
+echo "==> Schreibe systemd-Unit /etc/systemd/system/stopf-flash.service ..."
+sudo tee /etc/systemd/system/stopf-flash.service >/dev/null <<UNIT
+[Unit]
+Description=Stopfmaschine Nano-Firmware flashen (oneshot)
+
+[Service]
+Type=oneshot
+User=$RUN_USER
+WorkingDirectory=$PI_DIR
+ExecStart=/bin/bash $SCRIPT_DIR/flash-nano.sh
+UNIT
+
 sudo systemctl daemon-reload
 sudo systemctl enable stopfmaschine >/dev/null 2>&1 || true
 sudo systemctl restart stopfmaschine
@@ -91,24 +106,25 @@ echo "==> Dienst gestartet."
 
 # --- 7) sudo-Regeln für App-gesteuerte System-Aktionen ------------------------
 # Der Backend-User darf NUR diese eng begrenzten Kommandos ohne Passwort:
-#   - poweroff/reboot  → sauberes Herunterfahren aus der App (SD-Schutz)
-#   - systemctl restart stopfmaschine → Selbst-Neustart nach App-Update
+#   - poweroff/reboot                    → Herunterfahren/Neustart aus der App
+#   - systemctl restart/stop/start stopfmaschine → Update-Neustart + Flash
+#   - systemctl start --no-block stopf-flash.service → Nano-Flash aus der App
 # Sonst nichts.
-echo "==> Richte sudo-Regeln für Shutdown/Reboot/Update ein ..."
+echo "==> Richte sudo-Regeln für Shutdown/Reboot/Update/Flash ein ..."
 POWEROFF_BIN="$(command -v poweroff || echo /usr/sbin/poweroff)"
 REBOOT_BIN="$(command -v reboot || echo /usr/sbin/reboot)"
 SYSTEMCTL_BIN="$(command -v systemctl || echo /usr/bin/systemctl)"
 SUDOERS_TMP="$(mktemp)"
 cat > "$SUDOERS_TMP" <<SUDO
-$RUN_USER ALL=(root) NOPASSWD: $POWEROFF_BIN, $REBOOT_BIN, $SYSTEMCTL_BIN restart stopfmaschine
+$RUN_USER ALL=(root) NOPASSWD: $POWEROFF_BIN, $REBOOT_BIN, $SYSTEMCTL_BIN restart stopfmaschine, $SYSTEMCTL_BIN stop stopfmaschine, $SYSTEMCTL_BIN start stopfmaschine, $SYSTEMCTL_BIN start --no-block stopf-flash.service
 SUDO
 # Erst validieren, dann erst installieren (kaputte sudoers = Aussperrung!)
 if sudo visudo -cf "$SUDOERS_TMP" >/dev/null 2>&1; then
     sudo cp "$SUDOERS_TMP" /etc/sudoers.d/stopf-power
     sudo chmod 0440 /etc/sudoers.d/stopf-power
-    echo "    OK: App darf poweroff/reboot + Dienst-Neustart (Update)."
+    echo "    OK: App darf poweroff/reboot + Update + Nano-Flash."
 else
-    echo "    ! sudoers-Validierung fehlgeschlagen — übersprungen (App-Shutdown/Update deaktiviert)."
+    echo "    ! sudoers-Validierung fehlgeschlagen — übersprungen (App-System-Aktionen deaktiviert)."
 fi
 rm -f "$SUDOERS_TMP"
 
