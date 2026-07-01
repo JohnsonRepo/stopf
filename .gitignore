@@ -120,6 +120,8 @@ exports/temp/
 !.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json.example
+# Auch verschachtelte .vscode-Ordner (z.B. in cad/scripts/*) ignorieren
+**/.vscode/
 .idea/
 *.swp
 *.swo
