@@ -115,6 +115,9 @@ exports/temp/
 *.gcode
 *.stl.bak
 
+# Fusion-Skript Dosiertrommel (lokal, nicht ins Repo)
+cad/scripts/dosiertrommel/
+
 # --- IDE / Editor ---
 .vscode/*
 !.vscode/settings.json
