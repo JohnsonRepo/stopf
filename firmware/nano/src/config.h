@@ -10,7 +10,8 @@
 #define SERIAL_BAUD 115200
 #endif
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.3.2"   // v0.3.2: press_fwd_timeout_ms bis 15000 ms
+#define FIRMWARE_VERSION "0.3.3"   // v0.3.3: Stepper im Leerlauf stromlos (Halteström/Wärme sparen)
+                                   // v0.3.2: press_fwd_timeout_ms bis 15000 ms
                                    // v0.3.1: Solenoid Dauer-ON deaktiviert (Magnet-Schutz)
                                    // v0.3:   EEPROM-Params, kooperative State-Machine, Background-Hopper
 #endif

@@ -749,6 +749,15 @@ void loop() {
     // 2) Stepper non-blocking ticken
     stepper.run();
 
+    // 2b) Halteström sparen: Treiber im Leerlauf stromlos schalten.
+    // Nur im IDLE UND wenn keine Bewegung mehr aussteht — während einer
+    // Sequenz (home/stuff/step) bleibt der Treiber bestromt, damit die
+    // open-loop Trommelposition erhalten bleibt. Vor jeder Bewegung wird per
+    // enableStepper() wieder aktiviert.
+    if (currentMode == MODE_IDLE && stepper.distanceToGo() == 0) {
+        digitalWrite(PIN_STEPPER_EN, HIGH);   // EN HIGH = Treiber/Strom aus
+    }
+
     // 3) State-Machine (home/stuff/step) ticken
     tickStateMachine();
 
