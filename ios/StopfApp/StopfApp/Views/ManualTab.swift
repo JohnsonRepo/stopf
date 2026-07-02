@@ -237,7 +237,7 @@ struct ManualTab: View {
     private var stepBystepSection: some View {
         GroupBox {
             VStack(spacing: 8) {
-                Text("Einzelner Sequenz-Schritt (1–9)")
+                Text("Einzelner Sequenz-Schritt (1–11)")
                     .font(.caption).foregroundStyle(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 ForEach(StuffStep.all, id: \.self) { n in

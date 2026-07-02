@@ -17,7 +17,7 @@
 //   set <key> <value>        - Parameter setzen (validiert + persistiert)
 //   home                     - Referenzfahrt (Trommel → Lichtschranke, Pusher → A2)
 //   stuff                    - Vollsequenz, läuft endlos bis `stop`
-//   step <n>                 - Einzelschritt (1..9 = Stuff-Steps)
+//   step <n>                 - Einzelschritt (1..11 = Stuff-Steps)
 //   stop                     - Notaus, alles aus, Mode → IDLE
 //
 //   --- Manual (nur erlaubt wenn state=idle) ---
@@ -54,7 +54,7 @@ enum Mode : uint8_t {
     MODE_ERROR    = 4
 };
 
-// Stuff steps 1..9, Home steps 101..104
+// Stuff steps 1..11, Home steps 101..104
 constexpr uint8_t STEP_DRUM       = 1;
 constexpr uint8_t STEP_SERVO_LOAD = 2;
 constexpr uint8_t STEP_SERVO_HOME = 3;
@@ -63,9 +63,11 @@ constexpr uint8_t STEP_PRESS_FWD  = 5;
 constexpr uint8_t STEP_PRESS_REV  = 6;
 constexpr uint8_t STEP_PUSH_FWD   = 7;
 constexpr uint8_t STEP_PUSH_REV   = 8;
-constexpr uint8_t STEP_DELAY      = 9;
+constexpr uint8_t STEP_EJECT_FWD  = 9;   // Kippe vom Stutzen drücken (zeitgesteuert)
+constexpr uint8_t STEP_EJECT_REV  = 10;  // wieder zurück bis A2
+constexpr uint8_t STEP_DELAY      = 11;
 constexpr uint8_t STUFF_STEP_MIN  = 1;
-constexpr uint8_t STUFF_STEP_MAX  = 9;
+constexpr uint8_t STUFF_STEP_MAX  = 11;
 
 constexpr uint8_t HOME_DRUM      = 101;
 constexpr uint8_t HOME_PUSH_REV  = 102;
@@ -229,6 +231,17 @@ static void enterStep(uint8_t step) {
             pusherDrive("rev");
             break;
 
+        case STEP_EJECT_FWD:
+            // Pusher ist komplett hinten (aus der Kippe raus). Jetzt ein kurzer
+            // Vorstoß gegen die gestopfte Zigarette: drückt sie vom Füllstutzen
+            // ab und zurück in die Trommel.
+            pusherDrive("fwd");
+            break;
+
+        case STEP_EJECT_REV:
+            pusherDrive("rev");
+            break;
+
         case STEP_DELAY:
             // nichts zu starten, nur warten
             break;
@@ -309,12 +322,21 @@ static void tickStep() {
             break;
 
         case STEP_PRESS_REV:
-        case HOME_PRESS_REV:
-            if (now - stepStartedMs >= params.press_rev_ms) {
+        case HOME_PRESS_REV: {
+            unsigned long elapsed = now - stepStartedMs;
+            // Sicherheits-Cap ZUERST: die zeitgesteuerte Rückfahrt darf nie länger
+            // laufen als press_rev_ms + Reserve. Greift nur, wenn der normale Stopp
+            // ausbleibt (verklemmter State / Fehlkonfig) → Motor aus + Fehler
+            // (landet im Ereignis-Protokoll).
+            if (elapsed > (unsigned long)params.press_rev_ms + PRESS_REV_SAFETY_MARGIN_MS) {
+                pressDrive("stop");
+                setError("press_rev_safety");
+            } else if (elapsed >= params.press_rev_ms) {
                 pressDrive("stop");
                 advanceStep();
             }
             break;
+        }
 
         case STEP_PUSH_FWD:
             if (digitalRead(PIN_INIT_PUSH_FRONT) == INIT_TRIGGERED_LEVEL) {
@@ -327,6 +349,7 @@ static void tickStep() {
             break;
 
         case STEP_PUSH_REV:
+        case STEP_EJECT_REV:
         case HOME_PUSH_REV:
             if (digitalRead(PIN_INIT_PUSH_REAR) == INIT_TRIGGERED_LEVEL) {
                 pusherDrive("stop");
@@ -334,6 +357,18 @@ static void tickStep() {
             } else if (now - stepStartedMs > params.pusher_rev_timeout_ms) {
                 pusherDrive("stop");
                 setError("pusher_rev_timeout");
+            }
+            break;
+
+        case STEP_EJECT_FWD:
+            // Der Vorstoß darf den Front-Sensor nie erreichen — sonst wäre der
+            // Pusher wieder komplett im Stutzen (eject_fwd_ms zu lang eingestellt).
+            if (digitalRead(PIN_INIT_PUSH_FRONT) == INIT_TRIGGERED_LEVEL) {
+                pusherDrive("stop");
+                setError("eject_overtravel");
+            } else if (now - stepStartedMs >= params.eject_fwd_ms) {
+                pusherDrive("stop");
+                advanceStep();
             }
             break;
 
@@ -489,7 +524,7 @@ static void printHelp() {
     Serial.println(F("=== Stopfmaschine v0.3 ==="));
     Serial.println(F("ping | status | help"));
     Serial.println(F("params | get <k> | set <k> <v>"));
-    Serial.println(F("home | stuff | step <1..9> | stop"));
+    Serial.println(F("home | stuff | step <1..11> | stop"));
     Serial.println(F("stepper <steps>"));
     Serial.println(F("press fwd|rev|stop  (PWM aus params.press_pwm)"));
     Serial.println(F("pusher fwd|rev|stop (PWM aus params.pusher_pwm)"));

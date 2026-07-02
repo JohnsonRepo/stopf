@@ -15,7 +15,7 @@
 #include <Arduino.h>
 
 constexpr uint16_t PARAMS_MAGIC   = 0xC51F;   // "Stopfmaschine" Marker
-constexpr uint8_t  PARAMS_VERSION = 1;
+constexpr uint8_t  PARAMS_VERSION = 2;        // v2: + eject_fwd_ms (Auswurf-Vorstoß)
 
 struct Params {
     uint16_t magic;
@@ -47,6 +47,9 @@ struct Params {
     uint16_t pusher_fwd_timeout_ms;  // bis A1 (Front)
     uint16_t pusher_rev_timeout_ms;  // bis A2 (Rear)
     uint8_t  pusher_pwm;             // 0..255, ENB Duty Cycle
+    uint16_t eject_fwd_ms;           // Auswurf-Vorstoß: kurz vor gegen die fertige
+                                     // Kippe (weg vom Stutzen, zurück in die Trommel).
+                                     // Rein zeitgesteuert — dort sitzt kein Sensor.
 
     // Solenoide einzeln (Manual-Mode pulse-Defaultwerte)
     uint16_t sol1_dwell_ms;

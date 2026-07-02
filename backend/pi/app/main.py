@@ -12,7 +12,7 @@ Endpoints:
     PUT  /params/{key}              einzelner Wert
     POST /sequence/home             Referenzfahrt
     POST /sequence/stuff            Vollsequenz
-    POST /sequence/step             {"n": 1..9}
+    POST /sequence/step             {"n": 1..11}
     POST /sequence/stop             Notaus
     POST /manual/stepper            {"steps": N}
     POST /manual/press              {"direction":"fwd|rev|stop"}

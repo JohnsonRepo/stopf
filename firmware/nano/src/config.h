@@ -10,7 +10,9 @@
 #define SERIAL_BAUD 115200
 #endif
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.3.3"   // v0.3.3: Stepper im Leerlauf stromlos (Halteström/Wärme sparen)
+#define FIRMWARE_VERSION "0.4.0"   // v0.4.0: Auswurf-Schritte 9/10 (Kippe vom Stutzen zurück in
+                                   //         die Trommel drücken) + Safety-Timeout Presse-Rückfahrt
+                                   // v0.3.3: Stepper im Leerlauf stromlos (Halteström/Wärme sparen)
                                    // v0.3.2: press_fwd_timeout_ms bis 15000 ms
                                    // v0.3.1: Solenoid Dauer-ON deaktiviert (Magnet-Schutz)
                                    // v0.3:   EEPROM-Params, kooperative State-Machine, Background-Hopper
@@ -26,6 +28,11 @@ constexpr unsigned long SOLENOID_PULSE_MAX_MS = 1000;
 
 // Manueller Hopper-Test (run-Befehl) — Background-Cycle ist davon unabhängig.
 constexpr unsigned long HOPPER_RUN_MAX_MS = 4000;
+
+// Sicherheits-Reserve für die zeitgesteuerte Presse-Rückfahrt: läuft der Motor
+// länger als press_rev_ms + diese Reserve, wird hart gestoppt und ein Fehler
+// gesetzt (statt endlos gegen den Anschlag zu drücken).
+constexpr unsigned long PRESS_REV_SAFETY_MARGIN_MS = 2000;
 
 // --- Schrittmotor (Hardware-Limits, nicht Aufgabe) ---
 constexpr int   STEPPER_STEPS_PER_REV = 200;

@@ -1,6 +1,6 @@
 //
 //  Params.swift
-//  Spiegelt die 18 EEPROM-Parameter der Nano-Firmware v0.3.0.
+//  Spiegelt die 19 EEPROM-Parameter der Nano-Firmware v0.4.0.
 //
 //  Backend liefert /params als flaches {key: Int}-Dictionary; wir halten es
 //  genauso (Dictionary statt Struct), damit neue Parameter in der Firmware
@@ -74,6 +74,7 @@ enum ParamCatalog {
         .init(key: "pusher_pwm",            label: "Drehzahl (PWM)",        group: .pusher, minVal: 60,  maxVal: 255,   unit: "",      step: 5),
         .init(key: "pusher_fwd_timeout_ms", label: "Vorlauf-Timeout",       group: .pusher, minVal: 100, maxVal: 10000, unit: "ms",    step: 100),
         .init(key: "pusher_rev_timeout_ms", label: "Rücklauf-Timeout",      group: .pusher, minVal: 100, maxVal: 10000, unit: "ms",    step: 100),
+        .init(key: "eject_fwd_ms",          label: "Auswurf-Vorstoß",       group: .pusher, minVal: 50,  maxVal: 5000,  unit: "ms",    step: 50),
         // Solenoide
         .init(key: "sol1_dwell_ms",         label: "Solenoid 1 Puls",       group: .solenoid, minVal: 1, maxVal: 1000, unit: "ms",    step: 5),
         .init(key: "sol2_dwell_ms",         label: "Solenoid 2 Puls",       group: .solenoid, minVal: 1, maxVal: 1000, unit: "ms",    step: 5),

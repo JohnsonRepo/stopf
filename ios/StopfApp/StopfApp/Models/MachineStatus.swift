@@ -104,23 +104,25 @@ struct MachineStatus: Codable, Equatable {
     }
 }
 
-/// Klartext-Namen der 9 Stuff-Schritte (Index 1..9), gespiegelt zur Nano-Firmware.
+/// Klartext-Namen der 11 Stuff-Schritte (Index 1..11), gespiegelt zur Nano-Firmware.
 enum StuffStep {
     static let names: [Int: String] = [
-        1: "Trommel weiterdrehen",
-        2: "Servo → Hülse aufschieben",
-        3: "Servo → Home",
-        4: "Knock (Tabak dosieren)",
-        5: "Presse vor (bis Sensor)",
-        6: "Presse zurück (Zeit)",
-        7: "Pusher vor (bis Sensor)",
-        8: "Pusher zurück (bis Sensor)",
-        9: "Pause",
+        1:  "Trommel weiterdrehen",
+        2:  "Servo → Hülse aufschieben",
+        3:  "Servo → Home",
+        4:  "Knock (Tabak dosieren)",
+        5:  "Presse vor (bis Sensor)",
+        6:  "Presse zurück (Zeit)",
+        7:  "Pusher vor (bis Sensor)",
+        8:  "Pusher zurück (bis Sensor)",
+        9:  "Auswurf vor (Zeit)",
+        10: "Auswurf zurück (bis Sensor)",
+        11: "Pause",
     ]
 
     static func name(_ n: Int) -> String {
         names[n] ?? "Schritt \(n)"
     }
 
-    static let all: [Int] = Array(1...9)
+    static let all: [Int] = Array(1...11)
 }

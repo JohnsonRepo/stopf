@@ -1,7 +1,7 @@
 //
 //  AutoTab.swift
 //  Automatik-Betrieb: Referenzfahrt, Vollsequenz starten/stoppen,
-//  Live-Fortschritt der 9 Schritte, lokaler Tageszähler.
+//  Live-Fortschritt der 11 Schritte, lokaler Tageszähler.
 //
 
 import SwiftUI
@@ -35,8 +35,8 @@ struct AutoTab: View {
             }
             .navigationTitle("Automatik")
             .onChange(of: s.step) { _, newStep in
-                // Zähler erhöhen, wenn ein Stopf-Zyklus durch ist (Schritt 9 → 1).
-                if running, lastStuffStep == 9, newStep == 1 {
+                // Zähler erhöhen, wenn ein Stopf-Zyklus durch ist (letzter Schritt → 1).
+                if running, lastStuffStep == StuffStep.all.last, newStep == 1 {
                     counter += 1
                 }
                 if running { lastStuffStep = newStep }

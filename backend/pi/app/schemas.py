@@ -1,6 +1,6 @@
 """
 schemas.py
-Pydantic-Modelle, gespiegelt zur Nano-Firmware v0.3.0.
+Pydantic-Modelle, gespiegelt zur Nano-Firmware v0.4.0.
 """
 from __future__ import annotations
 
@@ -52,6 +52,7 @@ class Params(BaseModel):
     pusher_fwd_timeout_ms: Optional[int] = Field(None, ge=100, le=10000)
     pusher_rev_timeout_ms: Optional[int] = Field(None, ge=100, le=10000)
     pusher_pwm:            Optional[int] = Field(None, ge=60,  le=255)
+    eject_fwd_ms:          Optional[int] = Field(None, ge=50,  le=5000)
     sol1_dwell_ms:         Optional[int] = Field(None, ge=1,   le=1000)
     sol2_dwell_ms:         Optional[int] = Field(None, ge=1,   le=1000)
     step_delay_ms:         Optional[int] = Field(None, ge=0,   le=10000)
@@ -100,4 +101,4 @@ class KnockRequest(BaseModel):
 
 
 class StepRequest(BaseModel):
-    n: int = Field(..., ge=1, le=9)
+    n: int = Field(..., ge=1, le=11)

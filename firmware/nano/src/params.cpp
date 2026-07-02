@@ -35,6 +35,7 @@ static const ParamDesc PARAM_TABLE[] = {
     { "pusher_fwd_timeout_ms", PT_U16, offsetof(Params, pusher_fwd_timeout_ms), 100, 10000 },
     { "pusher_rev_timeout_ms", PT_U16, offsetof(Params, pusher_rev_timeout_ms), 100, 10000 },
     { "pusher_pwm",            PT_U8,  offsetof(Params, pusher_pwm),            60,  255   },
+    { "eject_fwd_ms",          PT_U16, offsetof(Params, eject_fwd_ms),          50,  5000  },
     { "sol1_dwell_ms",         PT_U16, offsetof(Params, sol1_dwell_ms),         1,   1000  },
     { "sol2_dwell_ms",         PT_U16, offsetof(Params, sol2_dwell_ms),         1,   1000  },
     { "step_delay_ms",         PT_U16, offsetof(Params, step_delay_ms),         0,   10000 },
@@ -67,6 +68,7 @@ void paramsLoadDefaults() {
     params.pusher_fwd_timeout_ms  = 4000;
     params.pusher_rev_timeout_ms  = 4000;
     params.pusher_pwm             = 220;
+    params.eject_fwd_ms           = 400;
     params.sol1_dwell_ms          = 80;
     params.sol2_dwell_ms          = 80;
     params.step_delay_ms          = 500;
