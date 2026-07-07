@@ -1,6 +1,6 @@
 // =====================================================
 // main.cpp
-// Stopfmaschine - Arduino Nano Firmware v0.5.0
+// Stopfmaschine - Arduino Nano Firmware v0.6.0
 //
 // Architektur:
 //   - Live-tunbare Parameter im EEPROM (params.h/cpp)
@@ -11,7 +11,10 @@
 // Befehle (115200 Baud):
 //   help                     - Liste
 //   ping                     - "pong"
-//   status                   - state + sensoren + aktoren als key=value
+//   status                   - state + sensoren + aktoren + cnt/errcnt als
+//                              key=value; bei anstehendem Fehler zusätzlich
+//                              err_step/err_t/err_press/err_pf/err_pr/err_mag
+//                              (Snapshot aus dem Fehlermoment)
 //   params                   - alle EEPROM-Parameter
 //   get <key>                - einzelner Parameter
 //   set <key> <value>        - Parameter setzen (validiert + persistiert)
@@ -82,6 +85,20 @@ Mode          currentMode    = MODE_IDLE;
 uint8_t       currentStep    = 0;
 unsigned long stepStartedMs  = 0;
 char          errorMsg[24]   = "";
+
+// Zähler seit Boot (RAM — der Pi persistiert langfristig in SQLite)
+uint16_t      cycleCount     = 0;   // fertige Stopfzyklen (Wrap 12→1)
+uint16_t      errorCount     = 0;   // setError()-Aufrufe
+
+// Fehler-Snapshot: eingefroren im Moment von setError(). Exakter als das
+// 200-ms-Polling des Pi — wird mit `status` ausgeliefert, solange der
+// Fehler ansteht (err_step/err_t/err_press/...).
+uint8_t       errStep        = 0;
+unsigned long errElapsedMs   = 0;
+bool          errPress       = false;
+bool          errPushFront   = false;
+bool          errPushRear    = false;
+bool          errMagazin     = false;
 
 // Knock-Sub-State (innerhalb STEP_KNOCK)
 uint8_t       knockCounter      = 0;
@@ -156,10 +173,27 @@ static void pusherDrive(const char* dir) {
 static void setError(const char* msg) {
     strncpy(errorMsg, msg, sizeof(errorMsg) - 1);
     errorMsg[sizeof(errorMsg) - 1] = '\0';
+    // Kontext einfrieren BEVOR Motoren stoppen — Sensorbits im Fehlermoment.
+    errStep      = currentStep;
+    errElapsedMs = millis() - stepStartedMs;
+    errPress     = (digitalRead(PIN_INIT_PRESS)      == INIT_TRIGGERED_LEVEL);
+    errPushFront = (digitalRead(PIN_INIT_PUSH_FRONT) == INIT_TRIGGERED_LEVEL);
+    errPushRear  = (digitalRead(PIN_INIT_PUSH_REAR)  == INIT_TRIGGERED_LEVEL);
+    errMagazin   = (digitalRead(PIN_MAGAZIN_SENSOR)  == MAGAZIN_TRIGGERED_LEVEL);
+    errorCount++;
     currentMode = MODE_ERROR;
     allMotorsOff();
     hopperEnabled = false;
-    Serial.print(F("err sequence:")); Serial.println(errorMsg);
+    // Spontane Zeile fürs manuelle Debuggen am Serial-Monitor. Der Pi liest
+    // den Kontext NICHT hieraus (ungefragte Zeilen werden dort verworfen),
+    // sondern aus den err_*-Feldern der status-Antwort.
+    Serial.print(F("err sequence:")); Serial.print(errorMsg);
+    Serial.print(F(" step="));        Serial.print(errStep);
+    Serial.print(F(" t="));           Serial.print(errElapsedMs);
+    Serial.print(F(" press="));       Serial.print(errPress);
+    Serial.print(F(" push_front="));  Serial.print(errPushFront);
+    Serial.print(F(" push_rear="));   Serial.print(errPushRear);
+    Serial.print(F(" magazin="));     Serial.println(errMagazin);
 }
 
 static void clearError() { errorMsg[0] = '\0'; }
@@ -175,7 +209,10 @@ static void advanceStep() {
     }
     if (currentMode == MODE_STUFFING) {
         uint8_t next = currentStep + 1;
-        if (next > STUFF_STEP_MAX) next = STUFF_STEP_MIN;
+        if (next > STUFF_STEP_MAX) {
+            next = STUFF_STEP_MIN;
+            cycleCount++;   // Wrap = eine Zigarette fertig (exakter Zähler für den Pi)
+        }
         enterStep(next);
         return;
     }
@@ -560,6 +597,17 @@ static void printStatus() {
     Serial.print(F(" hopper="));          Serial.print(digitalRead(PIN_HOPPER_MOTOR));
     Serial.print(F(" hopper_enabled="));  Serial.print(hopperEnabled ? 1 : 0);
     Serial.print(F(" cut="));             Serial.print(cutServo.read());
+    Serial.print(F(" cnt="));             Serial.print(cycleCount);
+    Serial.print(F(" errcnt="));          Serial.print(errorCount);
+    if (errorMsg[0]) {
+        // Fehler-Snapshot aus setError() — verschwindet mit clearError()
+        Serial.print(F(" err_step="));    Serial.print(errStep);
+        Serial.print(F(" err_t="));       Serial.print(errElapsedMs);
+        Serial.print(F(" err_press="));   Serial.print(errPress);
+        Serial.print(F(" err_pf="));      Serial.print(errPushFront);
+        Serial.print(F(" err_pr="));      Serial.print(errPushRear);
+        Serial.print(F(" err_mag="));     Serial.print(errMagazin);
+    }
     Serial.print(F(" stepper_pos="));     Serial.println(stepper.currentPosition());
 }
 

@@ -29,7 +29,7 @@ Ein Befehl pro Zeile, mit `\n` (LF) terminiert. Antworten zeilenweise.
 |---|---|---|
 | `ping` | `pong` | Verbindungstest. Pi sollte das nach Connect zuerst senden. |
 | `help` | mehrzeilige Hilfe | Liste aller Befehle (für manuelles Debuggen) |
-| `status` | `status press=B push_front=B push_rear=B magazin=B magazin_raw=B sol1=B sol2=B hopper=B stepper_pos=N` | Sensor-Snapshot (`B` = `0`/`1`, `N` = signed long) |
+| `status` | `status state=… step=N error=… press=B push_front=B push_rear=B magazin=B sol1=B sol2=B hopper=B hopper_enabled=B cut=N cnt=N errcnt=N [err_step=N err_t=MS err_press=B err_pf=B err_pr=B err_mag=B] stepper_pos=N` | Zustand + Sensoren + Zähler (`B` = `0`/`1`). Die `err_*`-Felder erscheinen nur, solange ein Fehler ansteht: Snapshot aus dem Fehlermoment (Step, verstrichene ms, Sensorbits) — ab Firmware v0.6.0 |
 
 ### Schrittmotor (Trommelmagazin-Drehung)
 
@@ -123,9 +123,14 @@ err unknown_command:<text>    # Befehl nicht erkannt (Echo zur Diagnose)
 err <reason>                  # Anderer Fehler (z. B. ERROR pusher_stuck — geplant)
 warn watchdog_timeout motors_off
                               # Spontane Warnung vom Nano (KEIN Antwort-Satz)
-status press=<0|1> push_front=<0|1> push_rear=<0|1> magazin=<0|1>
-       magazin_raw=<0|1> sol1=<0|1> sol2=<0|1> hopper=<0|1> stepper_pos=<N>
-                              # Antwort auf "status"
+status state=<mode> step=<n> error=<msg|leer> press=<0|1> push_front=<0|1>
+       push_rear=<0|1> magazin=<0|1> sol1=<0|1> sol2=<0|1> hopper=<0|1>
+       hopper_enabled=<0|1> cut=<winkel> cnt=<zyklen> errcnt=<fehler>
+       [err_step=<n> err_t=<ms> err_press=<0|1> err_pf=<0|1> err_pr=<0|1>
+        err_mag=<0|1>] stepper_pos=<N>
+                              # Antwort auf "status". err_* nur bei anstehendem
+                              # Fehler (Snapshot aus setError, fw >= 0.6.0);
+                              # cnt/errcnt = Zähler seit Nano-Boot
 pong                          # Antwort auf "ping"
 ready firmware=<version>      # Bei Boot, einmalig
 ```

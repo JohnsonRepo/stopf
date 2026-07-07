@@ -1,7 +1,7 @@
 """
-Stopfmaschine - Pi Backend (FastAPI v0.5.0)
+Stopfmaschine - Pi Backend (FastAPI v0.6.0)
 
-Spiegelt die Nano-Firmware v0.5.0 als REST + WebSocket. iOS-App spricht nur
+Spiegelt die Nano-Firmware v0.6.0 als REST + WebSocket. iOS-App spricht nur
 mit dem Pi, nicht direkt mit dem Nano.
 
 Endpoints:
@@ -91,8 +91,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Stopfmaschine API",
-    description="Steuerung der Zigarettenstopfmaschine — gespiegelt zu Nano-Firmware v0.5.0",
-    version="0.5.0",
+    description="Steuerung der Zigarettenstopfmaschine — gespiegelt zu Nano-Firmware v0.6.0",
+    version="0.6.0",
     lifespan=lifespan,
 )
 

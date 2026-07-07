@@ -10,7 +10,9 @@
 #define SERIAL_BAUD 115200
 #endif
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.5.0"   // v0.5.0: Cutter-Servo A3 (Spitzen-Schneider): Step 11 + `cut`-
+#define FIRMWARE_VERSION "0.6.0"   // v0.6.0: Fehlerkontext in status (err_step/err_t/err_press/
+                                   //         err_pf/err_pr/err_mag) + Zähler cnt/errcnt seit Boot
+                                   // v0.5.0: Cutter-Servo A3 (Spitzen-Schneider): Step 11 + `cut`-
                                    //         Befehl + Params cut_home/cut_cut/cut_dwell_ms
                                    // v0.4.0: Auswurf-Schritte 9/10 (Kippe vom Stutzen zurück in
                                    //         die Trommel drücken) + Safety-Timeout Presse-Rückfahrt

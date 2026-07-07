@@ -1,6 +1,6 @@
 """
 schemas.py
-Pydantic-Modelle, gespiegelt zur Nano-Firmware v0.5.0.
+Pydantic-Modelle, gespiegelt zur Nano-Firmware v0.6.0.
 """
 from __future__ import annotations
 
@@ -30,6 +30,16 @@ class MachineStatus(BaseModel):
     hopper_enabled: bool = False
     cut: int = 0
     stepper_pos: int = 0
+    # Zähler seit Nano-Boot (ab Firmware v0.6.0; None = alte Firmware)
+    cnt: Optional[int] = None       # fertige Stopfzyklen
+    errcnt: Optional[int] = None    # Fehler gesamt
+    # Fehler-Snapshot aus dem Fehlermoment (nur solange ein Fehler ansteht)
+    err_step: Optional[int] = None  # Step, in dem der Fehler auftrat
+    err_t: Optional[int] = None     # verstrichene ms im Step bis zum Fehler
+    err_press: Optional[bool] = None
+    err_pf: Optional[bool] = None   # Push-Front-Initiator
+    err_pr: Optional[bool] = None   # Push-Rear-Initiator
+    err_mag: Optional[bool] = None  # Magazin-Lichtschranke
 
 
 # -------- Parameter (gespiegelt aus Nano params.h) --------

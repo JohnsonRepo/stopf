@@ -30,6 +30,7 @@ from typing import Any
 _BOOL_FIELDS = {
     "press", "push_front", "push_rear", "magazin",
     "sol1", "sol2", "hopper", "hopper_enabled",
+    "err_press", "err_pf", "err_pr", "err_mag",   # Fehler-Snapshot (fw v0.6.0)
 }
 
 

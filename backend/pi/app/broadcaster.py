@@ -95,12 +95,25 @@ class StatusBroadcaster:
             if s.state == "error":
                 # Sensor-Snapshot im Fehlermoment mitloggen — beantwortet
                 # "Sensor klemmt vs. Motor dreht nicht" ohne Nachstellen.
-                event_log.error(
-                    f"Fehler: {s.error or '?'} (bei Schritt {last.step})",
-                    code=s.error or "unknown",
-                    source="nano",
-                    step=last.step,
-                    details={
+                # Ab Firmware v0.6.0 liefert der Nano den Snapshot selbst
+                # (err_*-Felder, eingefroren in setError) — exakter als das
+                # 200-ms-Polling. Fallback: aktueller Poll-Status.
+                if s.err_step is not None:
+                    step = s.err_step
+                    details = {
+                        "press": s.err_press,
+                        "push_front": s.err_pf,
+                        "push_rear": s.err_pr,
+                        "magazin": s.err_mag,
+                        "t_ms": s.err_t,
+                        "cut": s.cut,
+                        "stepper_pos": s.stepper_pos,
+                        "prev_state": last.state,
+                        "snapshot": "firmware",
+                    }
+                else:
+                    step = last.step
+                    details = {
                         "press": s.press,
                         "push_front": s.push_front,
                         "push_rear": s.push_rear,
@@ -108,7 +121,14 @@ class StatusBroadcaster:
                         "cut": s.cut,
                         "stepper_pos": s.stepper_pos,
                         "prev_state": last.state,
-                    },
+                        "snapshot": "poll",
+                    }
+                event_log.error(
+                    f"Fehler: {s.error or '?'} (bei Schritt {step})",
+                    code=s.error or "unknown",
+                    source="nano",
+                    step=step,
+                    details=details,
                 )
             elif last.state in ("stuffing", "homing", "step") and s.state == "idle":
                 # Sequenz endete/abgebrochen — bei laufender Sequenz oft ein Nano-Reset
