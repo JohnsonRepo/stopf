@@ -7,9 +7,9 @@
 # ohne dass auf dem Pi eine Toolchain nötig ist.
 #
 # Aufruf:
-#   bash scripts/flash-nano.sh                 # eingecheckter Repo-Hex
+#   bash scripts/flash-nano.sh                 # Repo-Hex, Baud automatisch (57600→115200)
 #   bash scripts/flash-nano.sh /pfad/x.hex     # anderer Hex
-#   bash scripts/flash-nano.sh <hex> 115200    # anderer Baud (neuer Bootloader)
+#   bash scripts/flash-nano.sh <hex> 115200    # Baud erzwingen (kein Auto-Fallback)
 #
 # Stoppt das Backend (gibt den Serial-Port frei), flasht mit avrdude und
 # startet das Backend wieder. Wird von der App über den Dienst stopf-flash
@@ -21,7 +21,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_HEX="$(cd "$SCRIPT_DIR/../../.." && pwd)/firmware/nano/firmware.hex"
 
 HEX="${1:-$REPO_HEX}"
-BAUD="${2:-57600}"          # CH340-Klon mit altem Bootloader = 57600; neuere Nanos = 115200
+BAUD="${2:-}"               # leer = automatisch: erst 57600 (alter CH340-Klon-
+                            # Bootloader), bei Sync-Fehler 115200 (neuer Optiboot)
 SERVICE="stopfmaschine"
 
 # avrdude vorhanden? (Interaktiv nachinstallieren; im Dienst ist es via setup.sh da.)
@@ -50,7 +51,7 @@ if [ -z "$PORT" ]; then
     echo "FEHLER: kein /dev/ttyUSB* oder /dev/ttyACM* gefunden — Nano am Pi angesteckt?"
     exit 1
 fi
-echo "==> Port: $PORT   Baud: $BAUD   Hex: $HEX"
+echo "==> Port: $PORT   Baud: ${BAUD:-auto (57600→115200)}   Hex: $HEX"
 
 # WICHTIG: Backend muss den Port freigeben.
 echo "==> Stoppe $SERVICE (gibt Serial-Port frei) ..."
@@ -58,9 +59,25 @@ sudo -n systemctl stop "$SERVICE" 2>/dev/null || true
 sleep 1
 
 echo "==> Flashe Firmware ..."
+flash_attempt() {
+    echo "==> avrdude mit Baud $1 ..."
+    avrdude -p atmega328p -c arduino -P "$PORT" -b "$1" -D -U "flash:w:${HEX}:i"
+}
+
 set +e
-avrdude -p atmega328p -c arduino -P "$PORT" -b "$BAUD" -D -U "flash:w:${HEX}:i"
-RC=$?
+if [ -n "$BAUD" ]; then
+    flash_attempt "$BAUD"
+    RC=$?
+else
+    flash_attempt 57600
+    RC=$?
+    if [ "$RC" -ne 0 ]; then
+        echo "==> 57600 fehlgeschlagen — neuer Bootloader? Probiere 115200 ..."
+        sleep 1
+        flash_attempt 115200
+        RC=$?
+    fi
+fi
 set -e
 
 echo "==> Starte $SERVICE wieder ..."
@@ -74,9 +91,9 @@ if [ "$RC" -eq 0 ]; then
     echo "============================================================"
 else
     echo "============================================================"
-    echo " FEHLER beim Flashen (rc=$RC)."
-    echo " Bei 'stk500_getsync() not in sync' den anderen Baud probieren:"
-    echo "   bash scripts/flash-nano.sh $HEX 115200"
+    echo " FEHLER beim Flashen (rc=$RC) — beide Baudraten probiert."
+    echo " Prüfen: USB-Kabel (Datenleitung?), richtiger Port ($PORT),"
+    echo " Nano-LED blinkt beim Anstecken? Log: journalctl -u stopf-flash"
     echo "============================================================"
 fi
 exit "$RC"
