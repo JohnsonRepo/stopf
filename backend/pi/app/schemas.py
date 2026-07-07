@@ -1,6 +1,6 @@
 """
 schemas.py
-Pydantic-Modelle, gespiegelt zur Nano-Firmware v0.4.0.
+Pydantic-Modelle, gespiegelt zur Nano-Firmware v0.5.0.
 """
 from __future__ import annotations
 
@@ -28,6 +28,7 @@ class MachineStatus(BaseModel):
     sol2: bool = False
     hopper: bool = False
     hopper_enabled: bool = False
+    cut: int = 0
     stepper_pos: int = 0
 
 
@@ -41,6 +42,9 @@ class Params(BaseModel):
     home_drum_timeout_ms:  Optional[int] = Field(None, ge=100, le=60000)
     servo_home:            Optional[int] = Field(None, ge=0,   le=180)
     servo_load:            Optional[int] = Field(None, ge=0,   le=180)
+    cut_home:              Optional[int] = Field(None, ge=0,   le=180)
+    cut_cut:               Optional[int] = Field(None, ge=0,   le=180)
+    cut_dwell_ms:          Optional[int] = Field(None, ge=0,   le=2000)
     knock_on_ms:           Optional[int] = Field(None, ge=1,   le=1000)
     knock_off_ms:          Optional[int] = Field(None, ge=1,   le=2000)
     knock_cycles:          Optional[int] = Field(None, ge=1,   le=50)
@@ -101,4 +105,4 @@ class KnockRequest(BaseModel):
 
 
 class StepRequest(BaseModel):
-    n: int = Field(..., ge=1, le=11)
+    n: int = Field(..., ge=1, le=12)

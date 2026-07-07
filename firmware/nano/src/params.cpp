@@ -24,6 +24,9 @@ static const ParamDesc PARAM_TABLE[] = {
     { "home_drum_timeout_ms",  PT_U16, offsetof(Params, home_drum_timeout_ms),  100, 60000 },
     { "servo_home",            PT_U8,  offsetof(Params, servo_home),            0,   180   },
     { "servo_load",            PT_U8,  offsetof(Params, servo_load),            0,   180   },
+    { "cut_home",              PT_U8,  offsetof(Params, cut_home),              0,   180   },
+    { "cut_cut",               PT_U8,  offsetof(Params, cut_cut),               0,   180   },
+    { "cut_dwell_ms",          PT_U16, offsetof(Params, cut_dwell_ms),          0,   2000  },
     { "knock_on_ms",           PT_U16, offsetof(Params, knock_on_ms),           1,   1000  },
     { "knock_off_ms",          PT_U16, offsetof(Params, knock_off_ms),          1,   2000  },
     { "knock_cycles",          PT_U8,  offsetof(Params, knock_cycles),          1,   50    },
@@ -57,6 +60,9 @@ void paramsLoadDefaults() {
     params.home_drum_timeout_ms   = 5000;
     params.servo_home             = 5;
     params.servo_load             = 85;
+    params.cut_home               = 10;    // Klinge oben — beim Aufbau kalibrieren
+    params.cut_cut                = 110;   // Klinge durch — je nach Hebelgeometrie
+    params.cut_dwell_ms           = 150;
     params.knock_on_ms            = 80;
     params.knock_off_ms           = 120;
     params.knock_cycles           = 8;

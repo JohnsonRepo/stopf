@@ -67,7 +67,12 @@ constexpr uint8_t PIN_INIT_PUSH_REAR  = A2;
 //   - Solenoid #2 siehe oben (D13), Solenoid #1 hier:
 constexpr uint8_t PIN_SOLENOID_1     = A4;  // → MOSFET → Heschen HS-0530B (Front-Knock)
 
-// A3 ist frei (Reserve — z. B. zukünftige Sensoren, I²C-Display etc.)
+// --- Cutter-Servo (Spitzen-Schneider, 2. SG90) ---
+// Guillotine mit Rasierklinge: schneidet die locker gestopfte Zigarettenspitze
+// nach dem Auswurf ab (Step 11). Servo.h bedient bis zu 12 Kanäle über Timer1 —
+// kein Konflikt mit dem Hülsen-Servo auf D11. Signal direkt an A3, VCC vom
+// Buck-5V-Bus mit eigenem 470-µF-Elko (wie Hülsen-Servo). Details: docs/cutter.md
+constexpr uint8_t PIN_CUT_SERVO      = A3;
 
 // --- Magazin-Lichtschranke (Trommel-Index) ---
 constexpr uint8_t PIN_MAGAZIN_SENSOR = A5;  // Gabellichtschranke, direkt 5 V-Logik

@@ -1,6 +1,6 @@
 // =====================================================
 // main.cpp
-// Stopfmaschine - Arduino Nano Firmware v0.3.0
+// Stopfmaschine - Arduino Nano Firmware v0.5.0
 //
 // Architektur:
 //   - Live-tunbare Parameter im EEPROM (params.h/cpp)
@@ -17,7 +17,7 @@
 //   set <key> <value>        - Parameter setzen (validiert + persistiert)
 //   home                     - Referenzfahrt (Trommel → Lichtschranke, Pusher → A2)
 //   stuff                    - Vollsequenz, läuft endlos bis `stop`
-//   step <n>                 - Einzelschritt (1..11 = Stuff-Steps)
+//   step <n>                 - Einzelschritt (1..12 = Stuff-Steps)
 //   stop                     - Notaus, alles aus, Mode → IDLE
 //
 //   --- Manual (nur erlaubt wenn state=idle) ---
@@ -28,6 +28,7 @@
 //   solenoid 1|2 off|pulse <ms>   (Dauer-ON deaktiviert — Magnet-Schutz)
 //   hopper on|off|test <ms>  - on = Background-Cycle, test = einmaliger Run
 //   knock [<cycles>]         - läuft als Step (kann via stop abgebrochen werden)
+//   cut                      - Schneidzyklus (Klinge runter, verweilen, hoch)
 // =====================================================
 
 #include <Arduino.h>
@@ -40,6 +41,7 @@
 // --- Hardware ---
 AccelStepper stepper(AccelStepper::DRIVER, PIN_STEPPER_STEP, PIN_STEPPER_DIR);
 Servo        tubeServo;
+Servo        cutServo;   // Spitzen-Schneider (Guillotine, A3)
 
 // --- Watchdog ---
 unsigned long lastCommandMs = 0;
@@ -54,7 +56,7 @@ enum Mode : uint8_t {
     MODE_ERROR    = 4
 };
 
-// Stuff steps 1..11, Home steps 101..104
+// Stuff steps 1..12, Home steps 101..104
 constexpr uint8_t STEP_DRUM       = 1;
 constexpr uint8_t STEP_SERVO_LOAD = 2;
 constexpr uint8_t STEP_SERVO_HOME = 3;
@@ -65,9 +67,10 @@ constexpr uint8_t STEP_PUSH_FWD   = 7;
 constexpr uint8_t STEP_PUSH_REV   = 8;
 constexpr uint8_t STEP_EJECT_FWD  = 9;   // Kippe vom Stutzen drücken (zeitgesteuert)
 constexpr uint8_t STEP_EJECT_REV  = 10;  // wieder zurück bis A2
-constexpr uint8_t STEP_DELAY      = 11;
+constexpr uint8_t STEP_CUT        = 11;  // lockere Spitze abschneiden (Guillotine)
+constexpr uint8_t STEP_DELAY      = 12;
 constexpr uint8_t STUFF_STEP_MIN  = 1;
-constexpr uint8_t STUFF_STEP_MAX  = 11;
+constexpr uint8_t STUFF_STEP_MAX  = 12;
 
 constexpr uint8_t HOME_DRUM      = 101;
 constexpr uint8_t HOME_PUSH_REV  = 102;
@@ -85,6 +88,10 @@ uint8_t       knockCounter      = 0;
 bool          knockPhaseOn      = false;
 unsigned long knockPhaseStartMs = 0;
 uint8_t       knockTargetCycles = 0;  // für Manual-Knock mit eigener Cycle-Zahl
+
+// Cut-Sub-State (innerhalb STEP_CUT): 0=Klinge fährt runter, 1=verweilt, 2=fährt hoch
+uint8_t       cutPhase        = 0;
+unsigned long cutPhaseStartMs = 0;
 
 // Hopper-Background
 bool          hopperEnabled      = false;
@@ -242,6 +249,12 @@ static void enterStep(uint8_t step) {
             pusherDrive("rev");
             break;
 
+        case STEP_CUT:
+            cutPhase        = 0;
+            cutPhaseStartMs = millis();
+            cutServo.write(params.cut_cut);
+            break;
+
         case STEP_DELAY:
             // nichts zu starten, nur warten
             break;
@@ -260,6 +273,7 @@ static void enterStep(uint8_t step) {
 
         case HOME_SERVO:
             tubeServo.write(params.servo_home);
+            cutServo.write(params.cut_home);   // Klinge einfahren gehört zum Homing
             break;
 
         case HOME_PRESS_REV:
@@ -290,6 +304,28 @@ static void tickKnock() {
             knockPhaseOn      = true;
             knockPhaseStartMs = now;
         }
+    }
+}
+
+static void tickCut() {
+    unsigned long now = millis();
+    switch (cutPhase) {
+        case 0:   // Klinge fährt in die CUT-Position
+            if (now - cutPhaseStartMs >= SERVO_MOVE_DELAY_MS) {
+                cutPhase        = 1;
+                cutPhaseStartMs = now;
+            }
+            break;
+        case 1:   // unten verweilen (Schnitt vollenden)
+            if (now - cutPhaseStartMs >= params.cut_dwell_ms) {
+                cutServo.write(params.cut_home);
+                cutPhase        = 2;
+                cutPhaseStartMs = now;
+            }
+            break;
+        case 2:   // Klinge fährt zurück nach oben
+            if (now - cutPhaseStartMs >= SERVO_MOVE_DELAY_MS) advanceStep();
+            break;
     }
 }
 
@@ -370,6 +406,10 @@ static void tickStep() {
                 pusherDrive("stop");
                 advanceStep();
             }
+            break;
+
+        case STEP_CUT:
+            tickCut();
             break;
 
         case STEP_DELAY:
@@ -473,6 +513,8 @@ static void startStep(uint8_t n) {
 
 static void doStop() {
     allMotorsOff();
+    // Klinge einfahren ist die sichere Richtung beim Notaus.
+    cutServo.write(params.cut_home);
     stepper.stop();
     stepper.move(0);
     stepper.setMaxSpeed(STEPPER_MAX_SPEED);
@@ -517,14 +559,15 @@ static void printStatus() {
     Serial.print(F(" sol2="));            Serial.print(digitalRead(PIN_SOLENOID_2));
     Serial.print(F(" hopper="));          Serial.print(digitalRead(PIN_HOPPER_MOTOR));
     Serial.print(F(" hopper_enabled="));  Serial.print(hopperEnabled ? 1 : 0);
+    Serial.print(F(" cut="));             Serial.print(cutServo.read());
     Serial.print(F(" stepper_pos="));     Serial.println(stepper.currentPosition());
 }
 
 static void printHelp() {
-    Serial.println(F("=== Stopfmaschine v0.3 ==="));
+    Serial.println(F("=== Stopfmaschine v0.5 ==="));
     Serial.println(F("ping | status | help"));
     Serial.println(F("params | get <k> | set <k> <v>"));
-    Serial.println(F("home | stuff | step <1..11> | stop"));
+    Serial.println(F("home | stuff | step <1..12> | stop"));
     Serial.println(F("stepper <steps>"));
     Serial.println(F("press fwd|rev|stop  (PWM aus params.press_pwm)"));
     Serial.println(F("pusher fwd|rev|stop (PWM aus params.pusher_pwm)"));
@@ -532,6 +575,7 @@ static void printHelp() {
     Serial.println(F("solenoid 1|2 off|pulse <ms>   (Dauer-ON deaktiviert)"));
     Serial.println(F("hopper on|off|test <ms>   (on = 10s/20s Cycle)"));
     Serial.println(F("knock [<cycles>]"));
+    Serial.println(F("cut   (Schneidzyklus: Klinge runter/verweilen/hoch)"));
     Serial.println(F("========================="));
 }
 
@@ -706,6 +750,14 @@ static void handleCommand(String cmd) {
         Serial.println(F("ok knock"));
         return;
     }
+    if (cmd == "cut") {
+        if (!requireIdle()) return;
+        clearError();
+        currentMode = MODE_STEP;
+        enterStep(STEP_CUT);
+        Serial.println(F("ok cut"));
+        return;
+    }
     if (cmd.startsWith("knock ")) {
         if (!requireIdle()) return;
         uint8_t n = (uint8_t)cmd.substring(6).toInt();
@@ -755,6 +807,9 @@ void setup() {
 
     tubeServo.attach(PIN_SERVO);
     tubeServo.write(params.servo_home);
+
+    cutServo.attach(PIN_CUT_SERVO);
+    cutServo.write(params.cut_home);   // Klinge beim Boot immer eingefahren
 
     allMotorsOff();
     lastCommandMs = millis();

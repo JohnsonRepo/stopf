@@ -31,7 +31,7 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | A0 | `PIN_INIT_PRESS` | Initiator Press | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k Spannungsteiler | active LOW |
 | A1 | `PIN_INIT_PUSH_FRONT` | Initiator Pusher vorne | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
 | A2 | `PIN_INIT_PUSH_REAR` | Initiator Pusher hinten | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
-| A3 | – | **frei** (Reserve) | – | – | z. B. zukünftige Sensoren oder I²C-Display |
+| A3 | `PIN_CUT_SERVO` | Servo-Signal Spitzen-Cutter | SG90 (orange Litze) | direkt | Guillotine, siehe [`cutter.md`](cutter.md) |
 | A4 | `PIN_SOLENOID_1` | Hubmagnet #1 (Front-Knock) | MOSFET-Gate (IRLZ44N) | digital ON/OFF, Heschen HS-0530B (12 V) |
 | A5 | `PIN_MAGAZIN_SENSOR` | Magazin-Gabellichtschranke | Oniissy / Standard-Opto | direkt 5 V-Logik, kein Spannungsteiler |
 
@@ -118,16 +118,17 @@ Standard-Belegung (variiert pro Hersteller — mit Multimeter durchklingeln!):
 
 ---
 
-## SG90 Servo (Hülsen-Schieber — einziger Servo)
+## SG90 Servos (2 Stück: Hülsen-Schieber + Spitzen-Cutter)
 
-Im finalen Aufbau gibt es **nur einen Servo** (für das Aufschieben der Hülse).
-Die Tabak-Dosierung läuft komplett über 2 Solenoide ohne Servo.
+Zwei Servos im finalen Aufbau: **Hülsen-Schieber (D11)** und **Spitzen-Cutter
+(A3, Guillotine — siehe [`cutter.md`](cutter.md))**. Die Tabak-Dosierung läuft
+weiterhin komplett über 2 Solenoide ohne Servo.
 
 | Litzenfarbe | Funktion | Anschluss |
 |---|---|---|
-| rot | VCC 5 V | Buck-Out + 470 µF Elko lokal am Servo |
+| rot | VCC 5 V | Buck-Out + je 470 µF Elko lokal am Servo |
 | braun / schwarz | GND | GND-Sternpunkt |
-| orange / gelb | Signal (PWM) | Nano **D11** |
+| orange / gelb | Signal (PWM) | Nano **D11** (Hülsen) bzw. **A3** (Cutter) |
 
 ---
 
@@ -268,7 +269,7 @@ Zentrale Pufferkondensatoren — alle 105 °C, radial THT.
 |---|---|---|---|---|---|
 | **A4988 V_MOT** | ≥ 100 µF (220 µF besser) | **≥ 25 V** | **Low ESR** Pflicht | 1× | Schaltet 500 kHz, Standard-Elkos zu lahm |
 | **L298N V_S** | ≥ 470 µF (1000 µF besser) | **≥ 25 V** | Standard reicht | 1× | DC-Motor-Anlaufstrom puffern |
-| **Servo VCC** | ≥ 470 µF (bis 2200 µF) | ≥ 10 V (16 V/25 V auch ok) | Standard | 1× | Servo-Anlaufstrom 0,5–1 A |
+| **Servo VCC** | ≥ 470 µF (bis 2200 µF) | ≥ 10 V (16 V/25 V auch ok) | Standard | 2× | Servo-Anlaufstrom 0,5–1 A — je 1 pro Servo (D11 + A3) |
 | **Buck-Ausgang Bulk** (optional) | 470–1000 µF | ≥ 10 V | Standard | 1× | nur falls Pi und Servo räumlich weit auseinander |
 
 > ⚠️ **Niemals 16 V-Elkos im 12 V-Pfad!** Headroom 33 % ist zu knapp gegen

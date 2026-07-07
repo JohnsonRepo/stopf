@@ -69,6 +69,16 @@ Wichtige Positionen (siehe `config.h`):
 - `servo 5` → Hülse fertig aufgeschoben (`SERVO_POS_HOME`)
 - `servo 85` → Hülse aufnehmen (`SERVO_POS_LOAD`)
 
+### Spitzen-Cutter (Servo-Guillotine, A3 — ab Firmware v0.5.0)
+
+| Befehl | Antwort | Beschreibung |
+|---|---|---|
+| `cut` | `ok cut` | Schneidzyklus: Klinge → `cut_cut`, `cut_dwell_ms` verweilen, zurück → `cut_home`. Nur im IDLE. |
+
+In der Vollsequenz läuft der Schnitt automatisch als **Step 11** (nach dem
+Auswurf, vor der Trommeldrehung). Tuning über `set cut_home / cut_cut /
+cut_dwell_ms`. Mechanik: [`cutter.md`](cutter.md).
+
 ### Tabak-Dosierung (Tilt-Servo + 2 Solenoide via MOSFETs)
 
 | Befehl | Antwort | Beschreibung |
@@ -85,7 +95,7 @@ Konstanten (in `config.h`):
 - `SOLENOID_PULSE_MAX_MS = 1000` (max Einzelpuls — Heschen nicht für Dauer-ON)
 
 > **Kein Tabak-Servo** — Knock-Sequenz pulst nur die zwei Solenoide synchron.
-> Der einzige Servo im System ist der Hülsen-Schieber (D11).
+> Servos im System: Hülsen-Schieber (D11) und Spitzen-Cutter (A3, ab v0.5.0).
 
 ### Hülsenmagazin-Motor (kleiner 5 V DC via MOSFET)
 

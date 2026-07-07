@@ -15,7 +15,8 @@
 #include <Arduino.h>
 
 constexpr uint16_t PARAMS_MAGIC   = 0xC51F;   // "Stopfmaschine" Marker
-constexpr uint8_t  PARAMS_VERSION = 2;        // v2: + eject_fwd_ms (Auswurf-Vorstoß)
+constexpr uint8_t  PARAMS_VERSION = 3;        // v3: + Cutter (cut_home/cut_cut/cut_dwell_ms)
+                                              // v2: + eject_fwd_ms (Auswurf-Vorstoß)
 
 struct Params {
     uint16_t magic;
@@ -28,6 +29,11 @@ struct Params {
     // Servo (Hülsen-Schieber, D11)
     uint8_t  servo_home;             // 0..180°
     uint8_t  servo_load;             // 0..180°
+
+    // Cutter (Spitzen-Schneider, 2. Servo auf A3 — Guillotine mit Rasierklinge)
+    uint8_t  cut_home;               // Klinge oben/eingefahren, 0..180°
+    uint8_t  cut_cut;                // Klinge unten/durchgeschnitten, 0..180°
+    uint16_t cut_dwell_ms;           // Verweilzeit in der CUT-Position
 
     // Knock (beide Solenoide synchron)
     uint16_t knock_on_ms;            // Pulsdauer pro Schlag

@@ -78,8 +78,20 @@ Servo-Tilt-Wand wurde durch die Doppel-Solenoid-Anordnung ersetzt:
 - 2× 1N5819 Flyback-Diode (Pflicht bei induktiven Lasten ohne integrierten Schutz)
 - 2× 100 Ω Gate-Series-Widerstand
 
-> **Es gibt im ganzen Aufbau nur EINEN Servo** — den Hülsen-Schieber (D11). Kein
-> Tabak-Servo. A3 ist Reserve.
+> **Es gibt im Aufbau ZWEI Servos** — den Hülsen-Schieber (D11) und den
+> Spitzen-Cutter (A3, siehe unten). Kein Tabak-Servo.
+
+### Spitzen-Cutter (Servo-Guillotine)
+Schneidet die locker gestopfte Zigarettenspitze ab (Industrie-Prinzip: leicht
+überstopfen, lockere Zone abtrennen). Vollständige Konstruktion: `docs/cutter.md`.
+
+- **2. SG90-Servo (A3)** treibt über ~15-mm-Hebel eine geführte Rasierklinge
+- Zigarette liegt in enger **Stützbuchse (8,2–8,4 mm)**, Klinge läuft durch
+  **1–1,5-mm-Querschlitz** — Papier beidseitig ≤ 1 mm neben dem Schnitt gestützt
+- Klinge **10–20° angestellt** (ziehender Schnitt), als Wechselteil geklemmt (M3)
+- Schnittposition **3–6 mm vom Hülsenende**, über Buchsenlage einstellbar
+- Läuft in der Firmware als **Step 11** (nach Auswurf, vor Trommeldrehung);
+  Tuning über EEPROM-Params `cut_home` / `cut_cut` / `cut_dwell_ms`
 
 ### Hülsen-Standard (King Size)
 - 84mm × 8mm OD, ~7,5mm ID
@@ -104,7 +116,7 @@ Servo-Tilt-Wand wurde durch die Doppel-Solenoid-Anordnung ersetzt:
 ### Motoren / Aktoren
 - 1× NEMA 17 Schrittmotor (**Trommelmagazin-Drehung**, Belt 1:1 zur Drum)
 - 2× DC-Getriebemotor 12V (Presse + Pusher) — via L298N Standard-Modul mit ENA/ENB
-- **1× SG90 Servo** (Hülsen-Schieber, D11) — einziger Servo im Aufbau
+- **2× SG90 Servo**: Hülsen-Schieber (D11) + Spitzen-Cutter (A3, Guillotine)
 - 2× **Heschen HS-0530B** Hubmagnet 12 V (Tabak-Front-Knock + Tabak-Top-Druck)
   via **MOSFETs** (IRLZ44N) — kein L298N-Mini, weil Halteströme (~1 A/Solenoid)
   und Spannungsabfall (~2,5 V) ihn überhitzen würden
@@ -151,7 +163,7 @@ D13 → MOSFET-Gate → Hubmagnet #2 (Top-Druck, Heschen HS-0530B)
 A0  → Initiator Press (über Spannungsteiler)
 A1  → Initiator Push-Front (über Spannungsteiler)
 A2  → Initiator Push-Rear (über Spannungsteiler)
-A3  → frei (Reserve — z. B. zukünftige Sensoren, I²C-Display)
+A3  → Servo Signal Spitzen-Cutter (Guillotine, siehe docs/cutter.md)
 A4  → MOSFET-Gate → Hubmagnet #1 (Front-Knock, Heschen HS-0530B)
 A5  → Magazin-Lichtschranke (Gabellichtschranke, direkt 5 V)
 
@@ -188,11 +200,15 @@ GPIO 39 → Magazin-Sensor
 4. **Hülse aufsetzen** — Servo schiebt Hülse aufs Stopfrohr
 5. **Stopfen** — Pusher-Motor schiebt Tabak in Hülse; Initiator Push-Front = Endposition
 6. **Pusher zurück** — bis Initiator Push-Rear auslöst
-7. **Trommel weiterdrehen** — fertige Zigarette fällt aus, neue Hülse vorrutschen
-8. **Repeat ab Schritt 2**
+7. **Spitze abschneiden** — Cutter-Servo fährt Guillotine-Klinge durch die
+   lockere Spitze (Firmware-Step 11, siehe `docs/cutter.md`)
+8. **Trommel weiterdrehen** — fertige Zigarette fällt aus, neue Hülse vorrutschen
+9. **Repeat ab Schritt 2**
 
-### Servo-Position (einziger Servo: Hülsen-Schieber)
+### Servo-Positionen (2 Servos: Hülsen-Schieber + Spitzen-Cutter)
 - Hülsen-Servo D11: 5° (HOME — Hülse fertig aufgeschoben) / 85° (LOAD — Hülse aufnehmen)
+- Cutter-Servo A3: 10° (`cut_home` — Klinge oben) / 110° (`cut_cut` — Klinge durch);
+  Winkel beim Aufbau kalibrieren, live tunbar via `set cut_home/cut_cut/cut_dwell_ms`
 - Tabak-Dosierung läuft ohne Servo (siehe Tabak-Dosierung-Sektion)
 
 ---
@@ -279,7 +295,9 @@ Nano → Pi:
 11. **Magazin-Lichtschranke** (Trommel-Index)
 12. **2× Solenoide** (MOSFET-Tests via `knock`-Befehl — synchrones Pulsen)
 13. **Hülsenmagazin-Motor** (MOSFET, on/off via `hopper`-Befehl)
-14. **Vollintegration:** Stopfsequenz schrittweise (Pi-orchestriert)
+14. **Cutter-Servo** (`cut`-Befehl — erst OHNE Klinge Winkel kalibrieren, dann
+    mit Klinge an leerer Hülse testen; siehe `docs/cutter.md`)
+15. **Vollintegration:** Stopfsequenz schrittweise (Pi-orchestriert)
 
 ---
 
@@ -290,6 +308,10 @@ Nano → Pi:
 - **Tabak-Dosierung in der Vollautomatik = Tilt + Schlag**, nicht Förderschnecke! Förderschnecke war Fraens' teil-automatische Variante; die Vollautomatik nutzt Servo-Schwenkwand + 2 Hubmagnete. Vorteil: Tabak wird nicht zerkleinert
 - **Zwei Hubmagnete statt einem** — einer bricht Brücken im Vorrat (Front-Knock), der andere drückt Tabak in Position (Top-Druck). Ein Solenoid allein reicht oft nicht für sauberen Tabak-Fluss
 - **Glattes Stopfrohr für Vollautomatik** (keine Widerhaken — die sind nur für Hand-Stopfer)
+- **Lockere Spitzen: schneiden statt hoffen** — Papier muss beim Schnitt beidseitig
+  ≤ 1 mm neben der Klinge gestützt sein (enge Buchse + schmaler Schlitz), sonst
+  knickt die Hülse statt zu schneiden. Scharfe Wechselklinge, zügiger Hub, leicht
+  ziehend. Details: `docs/cutter.md`
 - **Slip-on Tube Außendurchmesser ~7,3mm ideal** für 7,5mm Hülsen-ID; bei 7mm OD: Schrumpfschlauch oder 3D-Druck-Trichter ergänzen
 - **Alle GNDs müssen verbunden sein!** Pi, Nano, A4988, L298N, Buck, Netzteil, Servo — sonst funktionieren Steuersignale nicht zuverlässig
 - **Pi Zero 2 W hat nur EINE LED** (grün, ACT) — keine rote PWR-LED wie die großen Pis. Aktivität der grünen LED bei Einschalten ohne SD-Karte ist normal (kein Defekt)
@@ -321,6 +343,7 @@ Nano → Pi:
 - Wellenkupplung 5×8mm (FLEXIBEL!): ~3€
 - KFL08 Flanschlager: ~3€
 - Edelstahlrohr 7mm OD: Modellbau-Shops oder eBay
+- Cutter: 2. SG90 (~4€, Amazon), Rasierklingen/Abbrechklingen 9mm (~2–3€, Drogerie/Baumarkt)
 
 ---
 

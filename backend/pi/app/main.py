@@ -1,7 +1,7 @@
 """
-Stopfmaschine - Pi Backend (FastAPI v0.3.0)
+Stopfmaschine - Pi Backend (FastAPI v0.4.0)
 
-Spiegelt die Nano-Firmware v0.3.0 als REST + WebSocket. iOS-App spricht nur
+Spiegelt die Nano-Firmware v0.5.0 als REST + WebSocket. iOS-App spricht nur
 mit dem Pi, nicht direkt mit dem Nano.
 
 Endpoints:
@@ -12,7 +12,7 @@ Endpoints:
     PUT  /params/{key}              einzelner Wert
     POST /sequence/home             Referenzfahrt
     POST /sequence/stuff            Vollsequenz
-    POST /sequence/step             {"n": 1..11}
+    POST /sequence/step             {"n": 1..12}
     POST /sequence/stop             Notaus
     POST /manual/stepper            {"steps": N}
     POST /manual/press              {"direction":"fwd|rev|stop"}
@@ -21,6 +21,7 @@ Endpoints:
     POST /manual/solenoid/{1|2}     {"action":"off|pulse","ms":?}  (Dauer-ON deaktiviert)
     POST /manual/hopper             {"action":"on|off|test","ms":?}
     POST /manual/knock              {"cycles": ?}
+    POST /manual/cut                Schneidzyklus (Klinge runter/verweilen/hoch)
     POST /system/shutdown           Pi sicher herunterfahren (stop + poweroff)
     POST /system/reboot             Pi neu starten (stop + reboot)
     POST /system/update             git pull + Abhängigkeiten + Dienst-Neustart
@@ -86,8 +87,8 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Stopfmaschine API",
-    description="Steuerung der Zigarettenstopfmaschine — gespiegelt zu Nano-Firmware v0.3.0",
-    version="0.3.0",
+    description="Steuerung der Zigarettenstopfmaschine — gespiegelt zu Nano-Firmware v0.5.0",
+    version="0.4.0",
     lifespan=lifespan,
 )
 
@@ -269,6 +270,11 @@ async def m_knock(req: KnockRequest):
     if req.cycles is None:
         return await _send_cmd("knock")
     return await _send_cmd(f"knock {req.cycles}")
+
+
+@app.post("/manual/cut", response_model=CommandResponse, summary="Schneidzyklus (Spitzen-Cutter)")
+async def m_cut():
+    return await _send_cmd("cut")
 
 
 # -------- System (Power) --------
