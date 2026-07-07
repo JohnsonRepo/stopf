@@ -227,6 +227,28 @@ Flashens nicht den Strom trennen.** Nur im Ruhezustand möglich.
 
 ---
 
+## 10. Ereignis-Protokoll & Fehlversuchs-Statistik
+
+Das Backend führt einen strukturierten Fehlerspeicher (ab Backend v0.5.0):
+
+- **`GET /events`** — Ereignisse, neueste zuerst. Filterbar:
+  `?level=error`, `?code=pusher_fwd_timeout`, `?limit=50`, `?since=<unix-ts>`.
+  Fehler-Events enthalten den **Sensor-Snapshot** im Fehlermoment
+  (`details`: press/push_front/push_rear/magazin/cut/stepper_pos).
+- **`GET /stats`** — Zyklen (gestartet/fertig/fehlgeschlagen/abgebrochen),
+  Erfolgsquote und Fehlerhäufigkeit **pro Fehlercode und pro Stopf-Step** —
+  zeigt, wo die Maschine am häufigsten scheitert.
+- **`DELETE /events`** — Protokoll und Zyklus-Zähler zurücksetzen.
+
+**Persistenz:** SQLite unter `backend/pi/data/stopf.db` (gitignored, übersteht
+`git pull` und Backend-Neustart). Pfad per Env `STOPF_DB` änderbar. Auf
+**Overlay-FS** (Abschnitt 8) ist das Verzeichnis read-only — das Backend fällt
+dann automatisch auf den In-Memory-Ringpuffer zurück (Verhalten wie vor
+v0.5.0), wichtige Events stehen weiterhin im journald. Wer Persistenz UND
+Overlay-FS will: `STOPF_DB` auf eine beschreibbare Partition/USB-Stick legen.
+
+---
+
 ## Troubleshooting
 
 **`stopf.local` löst nicht auf (Mac/iPhone finden den Pi nicht)**

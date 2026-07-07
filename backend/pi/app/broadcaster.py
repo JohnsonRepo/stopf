@@ -13,6 +13,7 @@ from fastapi import WebSocket
 
 from .event_log import event_log
 from .nano_client import NanoClient
+from .stats import CycleTracker
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +26,7 @@ class StatusBroadcaster:
         self._task: asyncio.Task | None = None
         self._stop = asyncio.Event()
         self._last = None   # vorheriger MachineStatus für Übergangs-Erkennung
+        self.tracker = CycleTracker(event_log)   # Stopfzyklen für GET /stats
 
     async def start(self) -> None:
         if self._task is None or self._task.done():
@@ -56,6 +58,7 @@ class StatusBroadcaster:
             try:
                 status = await self._nano.get_status()
                 self._note_transitions(status)
+                self.tracker.tick(status)
                 payload = status.model_dump()
                 if self._clients:
                     dead = []
@@ -82,15 +85,37 @@ class StatusBroadcaster:
         # Nano-Verbindung
         if s.connected != last.connected:
             if s.connected:
-                event_log.info("Nano wieder verbunden")
+                event_log.info("Nano wieder verbunden",
+                               code="nano_reconnected", source="nano")
             else:
-                event_log.warn("Nano-Verbindung verloren")
+                event_log.warn("Nano-Verbindung verloren",
+                               code="nano_disconnected", source="nano")
         # Zustandswechsel (inkl. Fehler + möglicher Reset)
         if s.state != last.state:
             if s.state == "error":
-                event_log.error(f"Fehler: {s.error or '?'} (bei Schritt {last.step})")
+                # Sensor-Snapshot im Fehlermoment mitloggen — beantwortet
+                # "Sensor klemmt vs. Motor dreht nicht" ohne Nachstellen.
+                event_log.error(
+                    f"Fehler: {s.error or '?'} (bei Schritt {last.step})",
+                    code=s.error or "unknown",
+                    source="nano",
+                    step=last.step,
+                    details={
+                        "press": s.press,
+                        "push_front": s.push_front,
+                        "push_rear": s.push_rear,
+                        "magazin": s.magazin,
+                        "cut": s.cut,
+                        "stepper_pos": s.stepper_pos,
+                        "prev_state": last.state,
+                    },
+                )
             elif last.state in ("stuffing", "homing", "step") and s.state == "idle":
                 # Sequenz endete/abgebrochen — bei laufender Sequenz oft ein Nano-Reset
-                event_log.warn(f"Ablauf beendet/abgebrochen (war {last.state}, Schritt {last.step})")
+                event_log.warn(
+                    f"Ablauf beendet/abgebrochen (war {last.state}, Schritt {last.step})",
+                    code="sequence_aborted", source="nano", step=last.step,
+                )
             else:
-                event_log.info(f"Zustand: {last.state} → {s.state}")
+                event_log.info(f"Zustand: {last.state} → {s.state}",
+                               code="state_change", source="nano")

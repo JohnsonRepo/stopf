@@ -60,6 +60,8 @@ htmlcov/
 *.db
 *.sqlite
 *.sqlite3
+# Ereignis-DB des Backends inkl. WAL-/SHM-Dateien (event_log.py)
+backend/pi/data/
 
 # --- Mobile App ---
 

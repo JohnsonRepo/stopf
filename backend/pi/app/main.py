@@ -1,5 +1,5 @@
 """
-Stopfmaschine - Pi Backend (FastAPI v0.4.0)
+Stopfmaschine - Pi Backend (FastAPI v0.5.0)
 
 Spiegelt die Nano-Firmware v0.5.0 als REST + WebSocket. iOS-App spricht nur
 mit dem Pi, nicht direkt mit dem Nano.
@@ -7,6 +7,9 @@ mit dem Pi, nicht direkt mit dem Nano.
 Endpoints:
     GET  /                          health
     GET  /status                    parsed MachineStatus
+    GET  /events                    Ereignis-Protokoll (?level=&code=&limit=&since=)
+    DELETE /events                  Protokoll + Zyklen leeren
+    GET  /stats                     Fehlversuchs-Statistik (Zyklen, Quote, Fehler pro Step/Code)
     GET  /params                    alle EEPROM-Parameter
     PUT  /params                    batch-update (nur gesetzte Felder)
     PUT  /params/{key}              einzelner Wert
@@ -44,7 +47,7 @@ import subprocess
 import time
 from contextlib import asynccontextmanager
 
-from fastapi import BackgroundTasks, FastAPI, HTTPException, Path, WebSocket, WebSocketDisconnect
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Path, Query, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from .broadcaster import StatusBroadcaster
@@ -59,6 +62,7 @@ from .schemas import (
     Params,
     ServoRequest,
     SolenoidRequest,
+    Stats,
     StepRequest,
     StepperRequest,
 )
@@ -77,7 +81,7 @@ broadcaster = StatusBroadcaster(nano, interval_ms=200)
 async def lifespan(app: FastAPI):
     await nano.connect()
     await broadcaster.start()
-    event_log.info(f"Backend gestartet (v{app.version})")
+    event_log.info(f"Backend gestartet (v{app.version})", code="backend_start")
     try:
         yield
     finally:
@@ -88,7 +92,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="Stopfmaschine API",
     description="Steuerung der Zigarettenstopfmaschine — gespiegelt zu Nano-Firmware v0.5.0",
-    version="0.4.0",
+    version="0.5.0",
     lifespan=lifespan,
 )
 
@@ -155,17 +159,29 @@ async def status():
     return await nano.get_status()
 
 
-# -------- Ereignis-Protokoll --------
+# -------- Ereignis-Protokoll + Statistik --------
 
-@app.get("/events", summary="Ereignis-Protokoll (neueste zuerst)")
-async def get_events():
-    return event_log.list()
+@app.get("/events", summary="Ereignis-Protokoll (neueste zuerst, filterbar)")
+async def get_events(
+    level: str | None = Query(None, pattern="^(info|warn|error)$"),
+    code: str | None = Query(None, max_length=64),
+    limit: int = Query(200, ge=1, le=1000),
+    since: float | None = Query(None, description="Unix-Timestamp: nur Events ab dann"),
+):
+    return event_log.list(level=level, code=code, limit=limit, since=since)
 
 
-@app.delete("/events", response_model=CommandResponse, summary="Protokoll leeren")
+@app.delete("/events", response_model=CommandResponse, summary="Protokoll + Zyklen leeren")
 async def clear_events():
     event_log.clear()
     return CommandResponse(sent="clear-events", reply="cleared", ok=True, parsed=None)
+
+
+@app.get("/stats", response_model=Stats, summary="Fehlversuchs-Statistik")
+async def get_stats():
+    """Zyklen (gestartet/fertig/fehlgeschlagen/abgebrochen), Erfolgsquote und
+    Fehlerhäufigkeit pro Fehlercode bzw. pro Stopf-Step."""
+    return event_log.stats()
 
 
 # -------- Parameter --------
@@ -291,7 +307,7 @@ def _power_action(action: str) -> None:
 
 
 async def _power(action: str, background_tasks: BackgroundTasks) -> CommandResponse:
-    event_log.warn(f"System-Aktion: {action}")
+    event_log.warn(f"System-Aktion: {action}", code="system_action", source="user")
     # Maschine zuerst sicher stoppen — der Nano läuft sonst nach dem Pi-Aus weiter.
     stop_reply = await nano.send("stop")
     background_tasks.add_task(_power_action, action)
@@ -340,7 +356,7 @@ async def system_flash_nano():
     # stopf-flash (eigene cgroup) → avrdude überlebt den Backend-Stop.
     if not os.path.isfile(_NANO_HEX):
         raise HTTPException(400, "kein firmware.hex im Repo — erst bauen/committen + git pull")
-    event_log.warn("Nano-Flash ausgelöst")
+    event_log.warn("Nano-Flash ausgelöst", code="flash_nano", source="user")
     try:
         subprocess.run(
             ["sudo", "-n", "systemctl", "start", "--no-block", "stopf-flash.service"],
@@ -364,7 +380,7 @@ async def system_update(background_tasks: BackgroundTasks):
     # Braucht Internet — im AP-Modus schlägt git pull fehl (dann bleibt alter Stand).
     if not await _internet_ok():
         raise HTTPException(400, "keine Internetverbindung — Update nur im Client-Modus")
-    event_log.info("Update ausgelöst (git pull + Neustart)")
+    event_log.info("Update ausgelöst (git pull + Neustart)", code="update", source="user")
     background_tasks.add_task(_run_update)
     return CommandResponse(
         sent="update",

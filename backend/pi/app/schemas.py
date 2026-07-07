@@ -106,3 +106,22 @@ class KnockRequest(BaseModel):
 
 class StepRequest(BaseModel):
     n: int = Field(..., ge=1, le=12)
+
+
+# -------- Statistik (GET /stats, aggregiert aus EventLog + Zyklen) --------
+
+class CycleStats(BaseModel):
+    started: int = 0
+    completed: int = 0
+    failed: int = 0        # echte Maschinenfehler
+    aborted: int = 0       # User-Stop / Backend-Neustart — zählt nicht in die Quote
+    success_rate: Optional[float] = None   # completed / (completed + failed)
+
+
+class Stats(BaseModel):
+    persisted: bool                        # SQLite aktiv (False bei Overlay-FS)
+    cycles: CycleStats
+    errors_by_code: dict[str, int] = {}    # z. B. {"pusher_fwd_timeout": 3}
+    errors_by_step: dict[str, int] = {}    # Step-Nummer (als String) → Anzahl
+    first_event_ts: Optional[float] = None
+    last_event_ts: Optional[float] = None
