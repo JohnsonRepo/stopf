@@ -1,0 +1,10 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "script",
+    "author": "Johnson",
+    "description": {
+        "": "Parametrische Servo-Kurbel fuer den Huelsen-Schieber: Langloch-Grundkoerper, Tasche fuer ein Einarm-Servohorn, M2-Verschraubung, Gelenkbohrung mit Senkung."
+    },
+    "supportedOS": "windows|mac",
+    "editEnabled": true
+}

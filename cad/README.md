@@ -13,6 +13,7 @@ cad/
 ├── drawings/                     # Fertigungs-fertige Zeichnungen
 │   └── acryl_parts/              # Laser-Cut-DXFs für Acryl-Strukturteile (4 mm)
 ├── stl/                          # STL-Dateien für 3D-Druck (PETG/PLA)
+├── fusion/                       # Parametrische Fusion-Skripte (eigene Konstruktionen)
 └── scad/                         # OpenSCAD-Quellen für eigene parametrische Anpassungen (leer)
 ```
 
@@ -61,6 +62,7 @@ gelten sollen, kann der Ordner zu `drawings/metal_parts/` verschoben werden.
 | Acryl-Sammelblatt 2 | [`drawings/acryl_parts/acryl2.dxf`](drawings/acryl_parts/acryl2.dxf) | PMMA GS 4 mm | Lasern | ✅ alternative Bestellvorlage |
 | Metallteile Pos.63–87 (split) | [`reference/metal_parts/`](reference/metal_parts/) | Edelstahl V2A / Stahl | CNC / Laser | 🔲 Werkstatt-Anfrage offen |
 | 3D-Druck-Teile (alle) | [`stl/`](stl/) | PETG / PLA | 3D-Druck | 🔄 teilweise gedruckt |
+| **Servo-Kurbel Pos.49 (Neukonstruktion)** | [`fusion/KurbelHuelsenschieber/`](fusion/KurbelHuelsenschieber/) | PETG / ASA | 3D-Druck | 🔲 zu drucken |
 
 ### Status-Legende
 
@@ -76,6 +78,8 @@ gelten sollen, kann der Ordner zu `drawings/metal_parts/` verschoben werden.
 3. **Lasern** → DXF aus `drawings/acryl_parts/` an Dienstleister
    (kunststoffplattenonline.de, S-Polytec.de, Acrylglasplattenshop.de, Plattenzuschnitt24.de).
 4. **3D-Druck** → STL aus `stl/` in den Slicer; Empfehlung PETG für mechanische Teile.
+   Eigene parametrische Teile werden per Fusion-Skript aus `fusion/` erzeugt (siehe
+   [`fusion/README.md`](fusion/README.md)) und als STL nach `stl/` exportiert.
 5. **Metallteile** → DXF + PDF aus `reference/metal_parts/` an die Edelstahl-Werkstatt.
 
 ## Reihenfolge der Eigen-Konstruktion (laut CLAUDE.md)
