@@ -33,7 +33,7 @@ Scherung an den Schrauben.
 
 **Erzeugte Geometrie**
 
-- Langloch-Grundkörper von der Nabe zum Gelenkauge, Hebellänge frei wählbar (Default 24 mm =
+- Langloch-Grundkörper von der Nabe zum Rohrauge, Hebellänge frei wählbar (Default 24 mm =
   Ist-Maß, für Kinematik-Variante A auf 27 mm setzen)
 - 8 mm Plattendicke statt 3 mm — die Nabenhöhe ist der größte Hebel gegen Durchrutschen
 - Tasche für das Horn in der Unterseite: **runde Scheibe um die Welle + konischer Arm + runde
@@ -41,7 +41,11 @@ Scherung an den Schrauben.
   nie am Servogehäuse)
 - Durchgang für den erhabenen Kragen, gleichzeitig Zugang zur Zentralschraube
 - 2× Ø2,1 Durchgang + Senkung für M2-Blechschrauben durch zwei **nicht benachbarte** Hornlöcher
-- Gelenkbohrung Ø3,2 (M3) mit Senkung Ø6,4 × 3 an der Unterseite für den Schraubenkopf
+- Am Hebelende ein **Auge mit liegender Bohrung Ø4,9 für ein Messingrohr OD 5 / ID 3,8**.
+  Die Rohrachse steht quer zum Hebel und quer zur Servoachse; das Rohr geht durch das Auge
+  hindurch und steht auf einer Seite über. Das Auge ist Ø12 × 12 mm hoch und schließt unten
+  bündig mit der Kurbelunterseite ab, die Rohrachse liegt auf 6 mm — damit bleiben rund
+  3,5 mm Wand über und unter der Bohrung.
 
 **Vor dem ersten Druck**
 
@@ -66,11 +70,16 @@ Feature-Maße (Dicke, Taschentiefe, Senkungstiefen) — die sind gegen so etwas 
 PETG oder ASA (kein PLA — kriecht unter Dauerlast), liegend drucken, damit die Schichtebene die
 Bewegungsebene ist, 4–5 Perimeter, Infill ≥ 50 %, Nabenbereich möglichst massiv.
 
+Die Rohrbohrung liegt dabei parallel zum Druckbett und wird oben überbrückt — sie kommt fast
+immer leicht untermaßig und leicht oval heraus. Vor der Montage mit einem 5-mm-Bohrer von Hand
+durchziehen, dann sitzt das Messingrohr stramm und trotzdem gerade. Wer den Presssitz nicht
+will, setzt `rohr_bohrung` auf 5,1 und klebt das Rohr ein (Sekundenkleber oder Loctite 638).
+
 **Montage**
 
 1. Horn auf die Servowelle stecken, Servo-Endlage grob einstellen, Horn wieder abziehen.
 2. Kurbel auf das Horn setzen, 2× M2 × 8 von oben eindrehen — sie schneiden ihr Gewinde in die
    vorhandenen Hornlöcher.
 3. Einheit auf die Welle stecken, mit der originalen Zentralschraube sichern.
-4. Gelenkschraube M3 × 16 von unten durch die Kurbel, Distanzhülse Ø6 als Lauffläche für die
-   Koppel, Nyloc-Mutter oben — die Koppel muss frei drehen.
+4. Messingrohr Ø5 auf Länge ablängen (Auge 12 mm + gewünschter Überstand, Default also 20 mm),
+   entgraten und durch das Auge schieben, bis der Überstand stimmt.

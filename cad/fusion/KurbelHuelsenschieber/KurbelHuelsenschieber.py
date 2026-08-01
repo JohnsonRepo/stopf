@@ -4,7 +4,7 @@ Kurbel fuer den Huelsen-Schieber (Ersatz fuer Pos. 49 aus Filling machine.STEP)
 
 Erzeugt ein NEUES Fusion-Dokument mit der 3D-druckbaren Servo-Kurbel:
 
-  * Grundkoerper als Langloch (Nabe -> Gelenkauge), Hebellaenge frei waehlbar
+  * Grundkoerper als Langloch (Nabe -> Rohrauge), Hebellaenge frei waehlbar
   * Tasche fuer ein EINARM-Servohorn in der Unterseite: runde Scheibe um die
     Welle + konischer Arm + runde Spitze
     -> Formschluss statt Presssitz, das Moment laeuft ueber die Werksverzahnung
@@ -12,7 +12,10 @@ Erzeugt ein NEUES Fusion-Dokument mit der 3D-druckbaren Servo-Kurbel:
     zur Zentralschraube)
   * 2 Bohrungen + Senkungen fuer M2-Blechschrauben durch zwei NICHT benachbarte
     Hornloecher (von oben eingedreht, sie schneiden ihr Gewinde im Horn)
-  * Gelenkbohrung mit Senkung fuer den Schraubenkopf an der Unterseite
+  * Am Hebelende ein AUGE mit LIEGENDER Bohrung fuer ein Messingrohr
+    (OD 5 / ID 3,8). Die Rohrachse steht quer zum Hebel und quer zur
+    Servoachse, das Rohr geht durch das Auge hindurch und steht auf einer
+    Seite ueber.
 
 Warum das Ganze: die Original-Kurbel ist eine 3 mm dicke Platte mit Oe5-Bohrung
 direkt auf der Servoverzahnung. Gedruckt bleiben davon ca. 2 mm Eingriffslaenge
@@ -34,6 +37,15 @@ So ist ein Einarm-Horn aufgebaut (Draufsicht, Wellenmitte links):
 
 Der erhabene Kragen (horn_kragen_d) sitzt mittig auf der Scheibe und ragt nach
 OBEN, also von der Kurbel weg in die Durchgangsbohrung hinein.
+
+Das Rohrauge in der Seitenansicht (Blick entlang des Hebels):
+
+          .-''-.
+        /        \        auge_d aussen, Bohrung rohr_bohrung
+       |    (==)  |  <--  Rohrachse auf Hoehe rohr_hoehe ueber der Unterseite
+        \        /        (Default = auge_d/2, damit das Auge unten buendig
+          `-..-`           mit der Kurbelunterseite abschliesst)
+       ------------  <-- Unterseite der Kurbel, Z = 0
 
 Vor dem ersten Lauf: HORN NACHMESSEN
 ------------------------------------
@@ -62,10 +74,17 @@ import adsk.fusion
 # ---------------------------------------------------------------------------
 DEFAULTS = [
     # --- Kurbel selbst ---
-    ('hebel_laenge',      24.0, 'mm',  'Achsabstand Servowelle -> Gelenkbolzen (Ist=24, Variante A=27)'),
+    ('hebel_laenge',      24.0, 'mm',  'Achsabstand Servowelle -> Rohrachse (Ist=24, Variante A=27)'),
     ('dicke',              8.0, 'mm',  'Plattendicke = Nabenhoehe (Original nur 3 mm - zu wenig)'),
     ('naben_d',           16.0, 'mm',  'Aussendurchmesser an der Nabe'),
-    ('arm_breite',        10.0, 'mm',  'Breite des Hebelarms = Durchmesser am Gelenkauge'),
+    ('arm_breite',        10.0, 'mm',  'Breite des Hebelarms'),
+
+    # --- Rohrauge am Hebelende (Messingrohr OD 5 / ID 3,8) ---
+    ('auge_d',            12.0, 'mm',  'Aussendurchmesser des Rohrauges'),
+    ('auge_hoehe',        12.0, 'mm',  'Hoehe des Auges ab Kurbelunterseite'),
+    ('rohr_bohrung',       4.9, 'mm',  'Bohrung fuer Messingrohr OD 5 - Presssitz; 5,1 wenn geklebt'),
+    ('rohr_hoehe',         6.0, 'mm',  'Hoehe der Rohrachse ueber der Unterseite (= auge_d/2)'),
+    ('rohr_ueberstand',    8.0, 'mm',  'gewuenschter Ueberstand des Rohrs auf einer Seite'),
 
     # --- Horn: alle Werte am eigenen Horn nachmessen ---
     ('horn_winkel',        0.0, 'deg', 'Winkel Hornarm gegen Hebelrichtung (0 = gleiche Richtung)'),
@@ -85,10 +104,6 @@ DEFAULTS = [
     ('schraub_d',          2.1, 'mm',  'Durchgangsbohrung M2-Blechschraube'),
     ('kopf_d',             4.2, 'mm',  'Senkung Schraubenkopf M2'),
     ('kopf_t',             1.6, 'mm',  'Tiefe Senkung Schraubenkopf M2'),
-
-    ('gelenk_bohrung',     3.2, 'mm',  'Gelenkbohrung (M3 = 3,2 / Kulisse M4 = 4,2)'),
-    ('gelenk_senk_d',      6.4, 'mm',  'Senkung Schraubenkopf am Gelenk (Unterseite)'),
-    ('gelenk_senk_t',      3.0, 'mm',  'Tiefe dieser Senkung'),
 ]
 
 # Taschentiefe bewusst 0,2 mm FLACHER als der Hornarm: die Kurbel liegt damit
@@ -96,6 +111,8 @@ DEFAULTS = [
 TASCHE_EXPR = 'horn_arm_dicke - 0.2 mm'
 # Kragen soll frei durchtreten, gleichzeitig Zugang zur Zentralschraube.
 KRAGEN_LUFT = 0.4
+# Innendurchmesser des Rohrs - geht nicht in die Geometrie ein, nur in den Hinweis.
+ROHR_ID = 3.8
 
 
 def run(context):
@@ -124,14 +141,19 @@ def run(context):
 
         # Schraube soll den Hornarm gerade durchgreifen, aber nicht darueber hinaus
         schraubenlaenge = werte['dicke'] - werte['kopf_t'] + werte['horn_arm_dicke']
+        rohrlaenge = werte['auge_d'] + werte['rohr_ueberstand']
         hinweis = (
             'Kurbel erzeugt.\n\n'
             'Hebellaenge {hebel_laenge:.1f} mm, Dicke {dicke:.1f} mm, '
             'Nabe Oe{naben_d:.1f} mm.\n'
-            'Passende Schrauben: 2x M2 x {schraube:.0f} mm (Blechschraube).\n\n'
+            'Rohrauge Oe{auge_d:.1f} x {auge_hoehe:.1f} mm, Bohrung '
+            'Oe{rohr_bohrung:.1f} mm quer zum Hebel.\n\n'
+            'Zuschnitt Messingrohr OD 5 / ID {rohr_id:.1f}: {rohrlaenge:.0f} mm '
+            '({auge_d:.0f} mm Auge + {rohr_ueberstand:.0f} mm Ueberstand).\n'
+            'Passende Schrauben fuers Horn: 2x M2 x {schraube:.0f} mm (Blechschraube).\n\n'
             'Hornmasse aendern: Werte in DEFAULTS im Skript anpassen und neu '
             'laufen lassen.'
-        ).format(schraube=schraubenlaenge, **werte)
+        ).format(schraube=schraubenlaenge, rohrlaenge=rohrlaenge, rohr_id=ROHR_ID, **werte)
         if warnungen:
             hinweis += '\n\nPruefen:\n- ' + '\n- '.join(warnungen)
         ui.messageBox(hinweis, 'Kurbel Huelsenschieber')
@@ -183,7 +205,7 @@ def _im_koerper(x, y, w, rand):
         return True
     if 0.0 <= x <= w['hebel_laenge'] and abs(y) <= w['arm_breite'] / 2.0 - rand:
         return True
-    if math.hypot(x - w['hebel_laenge'], y) <= w['arm_breite'] / 2.0 - rand:
+    if math.hypot(x - w['hebel_laenge'], y) <= w['auge_d'] / 2.0 - rand:
         return True
     return False
 
@@ -193,7 +215,27 @@ def _pruefen(w):
     kragen_r = (w['horn_kragen_d'] + KRAGEN_LUFT) / 2.0
     scheibe_r = w['horn_scheibe_d'] / 2.0 + w['spiel']
     naben_r = w['naben_d'] / 2.0
+    rohr_r = w['rohr_bohrung'] / 2.0
 
+    # --- Rohrauge ---
+    if w['rohr_hoehe'] - rohr_r < 2.0:
+        warnungen.append(
+            'Nur {:.1f} mm Material unter der Rohrbohrung - rohr_hoehe erhoehen.'
+            .format(w['rohr_hoehe'] - rohr_r))
+    if w['auge_hoehe'] - w['rohr_hoehe'] - rohr_r < 2.0:
+        warnungen.append(
+            'Nur {:.1f} mm Material ueber der Rohrbohrung - auge_hoehe erhoehen.'
+            .format(w['auge_hoehe'] - w['rohr_hoehe'] - rohr_r))
+    if w['auge_d'] - w['rohr_bohrung'] < 4.0:
+        warnungen.append(
+            'Wand seitlich der Rohrbohrung zu duenn - auge_d auf mindestens '
+            '{:.1f} mm vergroessern.'.format(w['rohr_bohrung'] + 4.0))
+    if w['rohr_hoehe'] + rohr_r > w['auge_hoehe']:
+        warnungen.append('Rohrbohrung liegt hoeher als das Auge - rohr_hoehe pruefen.')
+    if w['rohr_ueberstand'] <= 0.0:
+        warnungen.append('rohr_ueberstand ist 0 - das Rohr wuerde nicht ueberstehen.')
+
+    # --- Nabe und Horn ---
     abstand = abs(w['horn_loch_2'] - w['horn_loch_1'])
     if abstand < w['kopf_d'] + 0.5:
         warnungen.append(
@@ -241,24 +283,8 @@ def _pruefen(w):
                 'Senkung von {} liegt am oder ueber dem Rand der Kurbel - Winkel oder '
                 'Breite anpassen.'.format(schluessel))
 
-    if not _im_koerper(w['horn_arm_l'], 0.0, w, w['horn_arm_b_spitze'] / 2.0) \
-            and abs(w['horn_winkel']) < 1e-9:
-        warnungen.append(
-            'Hornarm ist laenger als die Kurbel - hebel_laenge vergroessern oder '
-            'kuerzeres Horn verwenden.')
-
-    if w['horn_arm_l'] + w['horn_arm_b_spitze'] / 2.0 > w['hebel_laenge'] - w['gelenk_senk_d'] / 2.0:
-        warnungen.append(
-            'Hornarm reicht bis in die Gelenksenkung - hebel_laenge vergroessern oder '
-            'kuerzeres Horn verwenden.')
-
     if w['horn_arm_b_wurzel'] / 2.0 + w['spiel'] > naben_r:
         warnungen.append('Hornarm ist breiter als die Nabe - naben_d vergroessern.')
-
-    if w['dicke'] <= w['gelenk_senk_t'] + 2.0:
-        warnungen.append(
-            'Zu wenig Restmaterial unter der Gelenksenkung - dicke erhoehen oder '
-            'gelenk_senk_t verringern.')
 
     if w['horn_arm_dicke'] <= 0.4:
         warnungen.append('horn_arm_dicke zu klein - die Tasche wuerde verschwinden.')
@@ -280,6 +306,16 @@ def _benennen(objekt, name):
 def _pt(x_mm, y_mm):
     """Skizzenpunkt aus mm - die API rechnet intern in cm."""
     return adsk.core.Point3D.create(x_mm / 10.0, y_mm / 10.0, 0.0)
+
+
+def _pt_auf_ebene(sketch, x_mm, y_mm, z_mm):
+    """Globalen Punkt in die Skizzenebene umrechnen.
+
+    Spart das Raten, wie die lokalen Achsen einer Ebene zu den globalen liegen -
+    genau daran scheitern Skripte auf der XZ-Ebene sonst gern.
+    """
+    return sketch.modelToSketchSpace(
+        adsk.core.Point3D.create(x_mm / 10.0, y_mm / 10.0, z_mm / 10.0))
 
 
 def _dreh_xy(x_mm, y_mm, winkel_grad):
@@ -326,6 +362,18 @@ def _extrudieren(root, sketch, ausdruck, operation):
         operation)
 
 
+def _durchbruch(root, sketch, operation):
+    """Schneidet durch alles, symmetrisch in beide Richtungen.
+
+    Damit haengt das Ergebnis nicht davon ab, wohin die Normale der Skizzenebene
+    zeigt - bei liegenden Bohrungen die haeufigste Fehlerquelle.
+    """
+    extrudes = root.features.extrudeFeatures
+    eingabe = extrudes.createInput(_alle_profile(sketch), operation)
+    eingabe.setAllExtent(adsk.fusion.ExtentDirections.SymmetricExtentDirection)
+    return extrudes.add(eingabe)
+
+
 # ---------------------------------------------------------------------------
 # Geometrie
 # ---------------------------------------------------------------------------
@@ -335,22 +383,38 @@ def _bauen(root, w):
     SCHNEIDEN = adsk.fusion.FeatureOperations.CutFeatureOperation
 
     xy = root.xYConstructionPlane
+    xz = root.xZConstructionPlane
     laenge = w['hebel_laenge']
     halbe_breite = w['arm_breite'] / 2.0
     winkel = w['horn_winkel']
     durch = 'dicke + 2 mm'   # Durchgangsbohrungen etwas laenger als das Teil
 
-    # --- 1) Grundkoerper: Nabe + Arm + Gelenkauge ---------------------------
-    # Drei sich ueberlappende Grundformen statt einer getrimmten Kontur.
+    # --- 1) Grundplatte: Nabe + Arm ----------------------------------------
+    # Zwei sich ueberlappende Grundformen statt einer getrimmten Kontur.
     sk = root.sketches.addWithoutEdges(xy)
     _benennen(sk, 'Grundkoerper')
     _kreis(sk, _pt(0.0, 0.0), w['naben_d'])
-    _kreis(sk, _pt(laenge, 0.0), w['arm_breite'])
     _polygon(sk, [_pt(0.0, halbe_breite), _pt(laenge, halbe_breite),
                   _pt(laenge, -halbe_breite), _pt(0.0, -halbe_breite)])
     _extrudieren(root, sk, 'dicke', NEU)
 
-    # --- 2) Tasche fuer das Einarm-Horn (Unterseite) ------------------------
+    # --- 2) Rohrauge am Hebelende ------------------------------------------
+    # Stehender Zylinder, hoeher als die Platte: er muss die liegende Bohrung
+    # mit Wand oben und unten umschliessen.
+    sk = root.sketches.addWithoutEdges(xy)
+    _benennen(sk, 'Rohrauge')
+    _kreis(sk, _pt(laenge, 0.0), w['auge_d'])
+    _extrudieren(root, sk, 'auge_hoehe', VEREINEN)
+
+    # --- 3) Liegende Bohrung fuers Messingrohr ------------------------------
+    # Achse quer zum Hebel und quer zur Servoachse. Skizze auf der XZ-Ebene,
+    # Schnitt symmetrisch durch alles.
+    sk = root.sketches.addWithoutEdges(xz)
+    _benennen(sk, 'Rohrbohrung')
+    _kreis(sk, _pt_auf_ebene(sk, laenge, 0.0, w['rohr_hoehe']), w['rohr_bohrung'])
+    _durchbruch(root, sk, SCHNEIDEN)
+
+    # --- 4) Tasche fuer das Einarm-Horn (Unterseite) ------------------------
     # Runde Scheibe um die Welle + konischer Arm + runde Spitze.
     b_wurzel = w['horn_arm_b_wurzel'] / 2.0 + w['spiel']
     b_spitze = w['horn_arm_b_spitze'] / 2.0 + w['spiel']
@@ -366,20 +430,20 @@ def _bauen(root, w):
                   _pt_gedreht(0.0, -b_wurzel, winkel)])
     _extrudieren(root, sk, TASCHE_EXPR, SCHNEIDEN)
 
-    # --- 3) Durchgang fuer den erhabenen Kragen / Zentralschraube -----------
+    # --- 5) Durchgang fuer den erhabenen Kragen / Zentralschraube -----------
     sk = root.sketches.addWithoutEdges(xy)
     _benennen(sk, 'Kragenbohrung')
     _kreis(sk, _pt(0.0, 0.0), w['horn_kragen_d'] + KRAGEN_LUFT)
     _extrudieren(root, sk, durch, SCHNEIDEN)
 
-    # --- 4) Zwei M2-Durchgangsbohrungen in den Hornloechern -----------------
+    # --- 6) Zwei M2-Durchgangsbohrungen in den Hornloechern -----------------
     sk = root.sketches.addWithoutEdges(xy)
     _benennen(sk, 'Schraubenloecher M2')
     for schluessel in ('horn_loch_1', 'horn_loch_2'):
         _kreis(sk, _pt_gedreht(w[schluessel], 0.0, winkel), w['schraub_d'])
     _extrudieren(root, sk, durch, SCHNEIDEN)
 
-    # --- 5) Senkungen fuer die M2-Koepfe (von der Oberseite) ----------------
+    # --- 7) Senkungen fuer die M2-Koepfe (von der Oberseite) ----------------
     # Ebene auf Hoehe des Senkungsgrundes legen und nach OBEN herausschneiden -
     # so kommt das Skript ohne negative Extrusionsmasse aus.
     ebene_eingabe = root.constructionPlanes.createInput()
@@ -392,16 +456,3 @@ def _bauen(root, w):
     for schluessel in ('horn_loch_1', 'horn_loch_2'):
         _kreis(sk, _pt_gedreht(w[schluessel], 0.0, winkel), w['kopf_d'])
     _extrudieren(root, sk, 'kopf_t + 1 mm', SCHNEIDEN)
-
-    # --- 6) Gelenkbohrung ---------------------------------------------------
-    sk = root.sketches.addWithoutEdges(xy)
-    _benennen(sk, 'Gelenkbohrung')
-    _kreis(sk, _pt(laenge, 0.0), w['gelenk_bohrung'])
-    _extrudieren(root, sk, durch, SCHNEIDEN)
-
-    # --- 7) Senkung fuer den Gelenk-Schraubenkopf (Unterseite) --------------
-    # Haelt den Kopf weg vom Servogehaeuse und von der Montageplatte.
-    sk = root.sketches.addWithoutEdges(xy)
-    _benennen(sk, 'Senkung Gelenk')
-    _kreis(sk, _pt(laenge, 0.0), w['gelenk_senk_d'])
-    _extrudieren(root, sk, 'gelenk_senk_t', SCHNEIDEN)
