@@ -1,0 +1,10 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "script",
+    "author": "Johnson",
+    "description": {
+        "": "Servo-Gelenk nach Fraens-Original (Part-41/49/70): Kurbel mit Horntasche, Koppel und Gabelkopf mit Querschlitz und Oe2-Stift - drei druckfertige Koerper in einem Dokument."
+    },
+    "supportedOS": "windows|mac",
+    "editEnabled": true
+}

@@ -88,7 +88,34 @@ Schlitz einfädeln, Mitnehmer so drehen, dass der Schlitz exakt quer zur Schubri
 dann die M3 gefühlvoll anziehen (Steg neben dem Klemmschlitz reißt bei Gewalt). Die Bohrung
 vorher mit einem 5-mm-Bohrer von Hand durchziehen, wie bei der Kurbel.
 
-## Zusammenbau beider Teile
+### GelenkServoOriginal
+
+Der Nachbau des **Original-Gelenks** aus `Filling machine.STEP` (Part-41 / Part-49 / Part-70) —
+die Alternative zum Kulissen-Konzept der beiden Skripte oben. Ein Lauf erzeugt alle drei Teile
+nebeneinander in Drucklage:
+
+- **Kurbel** (Part-49): Hebel exakt 24,0 mm, Kopf mit Ø3,2 für M3
+- **Koppel** (Part-41): Knochenform, Lochabstand exakt 10,0 mm, Löcher Ø3,4 (dreht frei auf M3)
+  und Ø2,2 (Stiftseite)
+- **Gabelkopf** (Part-70): sitzt auf der Ø6-Schubstange; vorn ein Schlitz **quer durch das ganze
+  Teil** auf Höhe der Stangenachse, darin schwenkt die Koppel um einen vertikalen Ø2-Stahlstift.
+  Weil der Schlitz seitlich offen ist, kann die Koppel beliebig weit schwenken — nahe den
+  Hubenden braucht sie bis zu 79°.
+
+Bewusste Abweichungen vom Original (alles Druck-bedingt, im Skript-Kopf dokumentiert):
+Kurbel-Nabe mit Horntasche + 2× M2 statt Ø5-Bohrung auf der Verzahnung (rutscht gedruckt durch),
+Kurbel 8 mm statt 3 mm dick, Schlitzwangen 4 mm statt 1,5 mm, Koppelaugen Ø7 statt Ø6,
+Kurbelkopf Ø8 statt Ø6, Rohr-Klemmung per M3-Madenschraube statt Löten.
+
+Einbaumaße des Originals (aus der STEP): Servoachse **24,8 mm quer** zur Stangenachse,
+Stangenachse = Kurbeldicke + halbe Koppeldicke über der Horn-Oberseite (≈ 9,7 mm mit Defaults).
+
+**⚠ Kinematik:** Das Original-Gestänge hat **Sperrlagen bei 38,1° und 141,9°** Kurbelwinkel,
+der Nutzhub (42 mm) liegt exakt dazwischen. Firmware-Endlagen mit mindestens 5° Abstand setzen
+und den Servo in der Endlage stromlos schalten — sonst arbeitet er die Nabe wieder aus.
+Wer diese Einschränkung nicht will, nimmt die Kulissen-Variante oben.
+
+## Zusammenbau beider Teile (Kulissen-Variante)
 
 Beide Skripte sind aufeinander abgestimmt (Ø5-Bolzen, Kurbelradius 27 = `kurbel_radius` im
 Mitnehmer, Schlitz 5,2 für Bolzen Ø5). Die Höhenkette ist mit den Defaults durchgerechnet —
