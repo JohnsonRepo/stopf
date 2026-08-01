@@ -90,7 +90,7 @@ DEFAULTS = [
     ('auge_d',            12.0, 'mm',  'Aussendurchmesser des Bolzenauges'),
     ('auge_hoehe',        12.0, 'mm',  'Hoehe des Auges ab Kurbelunterseite = Fuehrungslaenge'),
     ('bolzen_bohrung',     4.9, 'mm',  'Bohrung fuer Oe5-Bolzen - Presssitz; 5,1 wenn geklebt'),
-    ('bolzen_ueberstand',  8.0, 'mm',  'Ueberstand des Bolzens zum Mitnehmer hin'),
+    ('bolzen_ueberstand', 12.0, 'mm',  'Ueberstand zum Mitnehmer: 12 = 10 mm Eingriff im Schlitz bei 2 mm Luft ueberm Auge'),
 
     # --- Horn: alle Werte am eigenen Horn nachmessen ---
     ('horn_winkel',        0.0, 'deg', 'Winkel Hornarm gegen Hebelrichtung (0 = gleiche Richtung)'),

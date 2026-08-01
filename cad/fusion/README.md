@@ -88,6 +88,47 @@ Schlitz einfädeln, Mitnehmer so drehen, dass der Schlitz exakt quer zur Schubri
 dann die M3 gefühlvoll anziehen (Steg neben dem Klemmschlitz reißt bei Gewalt). Die Bohrung
 vorher mit einem 5-mm-Bohrer von Hand durchziehen, wie bei der Kurbel.
 
+## Zusammenbau beider Teile
+
+Beide Skripte sind aufeinander abgestimmt (Ø5-Bolzen, Kurbelradius 27 = `kurbel_radius` im
+Mitnehmer, Schlitz 5,2 für Bolzen Ø5). Die Höhenkette ist mit den Defaults durchgerechnet —
+**Referenz Z = 0 ist die Kurbel-Unterseite = Oberseite des Servohorns:**
+
+| Z | Was liegt hier |
+|---|---|
+| 0 | Kurbel-Unterseite auf dem Horn |
+| 8 | Oberseite Kurbelarm |
+| 12 | Oberseite Bolzenauge |
+| 14 | Unterkante Mitnehmer-Block (2 mm Luft überm Auge) |
+| **20** | **Achse Schubstange = Hülse = Gleitlager, Mitte Schlitz** |
+| 24 | Bolzenspitze (Überstand 12) — 10 mm Eingriff, 2 mm unter Blockoberkante |
+| 26 | Oberkante Mitnehmer-Block |
+
+Daraus folgen die drei Einbaumaße für den Servo:
+
+1. **Höhe:** Servo so montieren, dass die Horn-Oberseite **20 mm unter der Stangenachse** liegt.
+2. **Quer:** Servoachse **21,8 mm neben der Stangenachse** (Seite frei wählbar — die Kurbel
+   zeigt bei Mittelstellung zur Stange hin und 5,2 mm darüber hinaus).
+3. **Längs (Schubrichtung):** Servoachse auf die Position, an der der Stopfkopf **halben Hub**
+   hat. In Mittelstellung steht die Kurbel exakt quer zur Stange.
+
+Warum 21,8 und nicht 27: Die Kurbel schwenkt ±52° um die Querstellung. Der Bolzen pendelt
+dann zwischen quer 16,6 und 27 — symmetrisch ±5,2 um die Stangenachse bei 21,8. So bleibt die
+Kraft mittig im Schlitz und der Bolzen läuft nie an ein Schlitzende.
+
+**Reihenfolge:**
+
+1. Beide Teile drucken, alle Ø5-Bohrungen mit dem 5-mm-Bohrer von Hand nachziehen.
+2. Bolzen (Ø5 × 24 mm, Stück Messingrohr) in das Kurbelauge pressen — 12 mm stehen nach oben über.
+3. Horn einlegen, 2× M2 verschrauben, Kurbel auf den Servo, Zentralschraube rein.
+   Vorher Servo elektrisch in Mittelstellung fahren!
+4. Mitnehmer aufs Rohrende schieben, M3 nur handwarm.
+5. Servo am Rahmen ausrichten (drei Maße oben), Bolzen in den Schlitz einfädeln.
+6. Von Hand durchdrehen: der Bolzen muss über den ganzen Hub frei im Schlitz gleiten,
+   nirgends klemmen und an keinem Ende anlaufen. Dann Mitnehmer-M3 festziehen.
+7. Endlagen in der Firmware einmessen (±52° um die Mittelstellung), Servo nach
+   Erreichen der Endlage stromlos schalten.
+
 **Vor dem ersten Druck**
 
 Die `horn_*`-Werte sind Richtwerte für ein SG90-Einarmhorn und schwanken je nach Hersteller.
