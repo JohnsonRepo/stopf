@@ -12,10 +12,17 @@ Erzeugt ein NEUES Fusion-Dokument mit der 3D-druckbaren Servo-Kurbel:
     zur Zentralschraube)
   * 2 Bohrungen + Senkungen fuer M2-Blechschrauben durch zwei NICHT benachbarte
     Hornloecher (von oben eingedreht, sie schneiden ihr Gewinde im Horn)
-  * Am Hebelende ein AUGE mit LIEGENDER Bohrung fuer ein Messingrohr
-    (OD 5 / ID 3,8). Die Rohrachse steht quer zum Hebel und quer zur
-    Servoachse, das Rohr geht durch das Auge hindurch und steht auf einer
-    Seite ueber.
+  * Am Hebelende ein AUGE mit STEHENDER Bohrung Oe4,9 fuer einen Oe5-Bolzen -
+    ein abgelaengtes Stueck des gleichen Messingrohrs tut es. Der Bolzen steht
+    parallel zur Servowelle und laeuft im Querschlitz des Mitnehmers, der auf
+    der Schubstange sitzt.
+
+Warum stehend: die Schubstange laeuft im Gleitlager koaxial zur Huelse und darf
+sich nur axial bewegen. Die Kurbel kann sie also nicht halten, sondern muss sie
+antreiben - und ein Kurbelende bewegt sich auf einem Kreis. Der Ausgleich quer
+zur Schubrichtung passiert im Schlitz des Mitnehmers. Damit das spannungsfrei
+laeuft, muss die Gelenkachse parallel zur Servowelle stehen; eine liegende
+Achse wuerde das Gestaenge verspannen.
 
 Warum das Ganze: die Original-Kurbel ist eine 3 mm dicke Platte mit Oe5-Bohrung
 direkt auf der Servoverzahnung. Gedruckt bleiben davon ca. 2 mm Eingriffslaenge
@@ -38,14 +45,14 @@ So ist ein Einarm-Horn aufgebaut (Draufsicht, Wellenmitte links):
 Der erhabene Kragen (horn_kragen_d) sitzt mittig auf der Scheibe und ragt nach
 OBEN, also von der Kurbel weg in die Durchgangsbohrung hinein.
 
-Das Rohrauge in der Seitenansicht (Blick entlang des Hebels):
+Das Bolzenauge in der Seitenansicht (Blick quer zum Hebel):
 
-          .-''-.
-        /        \        auge_d aussen, Bohrung rohr_bohrung
-       |    (==)  |  <--  Rohrachse auf Hoehe rohr_hoehe ueber der Unterseite
-        \        /        (Default = auge_d/2, damit das Auge unten buendig
-          `-..-`           mit der Kurbelunterseite abschliesst)
-       ------------  <-- Unterseite der Kurbel, Z = 0
+            | |
+          .-| |-.        auge_d aussen, Bohrung bolzen_bohrung
+          | | | |   <--  stehende Bohrung, durchgehend: der Bolzen laesst sich
+       ---' | | `---          nach oben ODER nach unten durchstecken
+       -----| |-----   <-- Unterseite der Kurbel, Z = 0
+            | |        <-- Ueberstand zum Mitnehmer hin
 
 Vor dem ersten Lauf: HORN NACHMESSEN
 ------------------------------------
@@ -74,17 +81,16 @@ import adsk.fusion
 # ---------------------------------------------------------------------------
 DEFAULTS = [
     # --- Kurbel selbst ---
-    ('hebel_laenge',      24.0, 'mm',  'Achsabstand Servowelle -> Rohrachse (Ist=24, Variante A=27)'),
+    ('hebel_laenge',      27.0, 'mm',  'Kurbelradius: Servowelle -> Bolzenachse (27 = Originalhub 42 mm)'),
     ('dicke',              8.0, 'mm',  'Plattendicke = Nabenhoehe (Original nur 3 mm - zu wenig)'),
     ('naben_d',           16.0, 'mm',  'Aussendurchmesser an der Nabe'),
     ('arm_breite',        10.0, 'mm',  'Breite des Hebelarms'),
 
-    # --- Rohrauge am Hebelende (Messingrohr OD 5 / ID 3,8) ---
-    ('auge_d',            12.0, 'mm',  'Aussendurchmesser des Rohrauges'),
-    ('auge_hoehe',        12.0, 'mm',  'Hoehe des Auges ab Kurbelunterseite'),
-    ('rohr_bohrung',       4.9, 'mm',  'Bohrung fuer Messingrohr OD 5 - Presssitz; 5,1 wenn geklebt'),
-    ('rohr_hoehe',         6.0, 'mm',  'Hoehe der Rohrachse ueber der Unterseite (= auge_d/2)'),
-    ('rohr_ueberstand',    8.0, 'mm',  'gewuenschter Ueberstand des Rohrs auf einer Seite'),
+    # --- Bolzenauge am Hebelende (Oe5-Bolzen, z. B. Stueck Messingrohr) ---
+    ('auge_d',            12.0, 'mm',  'Aussendurchmesser des Bolzenauges'),
+    ('auge_hoehe',        12.0, 'mm',  'Hoehe des Auges ab Kurbelunterseite = Fuehrungslaenge'),
+    ('bolzen_bohrung',     4.9, 'mm',  'Bohrung fuer Oe5-Bolzen - Presssitz; 5,1 wenn geklebt'),
+    ('bolzen_ueberstand',  8.0, 'mm',  'Ueberstand des Bolzens zum Mitnehmer hin'),
 
     # --- Horn: alle Werte am eigenen Horn nachmessen ---
     ('horn_winkel',        0.0, 'deg', 'Winkel Hornarm gegen Hebelrichtung (0 = gleiche Richtung)'),
@@ -111,8 +117,8 @@ DEFAULTS = [
 TASCHE_EXPR = 'horn_arm_dicke - 0.2 mm'
 # Kragen soll frei durchtreten, gleichzeitig Zugang zur Zentralschraube.
 KRAGEN_LUFT = 0.4
-# Innendurchmesser des Rohrs - geht nicht in die Geometrie ein, nur in den Hinweis.
-ROHR_ID = 3.8
+# Servo-Schwenkbereich, aus dem Hub und Schlitzlaenge folgen (SG90 schafft das gut).
+SWEEP_GRAD = 104.0
 
 
 def run(context):
@@ -141,19 +147,27 @@ def run(context):
 
         # Schraube soll den Hornarm gerade durchgreifen, aber nicht darueber hinaus
         schraubenlaenge = werte['dicke'] - werte['kopf_t'] + werte['horn_arm_dicke']
-        rohrlaenge = werte['auge_d'] + werte['rohr_ueberstand']
+        bolzenlaenge = werte['auge_hoehe'] + werte['bolzen_ueberstand']
+        hub, quer = _hub_und_querweg(werte)
+        schlitz = quer + werte['bolzen_bohrung'] + 2.0
         hinweis = (
             'Kurbel erzeugt.\n\n'
-            'Hebellaenge {hebel_laenge:.1f} mm, Dicke {dicke:.1f} mm, '
+            'Kurbelradius {hebel_laenge:.1f} mm, Dicke {dicke:.1f} mm, '
             'Nabe Oe{naben_d:.1f} mm.\n'
-            'Rohrauge Oe{auge_d:.1f} x {auge_hoehe:.1f} mm, Bohrung '
-            'Oe{rohr_bohrung:.1f} mm quer zum Hebel.\n\n'
-            'Zuschnitt Messingrohr OD 5 / ID {rohr_id:.1f}: {rohrlaenge:.0f} mm '
-            '({auge_d:.0f} mm Auge + {rohr_ueberstand:.0f} mm Ueberstand).\n'
-            'Passende Schrauben fuers Horn: 2x M2 x {schraube:.0f} mm (Blechschraube).\n\n'
+            'Bolzenauge Oe{auge_d:.1f} x {auge_hoehe:.1f} mm, stehende Bohrung '
+            'Oe{bolzen_bohrung:.1f} mm.\n\n'
+            'Bolzen Oe5 ablaengen auf {bolzenlaenge:.0f} mm '
+            '({auge_hoehe:.0f} mm Auge + {bolzen_ueberstand:.0f} mm Ueberstand).\n'
+            'Schrauben fuers Horn: 2x M2 x {schraube:.0f} mm (Blechschraube).\n\n'
+            'Daraus folgt fuer den Mitnehmer auf der Schubstange:\n'
+            '  Hub {hub:.1f} mm bei {sweep:.0f} Grad Servoweg\n'
+            '  Bolzen wandert {quer:.1f} mm quer -> Schlitz mindestens '
+            '{schlitz:.0f} mm lang, Breite {bolzen_bohrung:.1f} mm + 0,2\n'
+            '  Schlitz quer zur Schubrichtung, Mitte auf Hoehe der Stangenachse\n\n'
             'Hornmasse aendern: Werte in DEFAULTS im Skript anpassen und neu '
             'laufen lassen.'
-        ).format(schraube=schraubenlaenge, rohrlaenge=rohrlaenge, rohr_id=ROHR_ID, **werte)
+        ).format(schraube=schraubenlaenge, bolzenlaenge=bolzenlaenge, hub=hub,
+                 quer=quer, schlitz=schlitz, sweep=SWEEP_GRAD, **werte)
         if warnungen:
             hinweis += '\n\nPruefen:\n- ' + '\n- '.join(warnungen)
         ui.messageBox(hinweis, 'Kurbel Huelsenschieber')
@@ -210,30 +224,38 @@ def _im_koerper(x, y, w, rand):
     return False
 
 
+def _hub_und_querweg(w):
+    """Hub der Schubstange und Querweg des Bolzens im Schlitz.
+
+    Kurbel schwenkt symmetrisch um die Stellung senkrecht zur Schubrichtung.
+    Hub  = 2 * r * sin(halber Schwenkwinkel)
+    Quer = r * (1 - cos(halber Schwenkwinkel))
+    """
+    r = w['hebel_laenge']
+    halb = math.radians(SWEEP_GRAD / 2.0)
+    return 2.0 * r * math.sin(halb), r * (1.0 - math.cos(halb))
+
+
 def _pruefen(w):
     warnungen = []
     kragen_r = (w['horn_kragen_d'] + KRAGEN_LUFT) / 2.0
     scheibe_r = w['horn_scheibe_d'] / 2.0 + w['spiel']
     naben_r = w['naben_d'] / 2.0
-    rohr_r = w['rohr_bohrung'] / 2.0
 
-    # --- Rohrauge ---
-    if w['rohr_hoehe'] - rohr_r < 2.0:
+    # --- Bolzenauge ---
+    if w['auge_d'] - w['bolzen_bohrung'] < 4.0:
         warnungen.append(
-            'Nur {:.1f} mm Material unter der Rohrbohrung - rohr_hoehe erhoehen.'
-            .format(w['rohr_hoehe'] - rohr_r))
-    if w['auge_hoehe'] - w['rohr_hoehe'] - rohr_r < 2.0:
+            'Wand um die Bolzenbohrung zu duenn - auge_d auf mindestens '
+            '{:.1f} mm vergroessern.'.format(w['bolzen_bohrung'] + 4.0))
+    if w['auge_hoehe'] < 2.0 * w['bolzen_bohrung']:
         warnungen.append(
-            'Nur {:.1f} mm Material ueber der Rohrbohrung - auge_hoehe erhoehen.'
-            .format(w['auge_hoehe'] - w['rohr_hoehe'] - rohr_r))
-    if w['auge_d'] - w['rohr_bohrung'] < 4.0:
-        warnungen.append(
-            'Wand seitlich der Rohrbohrung zu duenn - auge_d auf mindestens '
-            '{:.1f} mm vergroessern.'.format(w['rohr_bohrung'] + 4.0))
-    if w['rohr_hoehe'] + rohr_r > w['auge_hoehe']:
-        warnungen.append('Rohrbohrung liegt hoeher als das Auge - rohr_hoehe pruefen.')
-    if w['rohr_ueberstand'] <= 0.0:
-        warnungen.append('rohr_ueberstand ist 0 - das Rohr wuerde nicht ueberstehen.')
+            'Fuehrungslaenge nur {:.1f} mm bei Oe{:.1f} - der Bolzen kippt. '
+            'auge_hoehe auf mindestens {:.1f} mm erhoehen.'
+            .format(w['auge_hoehe'], w['bolzen_bohrung'], 2.0 * w['bolzen_bohrung']))
+    if w['auge_hoehe'] < w['dicke']:
+        warnungen.append('auge_hoehe ist kleiner als dicke - das Auge verschwindet in der Platte.')
+    if w['bolzen_ueberstand'] <= 0.0:
+        warnungen.append('bolzen_ueberstand ist 0 - der Bolzen wuerde nicht ueberstehen.')
 
     # --- Nabe und Horn ---
     abstand = abs(w['horn_loch_2'] - w['horn_loch_1'])
@@ -308,16 +330,6 @@ def _pt(x_mm, y_mm):
     return adsk.core.Point3D.create(x_mm / 10.0, y_mm / 10.0, 0.0)
 
 
-def _pt_auf_ebene(sketch, x_mm, y_mm, z_mm):
-    """Globalen Punkt in die Skizzenebene umrechnen.
-
-    Spart das Raten, wie die lokalen Achsen einer Ebene zu den globalen liegen -
-    genau daran scheitern Skripte auf der XZ-Ebene sonst gern.
-    """
-    return sketch.modelToSketchSpace(
-        adsk.core.Point3D.create(x_mm / 10.0, y_mm / 10.0, z_mm / 10.0))
-
-
 def _dreh_xy(x_mm, y_mm, winkel_grad):
     """Dreht einen Punkt um den Ursprung - fuer die Ausrichtung des Hornarms."""
     a = math.radians(winkel_grad)
@@ -362,18 +374,6 @@ def _extrudieren(root, sketch, ausdruck, operation):
         operation)
 
 
-def _durchbruch(root, sketch, operation):
-    """Schneidet durch alles, symmetrisch in beide Richtungen.
-
-    Damit haengt das Ergebnis nicht davon ab, wohin die Normale der Skizzenebene
-    zeigt - bei liegenden Bohrungen die haeufigste Fehlerquelle.
-    """
-    extrudes = root.features.extrudeFeatures
-    eingabe = extrudes.createInput(_alle_profile(sketch), operation)
-    eingabe.setAllExtent(adsk.fusion.ExtentDirections.SymmetricExtentDirection)
-    return extrudes.add(eingabe)
-
-
 # ---------------------------------------------------------------------------
 # Geometrie
 # ---------------------------------------------------------------------------
@@ -383,7 +383,6 @@ def _bauen(root, w):
     SCHNEIDEN = adsk.fusion.FeatureOperations.CutFeatureOperation
 
     xy = root.xYConstructionPlane
-    xz = root.xZConstructionPlane
     laenge = w['hebel_laenge']
     halbe_breite = w['arm_breite'] / 2.0
     winkel = w['horn_winkel']
@@ -398,21 +397,21 @@ def _bauen(root, w):
                   _pt(laenge, -halbe_breite), _pt(0.0, -halbe_breite)])
     _extrudieren(root, sk, 'dicke', NEU)
 
-    # --- 2) Rohrauge am Hebelende ------------------------------------------
-    # Stehender Zylinder, hoeher als die Platte: er muss die liegende Bohrung
-    # mit Wand oben und unten umschliessen.
+    # --- 2) Bolzenauge am Hebelende ----------------------------------------
+    # Stehender Zylinder, hoeher als die Platte: er gibt dem Bolzen
+    # Fuehrungslaenge, damit er unter Last nicht kippt.
     sk = root.sketches.addWithoutEdges(xy)
-    _benennen(sk, 'Rohrauge')
+    _benennen(sk, 'Bolzenauge')
     _kreis(sk, _pt(laenge, 0.0), w['auge_d'])
     _extrudieren(root, sk, 'auge_hoehe', VEREINEN)
 
-    # --- 3) Liegende Bohrung fuers Messingrohr ------------------------------
-    # Achse quer zum Hebel und quer zur Servoachse. Skizze auf der XZ-Ebene,
-    # Schnitt symmetrisch durch alles.
-    sk = root.sketches.addWithoutEdges(xz)
-    _benennen(sk, 'Rohrbohrung')
-    _kreis(sk, _pt_auf_ebene(sk, laenge, 0.0, w['rohr_hoehe']), w['rohr_bohrung'])
-    _durchbruch(root, sk, SCHNEIDEN)
+    # --- 3) Stehende Bohrung fuer den Oe5-Bolzen ----------------------------
+    # Achse parallel zur Servowelle. Durchgehend, damit der Bolzen wahlweise
+    # nach oben oder nach unten durchgesteckt werden kann.
+    sk = root.sketches.addWithoutEdges(xy)
+    _benennen(sk, 'Bolzenbohrung')
+    _kreis(sk, _pt(laenge, 0.0), w['bolzen_bohrung'])
+    _extrudieren(root, sk, 'auge_hoehe + 2 mm', SCHNEIDEN)
 
     # --- 4) Tasche fuer das Einarm-Horn (Unterseite) ------------------------
     # Runde Scheibe um die Welle + konischer Arm + runde Spitze.

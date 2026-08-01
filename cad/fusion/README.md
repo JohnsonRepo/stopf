@@ -41,11 +41,24 @@ Scherung an den Schrauben.
   nie am Servogehäuse)
 - Durchgang für den erhabenen Kragen, gleichzeitig Zugang zur Zentralschraube
 - 2× Ø2,1 Durchgang + Senkung für M2-Blechschrauben durch zwei **nicht benachbarte** Hornlöcher
-- Am Hebelende ein **Auge mit liegender Bohrung Ø4,9 für ein Messingrohr OD 5 / ID 3,8**.
-  Die Rohrachse steht quer zum Hebel und quer zur Servoachse; das Rohr geht durch das Auge
-  hindurch und steht auf einer Seite über. Das Auge ist Ø12 × 12 mm hoch und schließt unten
-  bündig mit der Kurbelunterseite ab, die Rohrachse liegt auf 6 mm — damit bleiben rund
-  3,5 mm Wand über und unter der Bohrung.
+- Am Hebelende ein **Auge mit stehender Durchgangsbohrung Ø4,9 für einen Ø5-Bolzen** —
+  ein abgelängtes Stück des Messingrohrs tut es. Das Auge ist Ø12 und 12 mm hoch, gibt dem
+  Bolzen also 12 mm Führungslänge bei 3,5 mm Wand. Die Bohrung geht durch, der Bolzen lässt
+  sich wahlweise nach oben oder unten durchstecken.
+
+**Kinematik**
+
+Die Schubstange läuft im Gleitlager koaxial zur vorpositionierten Hülse und darf sich nur
+axial bewegen. Die Kurbel kann sie deshalb nicht halten, sondern muss sie antreiben — und ein
+Kurbelende läuft auf einem Kreis. Der Ausgleich quer zur Schubrichtung passiert im **Querschlitz
+eines Mitnehmers**, der auf der Schubstange sitzt; darin läuft der Ø5-Bolzen der Kurbel. Die
+Gelenkachse muss dafür **parallel zur Servowelle** stehen — eine liegende Achse verspannt das
+Gestänge.
+
+Mit Kurbelradius 27 mm und 104° Servoweg ergibt das 42,6 mm Hub (entspricht dem Original) bei
+10,4 mm Querweg des Bolzens. Der Schlitz im Mitnehmer braucht also mindestens 17,5 mm nutzbare
+Länge bei 5,1 mm Breite, quer zur Schubrichtung, Mitte auf Höhe der Stangenachse. Das Skript
+rechnet diese Werte bei jedem Lauf mit aus und zeigt sie an.
 
 **Vor dem ersten Druck**
 
@@ -70,10 +83,10 @@ Feature-Maße (Dicke, Taschentiefe, Senkungstiefen) — die sind gegen so etwas 
 PETG oder ASA (kein PLA — kriecht unter Dauerlast), liegend drucken, damit die Schichtebene die
 Bewegungsebene ist, 4–5 Perimeter, Infill ≥ 50 %, Nabenbereich möglichst massiv.
 
-Die Rohrbohrung liegt dabei parallel zum Druckbett und wird oben überbrückt — sie kommt fast
-immer leicht untermaßig und leicht oval heraus. Vor der Montage mit einem 5-mm-Bohrer von Hand
-durchziehen, dann sitzt das Messingrohr stramm und trotzdem gerade. Wer den Presssitz nicht
-will, setzt `rohr_bohrung` auf 5,1 und klebt das Rohr ein (Sekundenkleber oder Loctite 638).
+Die Bolzenbohrung steht dann senkrecht zum Bett und kommt sauber rund heraus, meist minimal
+untermaßig. Vor der Montage mit einem 5-mm-Bohrer von Hand durchziehen, dann sitzt der Bolzen
+stramm und gerade. Wer den Presssitz nicht will, setzt `bolzen_bohrung` auf 5,1 und klebt ihn
+ein (Sekundenkleber oder Loctite 638).
 
 **Montage**
 
@@ -81,5 +94,5 @@ will, setzt `rohr_bohrung` auf 5,1 und klebt das Rohr ein (Sekundenkleber oder L
 2. Kurbel auf das Horn setzen, 2× M2 × 8 von oben eindrehen — sie schneiden ihr Gewinde in die
    vorhandenen Hornlöcher.
 3. Einheit auf die Welle stecken, mit der originalen Zentralschraube sichern.
-4. Messingrohr Ø5 auf Länge ablängen (Auge 12 mm + gewünschter Überstand, Default also 20 mm),
-   entgraten und durch das Auge schieben, bis der Überstand stimmt.
+4. Ø5-Bolzen auf Länge ablängen (Auge 12 mm + gewünschter Überstand, Default also 20 mm),
+   entgraten und so weit durchschieben, dass er in den Schlitz des Mitnehmers greift.
