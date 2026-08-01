@@ -63,6 +63,7 @@ gelten sollen, kann der Ordner zu `drawings/metal_parts/` verschoben werden.
 | Metallteile Pos.63–87 (split) | [`reference/metal_parts/`](reference/metal_parts/) | Edelstahl V2A / Stahl | CNC / Laser | 🔲 Werkstatt-Anfrage offen |
 | 3D-Druck-Teile (alle) | [`stl/`](stl/) | PETG / PLA | 3D-Druck | 🔄 teilweise gedruckt |
 | **Servo-Kurbel Pos.49 (Neukonstruktion)** | [`fusion/KurbelHuelsenschieber/`](fusion/KurbelHuelsenschieber/) | PETG / ASA | 3D-Druck | 🔲 zu drucken |
+| **Mitnehmer Schubstange (Neukonstruktion)** | [`fusion/MitnehmerSchubstange/`](fusion/MitnehmerSchubstange/) | PETG / ASA | 3D-Druck | 🔲 zu drucken |
 
 ### Status-Legende
 

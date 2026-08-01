@@ -57,8 +57,36 @@ Gestänge.
 
 Mit Kurbelradius 27 mm und 104° Servoweg ergibt das 42,6 mm Hub (entspricht dem Original) bei
 10,4 mm Querweg des Bolzens. Der Schlitz im Mitnehmer braucht also mindestens 17,5 mm nutzbare
-Länge bei 5,1 mm Breite, quer zur Schubrichtung, Mitte auf Höhe der Stangenachse. Das Skript
-rechnet diese Werte bei jedem Lauf mit aus und zeigt sie an.
+Länge bei 5,2 mm Breite, quer zur Schubrichtung, Mitte auf Höhe der Stangenachse. Das Skript
+rechnet diese Werte bei jedem Lauf mit aus und zeigt sie an. Der Gegenpart ist das Skript
+**MitnehmerSchubstange** (unten).
+
+### MitnehmerSchubstange
+
+Das Gegenstück zur Kurbel: sitzt hinten auf dem Messingrohr (der Schubstange) und nimmt den
+Ø5-Bolzen der Kurbel in einem Querschlitz auf.
+
+**Erzeugte Geometrie**
+
+- **Klemmnabe** Ø14 × 14 mm mit Ø4,9-Bohrung fürs Rohr, geschlitzt (1 mm), geklemmt mit
+  M3 × 16 quer durch — kein Kleben, der Mitnehmer bleibt auf dem Rohr verschiebbar zum Justieren
+- zwei **Schlüsselflächen**, damit M3-Kopf und Mutter plan aufliegen
+- dahinter ein **Block 28 × 13 × 12 mm mit Querschlitz 5,2 × 18 mm** (Langloch, durchgehend)
+
+**Warum der Schlitz hinter dem Rohrende liegt:** Die Rohrbohrung ist ein Sackloch — das Rohr
+stößt gegen die Blockvorderseite, der Schlitz dahinter liegt im vollen Material. So kann er die
+Rohrachse mittig kreuzen und die Schubkraft greift auf Achshöhe an. Läge der Schlitz über oder
+neben der Stange, würde die Kraft ein Moment erzeugen und die Stange im Gleitlager verkanten.
+
+**Einbau-Kennwerte** (rechnet das Skript bei jedem Lauf aus): Bei Kurbelradius 27 mm und 104°
+Servoweg — 42,6 mm Hub, 10,4 mm Querweg des Bolzens im Schlitz, und die Servoachse gehört
+**21,8 mm quer versetzt** zur Stangenachse. Nur mit diesem Versatz pendelt der Bolzen symmetrisch
+um die Stangenmitte.
+
+**Montage:** Mitnehmer aufs Rohrende schieben, Kurbel in Mittelstellung bringen, Bolzen in den
+Schlitz einfädeln, Mitnehmer so drehen, dass der Schlitz exakt quer zur Schubrichtung steht,
+dann die M3 gefühlvoll anziehen (Steg neben dem Klemmschlitz reißt bei Gewalt). Die Bohrung
+vorher mit einem 5-mm-Bohrer von Hand durchziehen, wie bei der Kurbel.
 
 **Vor dem ersten Druck**
 

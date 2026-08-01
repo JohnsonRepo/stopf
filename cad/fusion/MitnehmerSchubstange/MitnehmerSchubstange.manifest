@@ -1,0 +1,10 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "script",
+    "author": "Johnson",
+    "description": {
+        "": "Parametrischer Mitnehmer fuer die Schubstange: Klemmnabe auf Messingrohr Oe5 mit M3-Klemmschraube und Schluesselflaechen, dahinter ein Block mit Querschlitz fuer den Kurbelbolzen."
+    },
+    "supportedOS": "windows|mac",
+    "editEnabled": true
+}
