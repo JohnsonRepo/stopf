@@ -85,12 +85,12 @@ def run(context):
         doc = app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)
         try:
             doc.name = 'Kurbel Huelsenschieber'
-        except RuntimeError:
-            pass  # rein kosmetisch
+        except Exception:
+            pass  # rein kosmetisch, je nach Version schreibgeschuetzt
 
         design = adsk.fusion.Design.cast(app.activeProduct)
         design.designType = adsk.fusion.DesignTypes.ParametricDesignType
-        design.unitsManager.defaultLengthUnits = 'mm'
+        _anzeige_mm(design)
         root = design.rootComponent
 
         werte = _parameter_anlegen(design)
@@ -120,6 +120,21 @@ def run(context):
         if ui:
             ui.messageBox('Fehler:\n{}'.format(traceback.format_exc()),
                           'Kurbel Huelsenschieber')
+
+
+def _anzeige_mm(design):
+    """Anzeige-Einheit auf mm stellen.
+
+    'defaultLengthUnits' ist nur lesbar - gesetzt wird ueber
+    'distanceDisplayUnits' des FusionUnitsManager. Betrifft ohnehin nur die
+    Anzeige: alle Masse im Skript tragen ihre Einheit selbst ('24 mm'), die
+    Geometrie stimmt also auch, wenn das hier fehlschlaegt.
+    """
+    try:
+        manager = getattr(design, 'fusionUnitsManager', None) or design.unitsManager
+        manager.distanceDisplayUnits = adsk.fusion.DistanceUnits.MillimeterDistanceUnits
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -188,6 +203,14 @@ def _pruefen(w):
 # ---------------------------------------------------------------------------
 # Hilfsfunktionen
 # ---------------------------------------------------------------------------
+def _benennen(objekt, name):
+    """Namen sind reine Kosmetik - nie das Skript daran scheitern lassen."""
+    try:
+        objekt.name = name
+    except Exception:
+        pass
+
+
 def _pt(x_mm, y_mm):
     """Skizzenpunkt aus mm - die API rechnet intern in cm."""
     return adsk.core.Point3D.create(x_mm / 10.0, y_mm / 10.0, 0.0)
@@ -248,7 +271,7 @@ def _bauen(root, w, fehler):
 
     # --- 1) Grundkoerper: Langloch von der Nabe zum Gelenkauge ---------------
     sk = root.sketches.addWithoutEdges(xy)
-    sk.name = 'Grundkoerper'
+    _benennen(sk, 'Grundkoerper')
     linien = sk.sketchCurves.sketchLines
     boegen = sk.sketchCurves.sketchArcs
 
@@ -290,7 +313,7 @@ def _bauen(root, w, fehler):
 
     # --- 2) Nabe aufdicken ---------------------------------------------------
     sk = root.sketches.addWithoutEdges(xy)
-    sk.name = 'Nabe'
+    _benennen(sk, 'Nabe')
     kreis = sk.sketchCurves.sketchCircles.addByCenterRadius(_pt(0.0, 0.0),
                                                            w['naben_d'] / 20.0)
     _versuch(fehler, 'Nabe: Mitte auf Ursprung',
@@ -309,13 +332,26 @@ def _bauen(root, w, fehler):
     arm_l = w['horn_arm_l']
 
     sk = root.sketches.addWithoutEdges(xy)
-    sk.name = 'Hornaufnahme'
+    _benennen(sk, 'Hornaufnahme')
     linien = sk.sketchCurves.sketchLines
-    linien.addByTwoPoints(_pt_gedreht(0.0, b_innen, a), _pt_gedreht(arm_l, b_aussen, a))
+    flanke_oben = linien.addByTwoPoints(_pt_gedreht(0.0, b_innen, a),
+                                        _pt_gedreht(arm_l, b_aussen, a))
     spitze = sk.sketchCurves.sketchArcs.addByCenterStartSweep(
         _pt_gedreht(arm_l, 0.0, a), _pt_gedreht(arm_l, b_aussen, a), -math.pi)
-    linien.addByTwoPoints(_pt_gedreht(arm_l, -b_aussen, a), _pt_gedreht(0.0, -b_innen, a))
-    linien.addByTwoPoints(_pt_gedreht(0.0, -b_innen, a), _pt_gedreht(0.0, b_innen, a))
+    flanke_unten = linien.addByTwoPoints(_pt_gedreht(arm_l, -b_aussen, a),
+                                         _pt_gedreht(0.0, -b_innen, a))
+    ruecken = linien.addByTwoPoints(_pt_gedreht(0.0, -b_innen, a),
+                                    _pt_gedreht(0.0, b_innen, a))
+    # Eckpunkte liegen rechnerisch exakt aufeinander; die Bedingungen sichern das
+    # zusaetzlich ab, damit Fusion die Kontur zuverlaessig als Profil erkennt.
+    gc_t = sk.geometricConstraints
+    for nr, (p1, p2) in enumerate((
+            (flanke_oben.endSketchPoint, spitze.startSketchPoint),
+            (spitze.endSketchPoint, flanke_unten.startSketchPoint),
+            (flanke_unten.endSketchPoint, ruecken.startSketchPoint),
+            (ruecken.endSketchPoint, flanke_oben.startSketchPoint)), start=1):
+        _versuch(fehler, 'Hornaufnahme: Eckpunkt {}'.format(nr),
+                 lambda p1=p1, p2=p2: gc_t.addCoincident(p1, p2))
     _versuch(fehler, 'Hornaufnahme: Radius Spitze', lambda: _bemassung(
         sk.sketchDimensions.addRadialDimension(spitze, _pt_gedreht(arm_l + 6.0, 0.0, a), True),
         'horn_arm_b_aussen / 2 + spiel'))
@@ -323,7 +359,7 @@ def _bauen(root, w, fehler):
 
     # --- 4) Durchgang fuer die Hornnabe / Zentralschraube --------------------
     sk = root.sketches.addWithoutEdges(xy)
-    sk.name = 'Nabenbohrung'
+    _benennen(sk, 'Nabenbohrung')
     kreis = sk.sketchCurves.sketchCircles.addByCenterRadius(
         _pt(0.0, 0.0), (w['horn_nabe_d'] + 0.4) / 20.0)
     _versuch(fehler, 'Nabenbohrung: Mitte auf Ursprung',
@@ -336,7 +372,7 @@ def _bauen(root, w, fehler):
 
     # --- 5) Zwei M2-Durchgangsbohrungen in den aeusseren Hornloechern --------
     sk = root.sketches.addWithoutEdges(xy)
-    sk.name = 'Schraubenloecher M2'
+    _benennen(sk, 'Schraubenloecher M2')
     for schluessel in ('horn_loch_1', 'horn_loch_2'):
         k = sk.sketchCurves.sketchCircles.addByCenterRadius(
             _pt_gedreht(w[schluessel], 0.0, a), w['schraub_d'] / 20.0)
@@ -346,25 +382,26 @@ def _bauen(root, w, fehler):
     _extrudieren(root, _alle_profile(sk), durch, SCHNEIDEN)
 
     # --- 6) Senkungen fuer die M2-Koepfe (von der Oberseite) -----------------
+    # Ebene auf Hoehe des Senkungsgrundes legen und nach OBEN herausschneiden -
+    # so kommt das Skript ohne negative Extrusionsmasse aus.
     ebene_eingabe = root.constructionPlanes.createInput()
-    ebene_eingabe.setByOffset(xy, adsk.core.ValueInput.createByString('dicke'))
+    ebene_eingabe.setByOffset(xy, adsk.core.ValueInput.createByString('dicke - kopf_t'))
     ebene_oben = root.constructionPlanes.add(ebene_eingabe)
-    ebene_oben.name = 'Oberseite'
+    _benennen(ebene_oben, 'Senkungsgrund M2')
 
     sk = root.sketches.addWithoutEdges(ebene_oben)
-    sk.name = 'Senkungen M2'
+    _benennen(sk, 'Senkungen M2')
     for schluessel in ('horn_loch_1', 'horn_loch_2'):
         k = sk.sketchCurves.sketchCircles.addByCenterRadius(
             _pt_gedreht(w[schluessel], 0.0, a), w['kopf_d'] / 20.0)
         _versuch(fehler, 'Senkung {}: Durchmesser'.format(schluessel), lambda k=k: _bemassung(
             sk.sketchDimensions.addDiameterDimension(k, _pt_gedreht(w[schluessel], 4.0, a), True),
             'kopf_d'))
-    # negative Distanz = nach unten ins Material
-    _extrudieren(root, _alle_profile(sk), '-kopf_t', SCHNEIDEN)
+    _extrudieren(root, _alle_profile(sk), 'kopf_t + 1 mm', SCHNEIDEN)
 
     # --- 7) Gelenkbohrung ----------------------------------------------------
     sk = root.sketches.addWithoutEdges(xy)
-    sk.name = 'Gelenkbohrung'
+    _benennen(sk, 'Gelenkbohrung')
     kreis = sk.sketchCurves.sketchCircles.addByCenterRadius(
         _pt(laenge, 0.0), w['gelenk_bohrung'] / 20.0)
     _versuch(fehler, 'Gelenkbohrung: Durchmesser', lambda: _bemassung(
@@ -379,7 +416,7 @@ def _bauen(root, w, fehler):
     # --- 8) Senkung fuer den Gelenk-Schraubenkopf (Unterseite) ---------------
     # Haelt den Kopf weg vom Servogehaeuse und von der Montageplatte.
     sk = root.sketches.addWithoutEdges(xy)
-    sk.name = 'Senkung Gelenk'
+    _benennen(sk, 'Senkung Gelenk')
     kreis = sk.sketchCurves.sketchCircles.addByCenterRadius(
         _pt(laenge, 0.0), w['gelenk_senk_d'] / 20.0)
     _versuch(fehler, 'Senkung Gelenk: Durchmesser', lambda: _bemassung(
