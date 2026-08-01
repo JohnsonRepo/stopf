@@ -4,11 +4,13 @@ Kurbel fuer den Huelsen-Schieber (Ersatz fuer Pos. 49 aus Filling machine.STEP)
 
 Erzeugt ein NEUES Fusion-Dokument mit der 3D-druckbaren Servo-Kurbel:
 
-  * Grundkoerper als Langloch (Nabe -> Gelenkauge), parametrische Hebellaenge
-  * Tasche fuer ein EINARM-Servohorn (SG90-Klasse) in der Unterseite
+  * Grundkoerper als Langloch (Nabe -> Gelenkauge), Hebellaenge frei waehlbar
+  * Tasche fuer ein EINARM-Servohorn in der Unterseite: runde Scheibe um die
+    Welle + konischer Arm + runde Spitze
     -> Formschluss statt Presssitz, das Moment laeuft ueber die Werksverzahnung
-  * Durchgangsbohrung fuer die Hornnabe (gleichzeitig Zugang zur Zentralschraube)
-  * 2 Bohrungen + Senkungen fuer M2-Blechschrauben durch die beiden AEUSSEREN
+  * Durchgangsbohrung fuer den erhabenen Kragen des Horns (gleichzeitig Zugang
+    zur Zentralschraube)
+  * 2 Bohrungen + Senkungen fuer M2-Blechschrauben durch zwei NICHT benachbarte
     Hornloecher (von oben eingedreht, sie schneiden ihr Gewinde im Horn)
   * Gelenkbohrung mit Senkung fuer den Schraubenkopf an der Unterseite
 
@@ -18,11 +20,31 @@ auf einer faktisch glatten Bohrung uebrig - deshalb rutscht sie durch. Hier
 uebernimmt das Originalhorn den Formschluss, der Druck sieht nur noch Scherung
 an zwei M2-Schrauben.
 
+So ist ein Einarm-Horn aufgebaut (Draufsicht, Wellenmitte links):
+
+        horn_arm_b_wurzel        horn_arm_b_spitze
+              |                        |
+       .-----------.              .---------.
+      /   (O)       \___________ /           \        <- horn_scheibe_d
+      \   Scheibe    ___________              |          (runde Scheibe auf
+       `-----------`              \          /            Armhoehe)
+                                   `--------`
+      |<------------ horn_arm_l ------------>|
+      (Mitte Welle bis Armspitze)
+
+Der erhabene Kragen (horn_kragen_d) sitzt mittig auf der Scheibe und ragt nach
+OBEN, also von der Kurbel weg in die Durchgangsbohrung hinein.
+
 Vor dem ersten Lauf: HORN NACHMESSEN
 ------------------------------------
 Die Hornmasse (horn_*) schwanken je nach Hersteller deutlich. Mit dem
-Messschieber am eigenen Horn pruefen und unten in DEFAULTS anpassen (oder nach
-dem Lauf direkt in den Fusion-Parametern aendern, Aenderungen -> Modell baut neu).
+Messschieber am eigenen Horn pruefen und unten in DEFAULTS eintragen.
+
+Masse aendern -> Werte in DEFAULTS anpassen und Skript neu laufen lassen. Die
+Skizzen sind bewusst fest gezeichnet und tragen keine Bedingungen: ein
+Skizzen-Solver, der eine nicht verankerte Kontur verdrehen kann, hat hier schon
+einmal eine schiefe Tasche produziert. Parametrisch bleiben die Feature-Masse
+(Dicke, Taschentiefe, Senkungstiefen) - die sind gegen so etwas immun.
 
 Ausfuehren: Utilities -> Scripts and Add-Ins -> Scripts -> KurbelHuelsenschieber
 Alle Masse in mm.
@@ -36,47 +58,48 @@ import adsk.fusion
 
 
 # ---------------------------------------------------------------------------
-# Parameter (alles in mm / Grad). Werte hier oder spaeter in Fusion aendern.
+# Parameter (alles in mm / Grad)
 # ---------------------------------------------------------------------------
 DEFAULTS = [
-    # (Name, Wert, Einheit, Kommentar)
-    ('hebel_laenge',     24.0, 'mm',  'Achsabstand Servowelle -> Gelenkbolzen (Ist=24, Variante A=27)'),
-    ('dicke',             8.0, 'mm',  'Plattendicke = Nabenhoehe (Original nur 3 mm - zu wenig)'),
-    ('naben_d',          16.0, 'mm',  'Aussendurchmesser an der Nabe'),
-    ('arm_breite',       10.0, 'mm',  'Breite des Hebelarms = Durchmesser am Gelenkauge'),
+    # --- Kurbel selbst ---
+    ('hebel_laenge',      24.0, 'mm',  'Achsabstand Servowelle -> Gelenkbolzen (Ist=24, Variante A=27)'),
+    ('dicke',              8.0, 'mm',  'Plattendicke = Nabenhoehe (Original nur 3 mm - zu wenig)'),
+    ('naben_d',           16.0, 'mm',  'Aussendurchmesser an der Nabe'),
+    ('arm_breite',        10.0, 'mm',  'Breite des Hebelarms = Durchmesser am Gelenkauge'),
 
-    ('horn_winkel',       0.0, 'deg', 'Winkel Hornarm gegen Hebelrichtung (0 = gleiche Richtung)'),
-    ('horn_nabe_d',       7.0, 'mm',  'MESSEN: Aussendurchmesser der Hornnabe'),
-    ('horn_arm_l',       16.0, 'mm',  'MESSEN: Laenge des Hornarms ab Wellenmitte'),
-    ('horn_arm_b_innen',  6.5, 'mm',  'MESSEN: Armbreite an der Nabe'),
-    ('horn_arm_b_aussen', 4.0, 'mm',  'MESSEN: Armbreite an der Spitze'),
-    ('horn_arm_dicke',    1.5, 'mm',  'MESSEN: Dicke des Hornarms'),
+    # --- Horn: alle Werte am eigenen Horn nachmessen ---
+    ('horn_winkel',        0.0, 'deg', 'Winkel Hornarm gegen Hebelrichtung (0 = gleiche Richtung)'),
+    ('horn_scheibe_d',     7.2, 'mm',  'MESSEN: Oe der runden Scheibe am Horn (auf Armhoehe)'),
+    ('horn_kragen_d',      6.0, 'mm',  'MESSEN: Oe des erhabenen Kragens ueber der Scheibe'),
+    ('horn_arm_l',        15.5, 'mm',  'MESSEN: Wellenmitte -> Armspitze'),
+    ('horn_arm_b_wurzel',  6.0, 'mm',  'MESSEN: Armbreite am Uebergang zur Scheibe'),
+    ('horn_arm_b_spitze',  4.0, 'mm',  'MESSEN: Armbreite an der Spitze'),
+    ('horn_arm_dicke',     1.5, 'mm',  'MESSEN: Dicke des Hornarms'),
     # Bewusst NICHT zwei benachbarte Hornloecher: bei ~2,5 mm Lochteilung wuerden
-    # die Schraubenkoepfe (und ihre Senkungen) ineinanderlaufen. Deshalb das
-    # zweite und das aeusserste Loch nehmen.
-    ('horn_loch_1',       8.0, 'mm',  'MESSEN: Abstand 2. Hornloch ab Wellenmitte'),
-    ('horn_loch_2',      13.0, 'mm',  'MESSEN: Abstand 4. (aeusserstes) Hornloch ab Wellenmitte'),
+    # die Schraubenkoepfe (und ihre Senkungen) ineinanderlaufen.
+    ('horn_loch_1',        7.0, 'mm',  'MESSEN: Abstand 2. Hornloch ab Wellenmitte'),
+    ('horn_loch_2',       12.0, 'mm',  'MESSEN: Abstand 4. (aeusserstes) Hornloch ab Wellenmitte'),
 
-    ('spiel',            0.15, 'mm',  'Taschenspiel pro Seite (bei strammem Drucker 0,2)'),
-    ('schraub_d',         2.1, 'mm',  'Durchgangsbohrung M2-Blechschraube'),
-    ('kopf_d',            4.2, 'mm',  'Senkung Schraubenkopf M2'),
-    ('kopf_t',            1.6, 'mm',  'Tiefe Senkung Schraubenkopf M2'),
+    # --- Passungen und Verschraubung ---
+    ('spiel',             0.15, 'mm',  'Taschenspiel pro Seite (bei strammem Drucker 0,2)'),
+    ('schraub_d',          2.1, 'mm',  'Durchgangsbohrung M2-Blechschraube'),
+    ('kopf_d',             4.2, 'mm',  'Senkung Schraubenkopf M2'),
+    ('kopf_t',             1.6, 'mm',  'Tiefe Senkung Schraubenkopf M2'),
 
-    ('gelenk_bohrung',    3.2, 'mm',  'Gelenkbohrung (M3 = 3,2 / Kulisse M4 = 4,2)'),
-    ('gelenk_senk_d',     6.4, 'mm',  'Senkung Schraubenkopf am Gelenk (Unterseite)'),
-    ('gelenk_senk_t',     3.0, 'mm',  'Tiefe dieser Senkung'),
+    ('gelenk_bohrung',     3.2, 'mm',  'Gelenkbohrung (M3 = 3,2 / Kulisse M4 = 4,2)'),
+    ('gelenk_senk_d',      6.4, 'mm',  'Senkung Schraubenkopf am Gelenk (Unterseite)'),
+    ('gelenk_senk_t',      3.0, 'mm',  'Tiefe dieser Senkung'),
 ]
 
 # Taschentiefe bewusst 0,2 mm FLACHER als der Hornarm: die Kurbel liegt damit
 # sicher auf dem Horn auf und schleift nie am Servogehaeuse.
 TASCHE_EXPR = 'horn_arm_dicke - 0.2 mm'
-# Hornnabe soll frei durchtreten, gleichzeitig Zugang zur Zentralschraube.
-NABENBOHRUNG_EXPR = 'horn_nabe_d + 0.4 mm'
+# Kragen soll frei durchtreten, gleichzeitig Zugang zur Zentralschraube.
+KRAGEN_LUFT = 0.4
 
 
 def run(context):
     ui = None
-    fehler = []
     try:
         app = adsk.core.Application.get()
         ui = app.userInterface
@@ -95,7 +118,7 @@ def run(context):
 
         werte = _parameter_anlegen(design)
         warnungen = _pruefen(werte)
-        _bauen(root, werte, fehler)
+        _bauen(root, werte)
 
         app.activeViewport.fit()
 
@@ -106,14 +129,11 @@ def run(context):
             'Hebellaenge {hebel_laenge:.1f} mm, Dicke {dicke:.1f} mm, '
             'Nabe Oe{naben_d:.1f} mm.\n'
             'Passende Schrauben: 2x M2 x {schraube:.0f} mm (Blechschraube).\n\n'
-            'Naechster Schritt: Hornmasse (horn_*) am eigenen Horn nachmessen und '
-            'in den Parametern korrigieren.'
+            'Hornmasse aendern: Werte in DEFAULTS im Skript anpassen und neu '
+            'laufen lassen.'
         ).format(schraube=schraubenlaenge, **werte)
         if warnungen:
             hinweis += '\n\nPruefen:\n- ' + '\n- '.join(warnungen)
-        if fehler:
-            hinweis += ('\n\nNicht gesetzte Skizzen-Bedingungen (Geometrie ist trotzdem '
-                        'korrekt, nur nicht voll parametrisch):\n- ' + '\n- '.join(fehler))
         ui.messageBox(hinweis, 'Kurbel Huelsenschieber')
 
     except Exception:
@@ -127,8 +147,7 @@ def _anzeige_mm(design):
 
     'defaultLengthUnits' ist nur lesbar - gesetzt wird ueber
     'distanceDisplayUnits' des FusionUnitsManager. Betrifft ohnehin nur die
-    Anzeige: alle Masse im Skript tragen ihre Einheit selbst ('24 mm'), die
-    Geometrie stimmt also auch, wenn das hier fehlschlaegt.
+    Anzeige: alle Masse im Skript tragen ihre Einheit selbst ('24 mm').
     """
     try:
         manager = getattr(design, 'fusionUnitsManager', None) or design.unitsManager
@@ -137,9 +156,6 @@ def _anzeige_mm(design):
         pass
 
 
-# ---------------------------------------------------------------------------
-# Parameter
-# ---------------------------------------------------------------------------
 def _parameter_anlegen(design):
     """Legt die User-Parameter an und liefert die Zahlenwerte als dict zurueck."""
     params = design.userParameters
@@ -161,8 +177,22 @@ def _parameter_anlegen(design):
 # ---------------------------------------------------------------------------
 # Plausibilitaet - faengt die typischen Fehler nach dem Nachmessen ab
 # ---------------------------------------------------------------------------
+def _im_koerper(x, y, w, rand):
+    """Liegt der Punkt mit 'rand' Sicherheitsabstand noch im Grundkoerper?"""
+    if math.hypot(x, y) <= w['naben_d'] / 2.0 - rand:
+        return True
+    if 0.0 <= x <= w['hebel_laenge'] and abs(y) <= w['arm_breite'] / 2.0 - rand:
+        return True
+    if math.hypot(x - w['hebel_laenge'], y) <= w['arm_breite'] / 2.0 - rand:
+        return True
+    return False
+
+
 def _pruefen(w):
     warnungen = []
+    kragen_r = (w['horn_kragen_d'] + KRAGEN_LUFT) / 2.0
+    scheibe_r = w['horn_scheibe_d'] / 2.0 + w['spiel']
+    naben_r = w['naben_d'] / 2.0
 
     abstand = abs(w['horn_loch_2'] - w['horn_loch_1'])
     if abstand < w['kopf_d'] + 0.5:
@@ -171,31 +201,67 @@ def _pruefen(w):
             'laufen ineinander. Zwei weiter auseinanderliegende Hornloecher waehlen.'
             .format(abstand, w['kopf_d']))
 
-    naben_r = w['naben_d'] / 2.0
-    bohrung_r = (w['horn_nabe_d'] + 0.4) / 2.0
-    if naben_r - bohrung_r < 3.0:
+    if naben_r - kragen_r < 3.0:
         warnungen.append(
-            'Nur {:.1f} mm Wand um die Nabenbohrung - naben_d vergroessern (>= {:.1f} mm).'
-            .format(naben_r - bohrung_r, (bohrung_r + 3.0) * 2.0))
+            'Nur {:.1f} mm Wand um die Kragenbohrung - naben_d auf mindestens '
+            '{:.1f} mm vergroessern.'.format(naben_r - kragen_r, (kragen_r + 3.0) * 2.0))
 
-    innen_r = w['horn_loch_1'] - w['kopf_d'] / 2.0
-    if innen_r < bohrung_r + 1.0:
+    if scheibe_r > naben_r - 1.0:
         warnungen.append(
-            'Die innere Senkung schneidet fast in die Nabenbohrung - horn_loch_1 '
-            'weiter aussen waehlen.')
+            'Die Hornscheibe (Oe{:.1f}) laesst kaum Rand an der Nabe (Oe{:.1f}) - '
+            'naben_d vergroessern.'.format(w['horn_scheibe_d'], w['naben_d']))
 
-    if w['horn_arm_l'] + w['horn_arm_b_aussen'] / 2.0 > w['hebel_laenge'] - w['gelenk_senk_d'] / 2.0:
+    if w['horn_kragen_d'] > w['horn_scheibe_d']:
+        warnungen.append(
+            'horn_kragen_d ist groesser als horn_scheibe_d - vermutlich vertauscht. '
+            'Scheibe = flacher Teil auf Armhoehe, Kragen = erhabener Ring darueber.')
+
+    for schluessel in ('horn_loch_1', 'horn_loch_2'):
+        innen_r = w[schluessel] - w['kopf_d'] / 2.0
+        if innen_r < kragen_r + 1.0:
+            warnungen.append(
+                'Senkung von {} liegt zu dicht an der Kragenbohrung - Loch weiter '
+                'aussen waehlen.'.format(schluessel))
+        if w[schluessel] > w['horn_arm_l'] - w['horn_arm_b_spitze'] / 2.0:
+            warnungen.append(
+                '{} liegt ausserhalb des Hornarms - Wert pruefen.'.format(schluessel))
+
+    # Armspitze und beide Schraubenloecher muessen im Grundkoerper liegen -
+    # bei schraegem horn_winkel laeuft der Arm sonst seitlich heraus.
+    spitze = _dreh_xy(w['horn_arm_l'], 0.0, w['horn_winkel'])
+    if not _im_koerper(spitze[0], spitze[1], w, w['horn_arm_b_spitze'] / 2.0 + w['spiel']):
+        warnungen.append(
+            'Die Armspitze liegt bei horn_winkel = {:.0f} Grad ausserhalb der Kurbel. '
+            'Winkel verkleinern, arm_breite oder naben_d vergroessern.'
+            .format(w['horn_winkel']))
+    for schluessel in ('horn_loch_1', 'horn_loch_2'):
+        loch = _dreh_xy(w[schluessel], 0.0, w['horn_winkel'])
+        if not _im_koerper(loch[0], loch[1], w, w['kopf_d'] / 2.0 + 0.8):
+            warnungen.append(
+                'Senkung von {} liegt am oder ueber dem Rand der Kurbel - Winkel oder '
+                'Breite anpassen.'.format(schluessel))
+
+    if not _im_koerper(w['horn_arm_l'], 0.0, w, w['horn_arm_b_spitze'] / 2.0) \
+            and abs(w['horn_winkel']) < 1e-9:
+        warnungen.append(
+            'Hornarm ist laenger als die Kurbel - hebel_laenge vergroessern oder '
+            'kuerzeres Horn verwenden.')
+
+    if w['horn_arm_l'] + w['horn_arm_b_spitze'] / 2.0 > w['hebel_laenge'] - w['gelenk_senk_d'] / 2.0:
         warnungen.append(
             'Hornarm reicht bis in die Gelenksenkung - hebel_laenge vergroessern oder '
             'kuerzeres Horn verwenden.')
 
-    if w['horn_arm_b_innen'] / 2.0 + w['spiel'] > w['naben_d'] / 2.0:
+    if w['horn_arm_b_wurzel'] / 2.0 + w['spiel'] > naben_r:
         warnungen.append('Hornarm ist breiter als die Nabe - naben_d vergroessern.')
 
     if w['dicke'] <= w['gelenk_senk_t'] + 2.0:
         warnungen.append(
             'Zu wenig Restmaterial unter der Gelenksenkung - dicke erhoehen oder '
             'gelenk_senk_t verringern.')
+
+    if w['horn_arm_dicke'] <= 0.4:
+        warnungen.append('horn_arm_dicke zu klein - die Tasche wuerde verschwinden.')
 
     return warnungen
 
@@ -216,30 +282,27 @@ def _pt(x_mm, y_mm):
     return adsk.core.Point3D.create(x_mm / 10.0, y_mm / 10.0, 0.0)
 
 
-def _dreh(x_mm, y_mm, winkel_grad):
-    """Dreht einen Punkt um den Ursprung (fuer die Hornrichtung)."""
+def _dreh_xy(x_mm, y_mm, winkel_grad):
+    """Dreht einen Punkt um den Ursprung - fuer die Ausrichtung des Hornarms."""
     a = math.radians(winkel_grad)
     return (x_mm * math.cos(a) - y_mm * math.sin(a),
             x_mm * math.sin(a) + y_mm * math.cos(a))
 
 
 def _pt_gedreht(x_mm, y_mm, winkel_grad):
-    x, y = _dreh(x_mm, y_mm, winkel_grad)
-    return _pt(x, y)
+    return _pt(*_dreh_xy(x_mm, y_mm, winkel_grad))
 
 
-def _versuch(fehler, beschreibung, funktion):
-    """Bedingungen/Bemassungen sind Kuer, nicht Pflicht.
+def _kreis(sketch, mittelpunkt, durchmesser_mm):
+    return sketch.sketchCurves.sketchCircles.addByCenterRadius(
+        mittelpunkt, durchmesser_mm / 20.0)
 
-    Die Geometrie wird numerisch korrekt gezeichnet. Schlaegt eine Bedingung fehl
-    (z. B. weil Fusion sie als ueberbestimmt ablehnt), laeuft das Skript weiter
-    und meldet es am Ende - statt mittendrin abzubrechen.
-    """
-    try:
-        return funktion()
-    except Exception:
-        fehler.append(beschreibung)
-        return None
+
+def _polygon(sketch, punkte):
+    """Geschlossener Linienzug aus einer Punktliste."""
+    linien = sketch.sketchCurves.sketchLines
+    for i in range(len(punkte)):
+        linien.addByTwoPoints(punkte[i], punkte[(i + 1) % len(punkte)])
 
 
 def _alle_profile(sketch):
@@ -249,139 +312,74 @@ def _alle_profile(sketch):
     return profile
 
 
-def _extrudieren(root, profil, ausdruck, operation):
+def _extrudieren(root, sketch, ausdruck, operation):
+    """Extrudiert ALLE Profile einer Skizze.
+
+    Die Konturen werden aus sich ueberlappenden Grundformen aufgebaut - Kreis,
+    Vieleck, Kreis. Fusion zerlegt das in mehrere Teilprofile; werden alle
+    zusammen extrudiert, ergibt das exakt die Vereinigungsflaeche. Das ist
+    deutlich robuster als ein einzelner, zusammengehefteter Linienzug.
+    """
     return root.features.extrudeFeatures.addSimple(
-        profil, adsk.core.ValueInput.createByString(ausdruck), operation)
+        _alle_profile(sketch),
+        adsk.core.ValueInput.createByString(ausdruck),
+        operation)
 
 
 # ---------------------------------------------------------------------------
 # Geometrie
 # ---------------------------------------------------------------------------
-def _bauen(root, w, fehler):
+def _bauen(root, w):
     NEU = adsk.fusion.FeatureOperations.NewBodyFeatureOperation
     VEREINEN = adsk.fusion.FeatureOperations.JoinFeatureOperation
     SCHNEIDEN = adsk.fusion.FeatureOperations.CutFeatureOperation
-    HORIZONTAL = adsk.fusion.DimensionOrientations.HorizontalDimensionOrientation
 
     xy = root.xYConstructionPlane
     laenge = w['hebel_laenge']
     halbe_breite = w['arm_breite'] / 2.0
-    # Durchgangsbohrungen etwas laenger als das Teil - sauberer Schnitt
-    durch = 'dicke + 2 mm'
+    winkel = w['horn_winkel']
+    durch = 'dicke + 2 mm'   # Durchgangsbohrungen etwas laenger als das Teil
 
-    # --- 1) Grundkoerper: Langloch von der Nabe zum Gelenkauge ---------------
+    # --- 1) Grundkoerper: Nabe + Arm + Gelenkauge ---------------------------
+    # Drei sich ueberlappende Grundformen statt einer getrimmten Kontur.
     sk = root.sketches.addWithoutEdges(xy)
     _benennen(sk, 'Grundkoerper')
-    linien = sk.sketchCurves.sketchLines
-    boegen = sk.sketchCurves.sketchArcs
+    _kreis(sk, _pt(0.0, 0.0), w['naben_d'])
+    _kreis(sk, _pt(laenge, 0.0), w['arm_breite'])
+    _polygon(sk, [_pt(0.0, halbe_breite), _pt(laenge, halbe_breite),
+                  _pt(laenge, -halbe_breite), _pt(0.0, -halbe_breite)])
+    _extrudieren(root, sk, 'dicke', NEU)
 
-    oben = linien.addByTwoPoints(_pt(0.0, halbe_breite), _pt(laenge, halbe_breite))
-    unten = linien.addByTwoPoints(_pt(0.0, -halbe_breite), _pt(laenge, -halbe_breite))
-    bogen_r = boegen.addByCenterStartSweep(_pt(laenge, 0.0),
-                                           _pt(laenge, halbe_breite), -math.pi)
-    bogen_l = boegen.addByCenterStartSweep(_pt(0.0, 0.0),
-                                           _pt(0.0, -halbe_breite), -math.pi)
-
-    gc = sk.geometricConstraints
-    _versuch(fehler, 'Kontur: Eckpunkt rechts oben',
-             lambda: gc.addCoincident(oben.endSketchPoint, bogen_r.startSketchPoint))
-    _versuch(fehler, 'Kontur: Eckpunkt rechts unten',
-             lambda: gc.addCoincident(bogen_r.endSketchPoint, unten.endSketchPoint))
-    _versuch(fehler, 'Kontur: Eckpunkt links unten',
-             lambda: gc.addCoincident(unten.startSketchPoint, bogen_l.startSketchPoint))
-    _versuch(fehler, 'Kontur: Eckpunkt links oben',
-             lambda: gc.addCoincident(bogen_l.endSketchPoint, oben.startSketchPoint))
-    _versuch(fehler, 'Kontur: Nabenmitte auf Ursprung',
-             lambda: gc.addCoincident(bogen_l.centerSketchPoint, sk.originPoint))
-    for nr, (a, b) in enumerate(((oben, bogen_r), (bogen_r, unten),
-                                 (unten, bogen_l), (bogen_l, oben)), start=1):
-        _versuch(fehler, 'Kontur: Tangente {}'.format(nr),
-                 lambda a=a, b=b: gc.addTangent(a, b))
-    _versuch(fehler, 'Kontur: gleiche Radien',
-             lambda: gc.addEqual(bogen_l, bogen_r))
-
-    sd = sk.sketchDimensions
-    _versuch(fehler, 'Kontur: Armbreite', lambda: _bemassung(
-        sd.addRadialDimension(bogen_l, _pt(-halbe_breite, halbe_breite), True),
-        'arm_breite / 2'))
-    _versuch(fehler, 'Kontur: Hebellaenge', lambda: _bemassung(
-        sd.addDistanceDimension(bogen_l.centerSketchPoint, bogen_r.centerSketchPoint,
-                                HORIZONTAL, _pt(laenge / 2.0, -halbe_breite - 4.0), True),
-        'hebel_laenge'))
-
-    _extrudieren(root, _alle_profile(sk), 'dicke', NEU)
-
-    # --- 2) Nabe aufdicken ---------------------------------------------------
-    sk = root.sketches.addWithoutEdges(xy)
-    _benennen(sk, 'Nabe')
-    kreis = sk.sketchCurves.sketchCircles.addByCenterRadius(_pt(0.0, 0.0),
-                                                           w['naben_d'] / 20.0)
-    _versuch(fehler, 'Nabe: Mitte auf Ursprung',
-             lambda: sk.geometricConstraints.addCoincident(kreis.centerSketchPoint,
-                                                           sk.originPoint))
-    _versuch(fehler, 'Nabe: Durchmesser', lambda: _bemassung(
-        sk.sketchDimensions.addDiameterDimension(kreis, _pt(w['naben_d'] / 2.0, 0.0), True),
-        'naben_d'))
-    _extrudieren(root, _alle_profile(sk), 'dicke', VEREINEN)
-
-    # --- 3) Tasche fuer den Einarm-Hornarm (Unterseite) ----------------------
-    # Leicht konisch, wie der Hornarm selbst: an der Nabe breit, zur Spitze schmal.
-    a = w['horn_winkel']
-    b_innen = w['horn_arm_b_innen'] / 2.0 + w['spiel']
-    b_aussen = w['horn_arm_b_aussen'] / 2.0 + w['spiel']
+    # --- 2) Tasche fuer das Einarm-Horn (Unterseite) ------------------------
+    # Runde Scheibe um die Welle + konischer Arm + runde Spitze.
+    b_wurzel = w['horn_arm_b_wurzel'] / 2.0 + w['spiel']
+    b_spitze = w['horn_arm_b_spitze'] / 2.0 + w['spiel']
     arm_l = w['horn_arm_l']
 
     sk = root.sketches.addWithoutEdges(xy)
     _benennen(sk, 'Hornaufnahme')
-    linien = sk.sketchCurves.sketchLines
-    flanke_oben = linien.addByTwoPoints(_pt_gedreht(0.0, b_innen, a),
-                                        _pt_gedreht(arm_l, b_aussen, a))
-    spitze = sk.sketchCurves.sketchArcs.addByCenterStartSweep(
-        _pt_gedreht(arm_l, 0.0, a), _pt_gedreht(arm_l, b_aussen, a), -math.pi)
-    flanke_unten = linien.addByTwoPoints(_pt_gedreht(arm_l, -b_aussen, a),
-                                         _pt_gedreht(0.0, -b_innen, a))
-    ruecken = linien.addByTwoPoints(_pt_gedreht(0.0, -b_innen, a),
-                                    _pt_gedreht(0.0, b_innen, a))
-    # Eckpunkte liegen rechnerisch exakt aufeinander; die Bedingungen sichern das
-    # zusaetzlich ab, damit Fusion die Kontur zuverlaessig als Profil erkennt.
-    gc_t = sk.geometricConstraints
-    for nr, (p1, p2) in enumerate((
-            (flanke_oben.endSketchPoint, spitze.startSketchPoint),
-            (spitze.endSketchPoint, flanke_unten.startSketchPoint),
-            (flanke_unten.endSketchPoint, ruecken.startSketchPoint),
-            (ruecken.endSketchPoint, flanke_oben.startSketchPoint)), start=1):
-        _versuch(fehler, 'Hornaufnahme: Eckpunkt {}'.format(nr),
-                 lambda p1=p1, p2=p2: gc_t.addCoincident(p1, p2))
-    _versuch(fehler, 'Hornaufnahme: Radius Spitze', lambda: _bemassung(
-        sk.sketchDimensions.addRadialDimension(spitze, _pt_gedreht(arm_l + 6.0, 0.0, a), True),
-        'horn_arm_b_aussen / 2 + spiel'))
-    _extrudieren(root, _alle_profile(sk), TASCHE_EXPR, SCHNEIDEN)
+    _kreis(sk, _pt(0.0, 0.0), w['horn_scheibe_d'] + 2.0 * w['spiel'])
+    _kreis(sk, _pt_gedreht(arm_l, 0.0, winkel), w['horn_arm_b_spitze'] + 2.0 * w['spiel'])
+    _polygon(sk, [_pt_gedreht(0.0, b_wurzel, winkel),
+                  _pt_gedreht(arm_l, b_spitze, winkel),
+                  _pt_gedreht(arm_l, -b_spitze, winkel),
+                  _pt_gedreht(0.0, -b_wurzel, winkel)])
+    _extrudieren(root, sk, TASCHE_EXPR, SCHNEIDEN)
 
-    # --- 4) Durchgang fuer die Hornnabe / Zentralschraube --------------------
+    # --- 3) Durchgang fuer den erhabenen Kragen / Zentralschraube -----------
     sk = root.sketches.addWithoutEdges(xy)
-    _benennen(sk, 'Nabenbohrung')
-    kreis = sk.sketchCurves.sketchCircles.addByCenterRadius(
-        _pt(0.0, 0.0), (w['horn_nabe_d'] + 0.4) / 20.0)
-    _versuch(fehler, 'Nabenbohrung: Mitte auf Ursprung',
-             lambda: sk.geometricConstraints.addCoincident(kreis.centerSketchPoint,
-                                                           sk.originPoint))
-    _versuch(fehler, 'Nabenbohrung: Durchmesser', lambda: _bemassung(
-        sk.sketchDimensions.addDiameterDimension(kreis, _pt(0.0, w['horn_nabe_d']), True),
-        NABENBOHRUNG_EXPR))
-    _extrudieren(root, _alle_profile(sk), durch, SCHNEIDEN)
+    _benennen(sk, 'Kragenbohrung')
+    _kreis(sk, _pt(0.0, 0.0), w['horn_kragen_d'] + KRAGEN_LUFT)
+    _extrudieren(root, sk, durch, SCHNEIDEN)
 
-    # --- 5) Zwei M2-Durchgangsbohrungen in den aeusseren Hornloechern --------
+    # --- 4) Zwei M2-Durchgangsbohrungen in den Hornloechern -----------------
     sk = root.sketches.addWithoutEdges(xy)
     _benennen(sk, 'Schraubenloecher M2')
     for schluessel in ('horn_loch_1', 'horn_loch_2'):
-        k = sk.sketchCurves.sketchCircles.addByCenterRadius(
-            _pt_gedreht(w[schluessel], 0.0, a), w['schraub_d'] / 20.0)
-        _versuch(fehler, 'M2-Bohrung {}: Durchmesser'.format(schluessel), lambda k=k: _bemassung(
-            sk.sketchDimensions.addDiameterDimension(k, _pt_gedreht(w[schluessel], 3.0, a), True),
-            'schraub_d'))
-    _extrudieren(root, _alle_profile(sk), durch, SCHNEIDEN)
+        _kreis(sk, _pt_gedreht(w[schluessel], 0.0, winkel), w['schraub_d'])
+    _extrudieren(root, sk, durch, SCHNEIDEN)
 
-    # --- 6) Senkungen fuer die M2-Koepfe (von der Oberseite) -----------------
+    # --- 5) Senkungen fuer die M2-Koepfe (von der Oberseite) ----------------
     # Ebene auf Hoehe des Senkungsgrundes legen und nach OBEN herausschneiden -
     # so kommt das Skript ohne negative Extrusionsmasse aus.
     ebene_eingabe = root.constructionPlanes.createInput()
@@ -392,40 +390,18 @@ def _bauen(root, w, fehler):
     sk = root.sketches.addWithoutEdges(ebene_oben)
     _benennen(sk, 'Senkungen M2')
     for schluessel in ('horn_loch_1', 'horn_loch_2'):
-        k = sk.sketchCurves.sketchCircles.addByCenterRadius(
-            _pt_gedreht(w[schluessel], 0.0, a), w['kopf_d'] / 20.0)
-        _versuch(fehler, 'Senkung {}: Durchmesser'.format(schluessel), lambda k=k: _bemassung(
-            sk.sketchDimensions.addDiameterDimension(k, _pt_gedreht(w[schluessel], 4.0, a), True),
-            'kopf_d'))
-    _extrudieren(root, _alle_profile(sk), 'kopf_t + 1 mm', SCHNEIDEN)
+        _kreis(sk, _pt_gedreht(w[schluessel], 0.0, winkel), w['kopf_d'])
+    _extrudieren(root, sk, 'kopf_t + 1 mm', SCHNEIDEN)
 
-    # --- 7) Gelenkbohrung ----------------------------------------------------
+    # --- 6) Gelenkbohrung ---------------------------------------------------
     sk = root.sketches.addWithoutEdges(xy)
     _benennen(sk, 'Gelenkbohrung')
-    kreis = sk.sketchCurves.sketchCircles.addByCenterRadius(
-        _pt(laenge, 0.0), w['gelenk_bohrung'] / 20.0)
-    _versuch(fehler, 'Gelenkbohrung: Durchmesser', lambda: _bemassung(
-        sk.sketchDimensions.addDiameterDimension(kreis, _pt(laenge, 3.0), True),
-        'gelenk_bohrung'))
-    _versuch(fehler, 'Gelenkbohrung: Lage', lambda: _bemassung(
-        sk.sketchDimensions.addDistanceDimension(sk.originPoint, kreis.centerSketchPoint,
-                                                 HORIZONTAL, _pt(laenge / 2.0, 6.0), True),
-        'hebel_laenge'))
-    _extrudieren(root, _alle_profile(sk), durch, SCHNEIDEN)
+    _kreis(sk, _pt(laenge, 0.0), w['gelenk_bohrung'])
+    _extrudieren(root, sk, durch, SCHNEIDEN)
 
-    # --- 8) Senkung fuer den Gelenk-Schraubenkopf (Unterseite) ---------------
+    # --- 7) Senkung fuer den Gelenk-Schraubenkopf (Unterseite) --------------
     # Haelt den Kopf weg vom Servogehaeuse und von der Montageplatte.
     sk = root.sketches.addWithoutEdges(xy)
     _benennen(sk, 'Senkung Gelenk')
-    kreis = sk.sketchCurves.sketchCircles.addByCenterRadius(
-        _pt(laenge, 0.0), w['gelenk_senk_d'] / 20.0)
-    _versuch(fehler, 'Senkung Gelenk: Durchmesser', lambda: _bemassung(
-        sk.sketchDimensions.addDiameterDimension(kreis, _pt(laenge, 5.0), True),
-        'gelenk_senk_d'))
-    _extrudieren(root, _alle_profile(sk), 'gelenk_senk_t', SCHNEIDEN)
-
-
-def _bemassung(dimension, ausdruck):
-    """Bindet eine Skizzenbemassung an einen User-Parameter."""
-    dimension.parameter.expression = ausdruck
-    return dimension
+    _kreis(sk, _pt(laenge, 0.0), w['gelenk_senk_d'])
+    _extrudieren(root, sk, 'gelenk_senk_t', SCHNEIDEN)

@@ -33,20 +33,33 @@ Scherung an den Schrauben.
 
 **Erzeugte Geometrie**
 
-- Langloch-Grundkörper von der Nabe zum Gelenkauge, Hebellänge parametrisch (Default 24 mm =
+- Langloch-Grundkörper von der Nabe zum Gelenkauge, Hebellänge frei wählbar (Default 24 mm =
   Ist-Maß, für Kinematik-Variante A auf 27 mm setzen)
 - 8 mm Plattendicke statt 3 mm — die Nabenhöhe ist der größte Hebel gegen Durchrutschen
-- Tasche für den Hornarm in der Unterseite, leicht konisch, 0,2 mm flacher als der Arm
-  (die Kurbel liegt damit auf dem Horn auf und schleift nie am Servogehäuse)
-- Durchgang für die Hornnabe, gleichzeitig Zugang zur Zentralschraube
-- 2× Ø2,1 Durchgang + Senkung für M2-Blechschrauben durch die beiden **äußeren** Hornlöcher
+- Tasche für das Horn in der Unterseite: **runde Scheibe um die Welle + konischer Arm + runde
+  Spitze**, 0,2 mm flacher als der Arm (die Kurbel liegt damit auf dem Horn auf und schleift
+  nie am Servogehäuse)
+- Durchgang für den erhabenen Kragen, gleichzeitig Zugang zur Zentralschraube
+- 2× Ø2,1 Durchgang + Senkung für M2-Blechschrauben durch zwei **nicht benachbarte** Hornlöcher
 - Gelenkbohrung Ø3,2 (M3) mit Senkung Ø6,4 × 3 an der Unterseite für den Schraubenkopf
 
 **Vor dem ersten Druck**
 
-Die `horn_*`-Parameter sind Richtwerte für ein SG90-Einarmhorn und schwanken je nach Hersteller.
-Das eigene Horn mit dem Messschieber prüfen und die Parameter in Fusion korrigieren — Nabendurchmesser,
-Armlänge, Armbreite innen/außen, Armdicke und die zwei Lochabstände.
+Die `horn_*`-Werte sind Richtwerte für ein SG90-Einarmhorn und schwanken je nach Hersteller.
+Das eigene Horn mit dem Messschieber prüfen und die Werte in `DEFAULTS` im Skript eintragen:
+Scheibendurchmesser (flacher Teil auf Armhöhe), Kragendurchmesser (erhabener Ring darüber),
+Armlänge ab Wellenmitte, Armbreite an der Wurzel und an der Spitze, Armdicke und die zwei
+Lochabstände.
+
+Beim Lauf prüft das Skript die Maße gegeneinander und meldet Kollisionen: Senkungen zu dicht
+beieinander oder zu nah an der Kragenbohrung, zu dünne Wand an der Nabe, Armspitze oder
+Schraubenlöcher außerhalb der Kurbel (passiert schnell, sobald `horn_winkel` deutlich von 0
+abweicht), Arm bis in die Gelenksenkung, Scheibe und Kragen vertauscht.
+
+**Maße ändern → Skript neu laufen lassen.** Die Skizzen sind bewusst fest gezeichnet und tragen
+keine Bedingungen: eine nicht am Ursprung verankerte Kontur darf der Skizzen-Solver verdrehen,
+und genau das hat schon einmal eine schiefe Hornaufnahme erzeugt. Parametrisch bleiben die
+Feature-Maße (Dicke, Taschentiefe, Senkungstiefen) — die sind gegen so etwas immun.
 
 **Druckempfehlung**
 
