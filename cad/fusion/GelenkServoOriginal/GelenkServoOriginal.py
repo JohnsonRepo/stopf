@@ -337,14 +337,6 @@ def _extrudieren(root, sketch, ausdruck, operation):
         operation)
 
 
-def _durchbruch(root, sketch, operation):
-    """Symmetrisch durch alles - unabhaengig von der Ebenennormale."""
-    extrudes = root.features.extrudeFeatures
-    eingabe = extrudes.createInput(_alle_profile(sketch), operation)
-    eingabe.setAllExtent(adsk.fusion.ExtentDirections.SymmetricExtentDirection)
-    return extrudes.add(eingabe)
-
-
 def _ebene(root, ausdruck, name):
     eingabe = root.constructionPlanes.createInput()
     eingabe.setByOffset(root.xYConstructionPlane,
@@ -463,22 +455,18 @@ def _gabelkopf(root, w, NEU, VEREINEN, SCHNEIDEN, xy):
     # Stangenbohrung: blind vom Heck bis zum Schlitzgrund
     _stangenbohrung(root, w, y0, SCHNEIDEN)
 
-    # Stiftbohrung: vertikal (in Skizzenebene = Drucklage quer), durch beide
-    # Wangen, bei x = stift_abstand, mittig der Breite
-    ebene_oben = _ebene(root, 'gabel_breite + 1 mm', 'Gabel oben')
-    sk = root.sketches.addWithoutEdges(ebene_oben)
-    _benennen(sk, 'Gabel Stiftbohrung')
-    _kreis(sk, _pt_g(sk, w['stift_abstand'], y0, w['gabel_breite'] + 1.0),
-           w['stift_bohrung'])
-    _durchbruch(root, sk, SCHNEIDEN)
-
-    # Klemm-Querbohrung fuer die M3-Madenschraube: trifft die Stangenbohrung
-    # von der Wangenseite, hinter dem Schlitz
-    sk = root.sketches.addWithoutEdges(ebene_oben)
-    _benennen(sk, 'Gabel Klemmschraube')
+    # Stiftbohrung und Klemmbohrung: beide senkrecht zur Druckebene, also wie
+    # alle anderen Bohrungen einfach von der XY-Ebene aus durchschneiden -
+    # kein Through-All, keine Hilfsebene (Through-All von einer Offset-Ebene
+    # schlug in der Praxis mit "body not found to extrude through" fehl).
+    sk = root.sketches.addWithoutEdges(xy)
+    _benennen(sk, 'Gabel Stift + Klemme')
+    # Stift: durch beide Wangen, bei x = stift_abstand
+    _kreis(sk, _pt(w['stift_abstand'], y0), w['stift_bohrung'])
+    # M3-Madenschraube: hinter dem Schlitz, kreuzt die Stangenbohrung
     klemm_x = (w['schlitz_tiefe'] + gl) / 2.0
-    _kreis(sk, _pt_g(sk, klemm_x, y0, w['gabel_breite'] + 1.0), w['klemm_bohrung'])
-    _durchbruch(root, sk, SCHNEIDEN)
+    _kreis(sk, _pt(klemm_x, y0), w['klemm_bohrung'])
+    _extrudieren(root, sk, 'gabel_breite + 2 mm', SCHNEIDEN)
 
 
 def _stangenbohrung(root, w, y0, SCHNEIDEN):

@@ -289,15 +289,16 @@ def _extrudieren(root, sketch, ausdruck, operation):
         operation)
 
 
-def _durchbruch(root, sketch, operation):
-    """Schneidet durch alles, symmetrisch in beide Richtungen.
+def _schnitt_symmetrisch(root, sketch, ausdruck, operation):
+    """Schneidet symmetrisch zu beiden Seiten der Skizzenebene, feste Laenge.
 
-    Damit haengt das Ergebnis nicht davon ab, wohin die Normale der Skizzenebene
-    zeigt - bei quer liegenden Durchbruechen die haeufigste Fehlerquelle.
+    Bewusst KEIN Through-All: das schlug in der Praxis von Offset-Ebenen aus
+    mit "body not found to extrude through" fehl. Eine symmetrische Distanz
+    mit reichlich Zugabe ist genauso wirksam und richtungsunabhaengig.
     """
     extrudes = root.features.extrudeFeatures
     eingabe = extrudes.createInput(_alle_profile(sketch), operation)
-    eingabe.setAllExtent(adsk.fusion.ExtentDirections.SymmetricExtentDirection)
+    eingabe.setSymmetricExtent(adsk.core.ValueInput.createByString(ausdruck), True)
     return extrudes.add(eingabe)
 
 
@@ -367,7 +368,7 @@ def _bauen(root, w):
     sk = root.sketches.addWithoutEdges(xz)
     _benennen(sk, 'Klemmschraube')
     _kreis(sk, _pt_g(sk, w['schraube_lage'], 0.0, nl / 2.0), w['schraube_d'])
-    _durchbruch(root, sk, SCHNEIDEN)
+    _schnitt_symmetrisch(root, sk, 'naben_d + 4 mm', SCHNEIDEN)
 
     # --- 7) Querschlitz fuer den Kurbelbolzen -------------------------------
     # Langloch quer zur Schubrichtung, geht durch die ganze Blockhoehe.
@@ -381,4 +382,4 @@ def _bauen(root, w):
     _kreis(sk, _pt_g(sk, -halb, 0.0, mitte), w['schlitz_breite'])
     _kreis(sk, _pt_g(sk, halb, 0.0, mitte), w['schlitz_breite'])
     _rechteck_g(sk, _pt_g(sk, -halb, 0.0, mitte - hb), _pt_g(sk, halb, 0.0, mitte + hb))
-    _durchbruch(root, sk, SCHNEIDEN)
+    _schnitt_symmetrisch(root, sk, 'block_hoehe + 4 mm', SCHNEIDEN)
