@@ -30,7 +30,11 @@ Abweichungen vom Original (bewusst, wegen 3D-Druck):
 
   * Kurbel-Nabe: Tasche fuers Original-Servohorn + 2x M2 statt Oe5-Bohrung
     direkt auf der Verzahnung. Eine gedruckte Verzahnungs-Bohrung rutscht
-    durch - der Ausloeser dieses ganzen Umbaus. Dicke 8 mm statt 3 mm.
+    durch - der Ausloeser dieses ganzen Umbaus. Nabe 8 mm statt 3 mm.
+  * Kurbelarm und -kopf sind nur 'wange' hoch (4 mm): die Koppel-Auflage an
+    der Kurbel liegt damit auf DERSELBEN Hoehe wie der Schlitzboden im
+    Gabelkopf. Die Koppel laeuft eben, Kurbel- und Gabelkopf-Unterseite
+    fluchten in der Einbaulage.
   * Gabelkopf: untere Schlitzwange 4 mm statt 1,5 mm (bricht sonst),
     Rohr-Klemmung per M3-Madenschraube quer statt Loeten
   * Koppel: Augen Oe7 statt Oe6 (Wandstaerke an der Oe3,4-Bohrung)
@@ -137,9 +141,9 @@ def run(context):
         app.activeViewport.fit()
 
         schlitz_h = werte['koppel_dicke'] + werte['schlitz_spiel']
-        stange_z = werte['dicke'] + 0.2 + werte['koppel_dicke'] / 2.0
+        stange_z = werte['wange'] + 0.2 + werte['koppel_dicke'] / 2.0
         stift_l = 2.0 * werte['wange'] + schlitz_h
-        schraube = werte['dicke'] - werte['m2_kopf_t'] + werte['horn_arm_dicke']
+        schraube = werte['wange'] - werte['m2_kopf_t'] + werte['horn_arm_dicke']
         hinweis = (
             'Drei Teile erzeugt (Drucklage nebeneinander):\n'
             'Kurbel r={hebel_laenge:.1f} / Koppel {koppel_abstand:.1f} / Gabelkopf '
@@ -152,7 +156,9 @@ def run(context):
             'Einbau (Originalmasse aus der STEP):\n'
             '  Servoachse quer zur Stangenachse: {versatz:.1f} mm\n'
             '  Stangenachse ueber Horn-Oberseite: {stange_z:.1f} mm '
-            '(= Kurbeldicke + Koppelmitte)\n\n'
+            '(= wange + Koppelmitte)\n'
+            '  Kurbel- und Gabelkopf-Unterseite liegen dann BUENDIG - beide\n'
+            '  Gelenkebenen auf gleicher Hoehe (wange bis wange+Koppeldicke)\n\n'
             'ACHTUNG Kinematik des Originals: Sperrlagen bei {smin:.1f} und '
             '{smax:.1f} Grad Kurbelwinkel. Firmware-Endlagen mit mindestens 5 Grad '
             'Abstand setzen und den Servo in der Endlage stromlos schalten.'
@@ -232,6 +238,14 @@ def _pruefen(w):
     # Kurbel
     if w['kopf_d'] - w['kopf_bohrung'] < 3.0:
         warnungen.append('Wand am Kurbelkopf unter 1,5 mm - kopf_d vergroessern.')
+    # Arm und Kopf sind nur noch wangenhoch - Restmaterial ueber der Horntasche
+    rest_arm = w['wange'] - (w['horn_arm_dicke'] - 0.2)
+    if rest_arm < 1.5:
+        warnungen.append(
+            'Nur {:.1f} mm Material ueber der Horntasche im Arm - wange erhoehen '
+            'oder duenneres Horn.'.format(rest_arm))
+    if w['m2_kopf_t'] >= w['wange'] - 0.8:
+        warnungen.append('M2-Senkung fast so tief wie der Arm - m2_kopf_t verringern.')
     kragen_r = (w['horn_kragen_d'] + KRAGEN_LUFT) / 2.0
     if w['naben_d'] / 2.0 - kragen_r < 3.0:
         warnungen.append('Wand um die Kragenbohrung unter 3 mm - naben_d vergroessern.')
@@ -359,26 +373,40 @@ def _bauen(root, w):
     SCHNEIDEN = adsk.fusion.FeatureOperations.CutFeatureOperation
 
     xy = root.xYConstructionPlane
-    _kurbel(root, w, NEU, SCHNEIDEN, xy)
+    _kurbel(root, w, NEU, VEREINEN, SCHNEIDEN, xy)
     _koppel(root, w, NEU, SCHNEIDEN, xy)
     _gabelkopf(root, w, NEU, VEREINEN, SCHNEIDEN, xy)
 
 
-def _kurbel(root, w, NEU, SCHNEIDEN, xy):
+def _kurbel(root, w, NEU, VEREINEN, SCHNEIDEN, xy):
     """Wie das Original: Nabe -> konischer Arm -> runder Kopf mit M3-Loch.
-    Nabe traegt die Horntasche statt der Verzahnungs-Bohrung."""
+    Nabe traegt die Horntasche statt der Verzahnungs-Bohrung.
+
+    Arm und Kopf sind nur 'wange' hoch (die Nabe behaelt 'dicke'): damit liegt
+    die Koppel-Auflage an der Kurbel auf EXAKT derselben Hoehe wie der
+    Schlitzboden im Gabelkopf - die Koppel laeuft eben, und Kurbel- und
+    Gabelkopf-Unterseite fluchten in der Einbaulage. Die Koppel kommt der
+    hohen Nabe nie naeher als ~16 mm (Stift immer >= 24,8 mm quer), das
+    Absenken kostet also keinen Schwenkbereich.
+    """
     laenge = w['hebel_laenge']
     winkel = w['horn_winkel']
     durch = 'dicke + 2 mm'
 
+    # Arm + Kopf: nur wangenhoch
     sk = root.sketches.addWithoutEdges(xy)
-    _benennen(sk, 'Kurbel Grundkoerper')
-    _kreis(sk, _pt(0.0, 0.0), w['naben_d'])
+    _benennen(sk, 'Kurbel Arm und Kopf')
     _kreis(sk, _pt(laenge, 0.0), w['kopf_d'])
     # konischer Arm: an der Nabe breit, am Kopf schmal (wie das Original)
     _polygon(sk, [_pt(0.0, w['naben_d'] / 2.0), _pt(laenge, w['kopf_d'] / 2.0),
                   _pt(laenge, -w['kopf_d'] / 2.0), _pt(0.0, -w['naben_d'] / 2.0)])
-    _extrudieren(root, sk, 'dicke', NEU)
+    _extrudieren(root, sk, 'wange', NEU)
+
+    # Nabe: volle Dicke (Horntasche + Klemmlaenge auf dem Horn)
+    sk = root.sketches.addWithoutEdges(xy)
+    _benennen(sk, 'Kurbel Nabe')
+    _kreis(sk, _pt(0.0, 0.0), w['naben_d'])
+    _extrudieren(root, sk, 'dicke', VEREINEN)
 
     # Horntasche (Unterseite): Scheibe + konischer Arm + runde Spitze
     b_wurzel = w['horn_arm_b_wurzel'] / 2.0 + w['spiel']
@@ -403,13 +431,15 @@ def _kurbel(root, w, NEU, SCHNEIDEN, xy):
     _kreis(sk, _pt(laenge, 0.0), w['kopf_bohrung'])
     _extrudieren(root, sk, durch, SCHNEIDEN)
 
-    # M2-Senkungen von oben
-    ebene_senk = _ebene(root, 'dicke - m2_kopf_t', 'Senkungsgrund M2')
+    # M2-Senkungen: Grund auf Armhoehe, Schnitt bis ueber die Nabe hinaus.
+    # Das innere Hornloch liegt unter der hohen Nabe - dort wird die Senkung
+    # zum Zugangsschacht fuer den Schraubendreher (Oe4,2 reicht fuer PH1).
+    ebene_senk = _ebene(root, 'wange - m2_kopf_t', 'Senkungsgrund M2')
     sk = root.sketches.addWithoutEdges(ebene_senk)
     _benennen(sk, 'Kurbel Senkungen M2')
     for schluessel in ('horn_loch_1', 'horn_loch_2'):
         _kreis(sk, _pt_gedreht(w[schluessel], 0.0, winkel), w['m2_kopf_d'])
-    _extrudieren(root, sk, 'm2_kopf_t + 1 mm', SCHNEIDEN)
+    _extrudieren(root, sk, 'dicke', SCHNEIDEN)
 
 
 def _koppel(root, w, NEU, SCHNEIDEN, xy):
