@@ -97,14 +97,14 @@ DEFAULTS = [
     ('horn_loch_2',       12.0, 'mm',  'MESSEN: Abstand 4. Hornloch ab Wellenmitte'),
 
     # --- Passungen ---
-    ('spiel',             0.15, 'mm',  'Taschenspiel pro Seite'),
+    ('spiel',             0.35, 'mm',  'Taschenspiel pro Seite (0,15 + 0,2 Druck-Toleranz)'),
     ('schraub_d',          2.1, 'mm',  'Durchgang M2-Blechschraube (Horn)'),
     ('m2_kopf_d',          4.2, 'mm',  'Senkung M2-Kopf'),
     ('m2_kopf_t',          1.6, 'mm',  'Tiefe der M2-Senkung'),
 ]
 
 TASCHE_EXPR = 'horn_arm_dicke - 0.2 mm'
-KRAGEN_LUFT = 0.4
+KRAGEN_LUFT = 0.8
 ACHSVERSATZ = 24.8          # quer, Servoachse -> Stangenachse (aus der STEP)
 SPERRE_MIN, SPERRE_MAX = 38.1, 141.9   # Kurbelwinkel-Fenster des Originals
 # Ablage der drei Teile auf der Druckplatte (Y-Offsets)

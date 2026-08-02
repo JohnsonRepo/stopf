@@ -106,7 +106,7 @@ DEFAULTS = [
     ('horn_loch_2',       12.0, 'mm',  'MESSEN: Abstand 4. (aeusserstes) Hornloch ab Wellenmitte'),
 
     # --- Passungen und Verschraubung ---
-    ('spiel',             0.15, 'mm',  'Taschenspiel pro Seite (bei strammem Drucker 0,2)'),
+    ('spiel',             0.35, 'mm',  'Taschenspiel pro Seite (0,15 + 0,2 Druck-Toleranz)'),
     ('schraub_d',          2.1, 'mm',  'Durchgangsbohrung M2-Blechschraube'),
     ('kopf_d',             4.2, 'mm',  'Senkung Schraubenkopf M2'),
     ('kopf_t',             1.6, 'mm',  'Tiefe Senkung Schraubenkopf M2'),
@@ -115,8 +115,9 @@ DEFAULTS = [
 # Taschentiefe bewusst 0,2 mm FLACHER als der Hornarm: die Kurbel liegt damit
 # sicher auf dem Horn auf und schleift nie am Servogehaeuse.
 TASCHE_EXPR = 'horn_arm_dicke - 0.2 mm'
-# Kragen soll frei durchtreten, gleichzeitig Zugang zur Zentralschraube.
-KRAGEN_LUFT = 0.4
+# Kragen soll frei durchtreten (0,4 pro Seite - gedruckte Innenkonturen
+# schrumpfen), gleichzeitig Zugang zur Zentralschraube.
+KRAGEN_LUFT = 0.8
 # Servo-Schwenkbereich, aus dem Hub und Schlitzlaenge folgen (SG90 schafft das gut).
 SWEEP_GRAD = 104.0
 
