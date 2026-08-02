@@ -316,6 +316,10 @@ def _rechteck(sketch, x1, y1, x2, y2):
     sketch.sketchCurves.sketchLines.addTwoPointRectangle(_pt(x1, y1), _pt(x2, y2))
 
 
+def _rechteck_g(sketch, p1, p2):
+    sketch.sketchCurves.sketchLines.addTwoPointRectangle(p1, p2)
+
+
 def _pt_g(sketch, x_mm, y_mm, z_mm):
     """Globaler Punkt -> Skizzenkoordinaten (fuer Skizzen auf Offset-Ebenen)."""
     return sketch.modelToSketchSpace(
@@ -432,44 +436,52 @@ def _gabelkopf(root, w, NEU, VEREINEN, SCHNEIDEN, xy):
     """Wie Part-70, aber mit symmetrischen 4-mm-Wangen: Block auf der Stange,
     vorn ein Schlitz quer durch das ganze Teil, vertikale Stiftbohrung.
 
-    Drucklage: liegt auf der Seite (Breite = Bauhoehe), die Stangenbohrung
-    laeuft waagerecht -> Stift- und Schlitzgeometrie liegen in der Ebene.
+    Drucklage = Einbaulage: die Wangen liegen als Schichten UEBEREINANDER
+    (Bauhoehe = 2*wange + Schlitz), der Schlitz ist ein innenliegender
+    horizontaler Spalt (3,4 mm Bridging - unkritisch) und die Stiftbohrung
+    steht senkrecht. Vorher lag das Teil auf der Seite - dann verlief der
+    Stift-Schnitt komplett durch den leeren Schlitz und am fertigen Koerper
+    fehlte die Bohrung, die die Koppel anbindet.
     """
     y0 = LAGE_GABEL_Y
     schlitz_h = w['koppel_dicke'] + w['schlitz_spiel']
-    hoehe = 2.0 * w['wange'] + schlitz_h        # Bauteilhoehe (liegt in Y der Skizze)
+    hoehe = 2.0 * w['wange'] + schlitz_h        # Bauhoehe (Z)
     gl = w['gabel_laenge']
+    hoehe_expr = '2 * wange + koppel_dicke + schlitz_spiel'
 
-    # Grundkoerper: Rechteck gl x hoehe, extrudiert um gabel_breite
+    # Grundkoerper: Grundriss gl x gabel_breite, hochgezogen auf hoehe
     sk = root.sketches.addWithoutEdges(xy)
     _benennen(sk, 'Gabel Grundkoerper')
-    _rechteck(sk, 0.0, y0 - hoehe / 2.0, gl, y0 + hoehe / 2.0)
-    _extrudieren(root, sk, 'gabel_breite', NEU)
+    _rechteck(sk, 0.0, y0 - w['gabel_breite'] / 2.0, gl, y0 + w['gabel_breite'] / 2.0)
+    _extrudieren(root, sk, hoehe_expr, NEU)
 
-    # Schlitz: quer durch, von der Vorderkante (x=0) bis schlitz_tiefe
-    sk = root.sketches.addWithoutEdges(xy)
+    # Schlitz: horizontaler Spalt zwischen den Wangen, vorn und seitlich offen.
+    # Ab der Ebene z = wange um die Schlitzhoehe nach oben geschnitten.
+    ebene_schlitz = _ebene(root, 'wange', 'Gabel Schlitzboden')
+    sk = root.sketches.addWithoutEdges(ebene_schlitz)
     _benennen(sk, 'Gabel Schlitz')
-    _rechteck(sk, -1.0, y0 - schlitz_h / 2.0, w['schlitz_tiefe'], y0 + schlitz_h / 2.0)
-    _extrudieren(root, sk, 'gabel_breite + 2 mm', SCHNEIDEN)
+    _rechteck_g(sk,
+                _pt_g(sk, -1.0, y0 - w['gabel_breite'] / 2.0 - 1.0, w['wange']),
+                _pt_g(sk, w['schlitz_tiefe'], y0 + w['gabel_breite'] / 2.0 + 1.0,
+                      w['wange']))
+    _extrudieren(root, sk, 'koppel_dicke + schlitz_spiel', SCHNEIDEN)
 
-    # Stangenbohrung: blind vom Heck bis zum Schlitzgrund
-    _stangenbohrung(root, w, y0, SCHNEIDEN)
+    # Stangenbohrung: blind vom Heck bis zum Schlitzgrund, auf halber Hoehe
+    _stangenbohrung(root, w, y0, hoehe / 2.0, SCHNEIDEN)
 
-    # Stiftbohrung und Klemmbohrung: beide senkrecht zur Druckebene, also wie
-    # alle anderen Bohrungen einfach von der XY-Ebene aus durchschneiden -
-    # kein Through-All, keine Hilfsebene (Through-All von einer Offset-Ebene
-    # schlug in der Praxis mit "body not found to extrude through" fehl).
+    # Stiftbohrung (verbindet die Koppel!) und Klemmbohrung: beide stehen
+    # jetzt senkrecht und werden von der XY-Ebene aus durchgeschnitten.
+    # Der Stift durchdringt untere Wange -> Schlitz (Koppelauge) -> obere Wange.
     sk = root.sketches.addWithoutEdges(xy)
     _benennen(sk, 'Gabel Stift + Klemme')
-    # Stift: durch beide Wangen, bei x = stift_abstand
     _kreis(sk, _pt(w['stift_abstand'], y0), w['stift_bohrung'])
     # M3-Madenschraube: hinter dem Schlitz, kreuzt die Stangenbohrung
     klemm_x = (w['schlitz_tiefe'] + gl) / 2.0
     _kreis(sk, _pt(klemm_x, y0), w['klemm_bohrung'])
-    _extrudieren(root, sk, 'gabel_breite + 2 mm', SCHNEIDEN)
+    _extrudieren(root, sk, hoehe_expr + ' + 2 mm', SCHNEIDEN)
 
 
-def _stangenbohrung(root, w, y0, SCHNEIDEN):
+def _stangenbohrung(root, w, y0, mitte_z, SCHNEIDEN):
     """Bohrung laengs der Stange, blind: Schlitzgrund -> Heck.
 
     Im Original lief die Bohrung durch das ganze Teil und fraeste dabei eine
@@ -488,6 +500,5 @@ def _stangenbohrung(root, w, y0, SCHNEIDEN):
 
     sk = root.sketches.addWithoutEdges(ebene)
     _benennen(sk, 'Gabel Stangenbohrung')
-    _kreis(sk, _pt_g(sk, w['schlitz_tiefe'], y0, w['gabel_breite'] / 2.0),
-           w['stange_bohrung'])
+    _kreis(sk, _pt_g(sk, w['schlitz_tiefe'], y0, mitte_z), w['stange_bohrung'])
     _extrudieren(root, sk, 'gabel_laenge - schlitz_tiefe + 1 mm', SCHNEIDEN)
