@@ -7,20 +7,20 @@ als 3D-druckbare Teile nach - alle drei in EINEM neuen Dokument, nebeneinander
 in Drucklage:
 
   * KURBEL   (Part-49): Hebel 24,0 mm, Kopf mit Oe3,2 fuer M3
-  * KOPPEL   (Part-41): Knochenform, Lochabstand 10,0 mm, Oe3,4 / Oe2,2
+  * KOPPEL   (Part-41): Knochenform, Lochabstand 10,0 mm, beide Augen Oe3,4
   * GABELKOPF (Part-70): sitzt auf der Oe6-Schubstange; vorn ein Schlitz QUER
     DURCH das ganze Teil auf Hoehe der Stangenachse, darin schwenkt die Koppel
-    um einen vertikalen Oe2-Stift
+    um eine vertikale M3-Schraube
 
 So funktioniert das Original (aus der STEP-Datei vermessen):
 
   Seitenansicht Gabelkopf:              Draufsicht Gelenkkette:
 
-      ________________                    Servo--24--[M3]--10--[Stift Oe2]
+      ________________                    Servo--24--[M3]--10--[M3 Gelenk]
      |   .------------|--- Rohr Oe6            \\           /
      |===| Schlitz 3mm|===                      Kurbel  Koppel --> Gabel auf
      |___`------------|---                                          der Stange
-      ^ Stift Oe2 senkrecht
+      ^ M3 senkrecht (Original: Stift Oe2)
 
 Der Schlitz ist seitlich OFFEN (geht in Querrichtung durch) - deshalb kann die
 Koppel darin beliebig weit schwenken. Das braucht sie auch: nahe den Hubenden
@@ -37,14 +37,23 @@ Abweichungen vom Original (bewusst, wegen 3D-Druck):
     fluchten in der Einbaulage.
   * Gabelkopf: untere Schlitzwange 4 mm statt 1,5 mm (bricht sonst),
     Rohr-Klemmung per M3-Madenschraube quer statt Loeten
-  * Koppel: Augen Oe7 statt Oe6 (Wandstaerke an der Oe3,4-Bohrung)
+  * Koppelachse im Gabelkopf: M3-Schraube statt Oe2-Stahlstift. Durchgang
+    Oe3,4 in der oberen Wange, Kernloch Oe2,5 in der unteren - die Schraube
+    schneidet sich ihr Gewinde selbst, keine Mutter, nichts steht unten ueber.
+    Beide Gelenke der Koppel laufen damit identisch auf M3.
+  * Koppel: Augen Oe7 statt Oe6 (Wandstaerke an den Oe3,4-Bohrungen);
+    Stiftseite Oe3,4 statt Oe2,2 (dreht frei auf der M3) - die Koppel ist
+    dadurch symmetrisch, ein Falschherum-Einbau ist unmoeglich
   * Kurbelkopf Oe8 statt Oe6 (Wandstaerke an der Oe3,2-Bohrung)
 
-Kinematik des Originals (r=24, Koppel=10, Achsversatz=24,8):
-Das Gestaenge hat SPERRLAGEN bei Kurbelwinkel 38,1 und 141,9 Grad - der
-Nutzhub (42 mm) liegt exakt dazwischen. In der Firmware unbedingt mit
-mindestens 5 Grad Abstand zu beiden Grenzen fahren und den Servo in der
-Endlage stromlos schalten, sonst arbeitet er die Nabe wieder aus.
+Kinematik: Das Gestaenge hat Sperrlagen; dazwischen liegt der Nutzhub. Der
+Abschlussbericht rechnet Fenster, Firmware-Endlagen und Nutzhub fuer die
+eingestellten Masse aus. Die Hub-Stellschraube ist der KURBELRADIUS
+(hebel_laenge) - Koppel und Gabelkopf bleiben dabei unveraendert, es muss nur
+die Kurbel neu gedruckt werden. Mit 5 Grad Endlagen-Reserve:
+  r=24 (Original) -> 35 mm | r=28 -> 45 mm | r=30 -> 50 mm Nutzhub
+In der Firmware immer mit Reserve zu beiden Sperrlagen fahren und den Servo in
+der Endlage stromlos schalten, sonst arbeitet er die Nabe wieder aus.
 
 Ausfuehren: Utilities -> Scripts and Add-Ins -> Scripts -> GelenkServoOriginal
 Alle Masse in mm. Masse aendern -> DEFAULTS anpassen, Skript neu laufen lassen.
@@ -62,10 +71,13 @@ import adsk.fusion
 # ---------------------------------------------------------------------------
 DEFAULTS = [
     # --- Gelenkkette (Originalmasse aus der STEP-Datei) ---
-    ('hebel_laenge',      24.0, 'mm',  'Kurbelradius Servowelle -> M3 (Original: 24,0)'),
+    ('hebel_laenge',      28.0, 'mm',  'Kurbelradius = Hub-Stellschraube! Nutzhub bei 5 Grad '
+                                       'Reserve: 24 -> 35 mm (Original), 28 -> 45, 30 -> 50'),
     ('koppel_abstand',    10.0, 'mm',  'Lochabstand der Koppel (Original: 10,0)'),
     ('stange_bohrung',     6.1, 'mm',  'Bohrung fuer die Oe6-Schubstange im Gabelkopf'),
-    ('stift_d',            2.0, 'mm',  'Querstift im Gabelkopf (Stahlstift/Nagel Oe2)'),
+    ('achsversatz',       24.8, 'mm',  'Servoachse quer zur Stangenachse - von der Montage '
+                                       'vorgegeben (aus der STEP: 24,8)'),
+    ('gelenk_schraube_d',  3.0, 'mm',  'Koppelachse im Gabelkopf: M3 (Original: Stahlstift Oe2)'),
 
     # --- Kurbel ---
     ('dicke',              8.0, 'mm',  'Kurbeldicke = Nabenhoehe (Original 3 - gedruckt zu wenig)'),
@@ -77,28 +89,31 @@ DEFAULTS = [
     ('koppel_dicke',       3.0, 'mm',  'Koppeldicke (Original 3) - bestimmt die Schlitzhoehe'),
     ('koppel_auge_d',      7.0, 'mm',  'Augendurchmesser der Koppel (Original 6)'),
     ('koppel_loch_kurbel', 3.4, 'mm',  'Koppelloch Kurbelseite - dreht frei auf M3'),
-    ('koppel_loch_stift',  2.2, 'mm',  'Koppelloch Stiftseite (Original 2,2)'),
+    ('koppel_loch_stift',  3.4, 'mm',  'Koppelloch Gabelseite - dreht frei auf M3 (Original 2,2)'),
 
     # --- Gabelkopf ---
     ('gabel_laenge',      20.0, 'mm',  'Gesamtlaenge (Original 50 - unnoetig lang)'),
-    ('gabel_breite',       9.0, 'mm',  'Breite quer (Original 6 - Wand um die Stiftbohrung)'),
+    ('gabel_breite',       9.0, 'mm',  'Breite quer (Original 6 - Wand um die Gelenkbohrung)'),
     ('wange',              4.0, 'mm',  'Dicke der Schlitzwangen oben/unten (Original unten nur 1,5!)'),
     ('schlitz_spiel',      0.4, 'mm',  'Schlitzhoehe = koppel_dicke + dieses Spiel'),
     ('schlitz_tiefe',      8.0, 'mm',  'Schlitztiefe ab Vorderkante'),
-    ('stift_abstand',      3.5, 'mm',  'Stiftachse hinter der Vorderkante (Original 3)'),
-    ('stift_bohrung',      2.0, 'mm',  'Stiftbohrung in den Wangen - Presssitz, 2,1 wenn locker'),
+    ('stift_abstand',      4.0, 'mm',  'Gelenkachse hinter der Vorderkante (Original 3; '
+                                       '4,0 wegen der breiteren Oe3,4-Bohrung)'),
+    ('gelenk_durchgang',   3.4, 'mm',  'Durchgang obere Wange - M3 faellt durch'),
+    ('gelenk_kernloch',    2.5, 'mm',  'Kernloch untere Wange - M3 schneidet selbst. Reisst das '
+                                       'Gewinde aus: 3,4 setzen und unten eine Mutter kontern'),
     ('klemm_bohrung',      2.9, 'mm',  'Querbohrung fuer M3-Madenschraube (schneidet selbst)'),
 
     # --- Horn (identisch zum Skript KurbelHuelsenschieber - nachmessen!) ---
     ('horn_winkel',        0.0, 'deg', 'Winkel Hornarm gegen Hebelrichtung'),
-    ('horn_scheibe_d',     7.2, 'mm',  'MESSEN: Oe der runden Scheibe am Horn'),
-    ('horn_kragen_d',      6.0, 'mm',  'MESSEN: Oe des erhabenen Kragens'),
-    ('horn_arm_l',        15.5, 'mm',  'MESSEN: Wellenmitte -> Armspitze'),
-    ('horn_arm_b_wurzel',  6.0, 'mm',  'MESSEN: Armbreite an der Scheibe'),
-    ('horn_arm_b_spitze',  4.0, 'mm',  'MESSEN: Armbreite an der Spitze'),
-    ('horn_arm_dicke',     1.5, 'mm',  'MESSEN: Dicke des Hornarms'),
-    ('horn_loch_1',        7.0, 'mm',  'MESSEN: Abstand 2. Hornloch ab Wellenmitte'),
-    ('horn_loch_2',       12.0, 'mm',  'MESSEN: Abstand 4. Hornloch ab Wellenmitte'),
+    ('horn_scheibe_d',     7.4, 'mm',  'MESSEN: Oe der runden Scheibe am Horn'),
+    ('horn_kragen_d',      6.2, 'mm',  'MESSEN: Oe des erhabenen Kragens'),
+    ('horn_arm_l',        15.6, 'mm',  'MESSEN: Wellenmitte -> Armspitze'),
+    ('horn_arm_b_wurzel',  7.0, 'mm',  'MESSEN: Armbreite an der Scheibe'),
+    ('horn_arm_b_spitze',  5.0, 'mm',  'MESSEN: Armbreite an der Spitze'),
+    ('horn_arm_dicke',     1.6, 'mm',  'MESSEN: Dicke des Hornarms'),
+    ('horn_loch_1',        9.0, 'mm',  'MESSEN: Abstand 2. Hornloch ab Wellenmitte'),
+    ('horn_loch_2',       13.0, 'mm',  'MESSEN: Abstand 4. Hornloch ab Wellenmitte'),
 
     # --- Passungen ---
     ('spiel',             0.35, 'mm',  'Taschenspiel pro Seite (0,15 + 0,2 Druck-Toleranz)'),
@@ -109,11 +124,12 @@ DEFAULTS = [
 
 TASCHE_EXPR = 'horn_arm_dicke - 0.2 mm'
 KRAGEN_LUFT = 0.8
-ACHSVERSATZ = 24.8          # quer, Servoachse -> Stangenachse (aus der STEP)
-SPERRE_MIN, SPERRE_MAX = 38.1, 141.9   # Kurbelwinkel-Fenster des Originals
+RESERVE_GRAD = 5.0          # Firmware-Abstand zu beiden Sperrlagen
 # Ablage der drei Teile auf der Druckplatte (Y-Offsets)
 LAGE_KOPPEL_Y = 22.0
 LAGE_GABEL_Y = -22.0
+# uebliche Schraubenlaengen fuer die Empfehlung im Abschlussbericht
+M3_LAENGEN = (6.0, 8.0, 10.0, 12.0, 16.0, 20.0)
 
 
 def run(context):
@@ -142,28 +158,54 @@ def run(context):
 
         schlitz_h = werte['koppel_dicke'] + werte['schlitz_spiel']
         stange_z = werte['wange'] + 0.2 + werte['koppel_dicke'] / 2.0
-        stift_l = 2.0 * werte['wange'] + schlitz_h
         schraube = werte['wange'] - werte['m2_kopf_t'] + werte['horn_arm_dicke']
+        # Gelenkschraube: durch obere Wange + Schlitz, >= 2,5 mm Gewindegriff
+        # in der unteren Wange, aber ohne Ueberstand nach unten
+        gelenk_min = werte['wange'] + schlitz_h + 2.5
+        gelenk_max = 2.0 * werte['wange'] + schlitz_h
+        gelenk_l = next((l for l in M3_LAENGEN if gelenk_min <= l <= gelenk_max),
+                        gelenk_min)
+        f = _fenster(werte)
+        if f:
+            kinematik = ('  Sperrlagen bei {:.1f} und {:.1f} Grad Kurbelwinkel\n'
+                         '  Firmware-Endlagen: {:.1f} bis {:.1f} Grad '
+                         '({:.0f} Grad Reserve)\n'
+                         '  NUTZHUB: {:.1f} mm').format(
+                f[0], f[1], f[0] + RESERVE_GRAD, f[1] - RESERVE_GRAD,
+                RESERVE_GRAD, f[2])
+        else:
+            kinematik = '  GESTAENGE UNMOEGLICH - hebel_laenge/koppel_abstand pruefen'
         hinweis = (
             'Drei Teile erzeugt (Drucklage nebeneinander):\n'
             'Kurbel r={hebel_laenge:.1f} / Koppel {koppel_abstand:.1f} / Gabelkopf '
             'auf Oe6-Stange.\n\n'
-            'Zuschnitte und Schrauben:\n'
-            '  Querstift Oe{stift_d:.1f} x {stift_l:.0f} mm (Stahlstift oder Nagel)\n'
+            'Zuschnitte und Schrauben (kein Stahlstift noetig):\n'
+            '  1x M3 x {gelenk_l:.0f} Gelenkschraube im Gabelkopf - schneidet '
+            'selbst ins\n'
+            '     Kernloch der unteren Wange; nur so weit anziehen, dass die '
+            'Koppel\n'
+            '     frei schwenkt (laenger als {gelenk_max:.0f} mm steht unten '
+            'ueber!)\n'
             '  1x M3 x 10 + Nyloc (Kurbel-Koppel, nur handfest - muss drehen)\n'
             '  1x M3 x 6 Madenschraube (Gabelkopf-Klemmung)\n'
             '  2x M2 x {schraube:.0f} mm Blechschraube (Horn)\n\n'
-            'Einbau (Originalmasse aus der STEP):\n'
-            '  Servoachse quer zur Stangenachse: {versatz:.1f} mm\n'
+            'Einbau:\n'
+            '  Servoachse quer zur Stangenachse: {achsversatz:.1f} mm\n'
             '  Stangenachse ueber Horn-Oberseite: {stange_z:.1f} mm '
             '(= wange + Koppelmitte)\n'
             '  Kurbel- und Gabelkopf-Unterseite liegen dann BUENDIG - beide\n'
             '  Gelenkebenen auf gleicher Hoehe (wange bis wange+Koppeldicke)\n\n'
-            'ACHTUNG Kinematik des Originals: Sperrlagen bei {smin:.1f} und '
-            '{smax:.1f} Grad Kurbelwinkel. Firmware-Endlagen mit mindestens 5 Grad '
-            'Abstand setzen und den Servo in der Endlage stromlos schalten.'
-        ).format(stift_l=stift_l, schraube=schraube, versatz=ACHSVERSATZ,
-                 stange_z=stange_z, smin=SPERRE_MIN, smax=SPERRE_MAX, **werte)
+            'Kinematik mit diesen Massen (r={hebel_laenge:.0f} / l={koppel_abstand:.0f} '
+            '/ e={achsversatz:.1f}):\n'
+            '{kinematik}\n'
+            'Servo in der Endlage stromlos schalten - sonst arbeitet er die '
+            'Nabe aus.\n'
+            'Endposition der Huelse verschieben OHNE Neudruck: M3-Klemme loesen '
+            'und\n'
+            'den Gabelkopf auf der Stange versetzen.'
+        ).format(schraube=schraube, stange_z=stange_z,
+                 gelenk_l=gelenk_l, gelenk_max=gelenk_max,
+                 kinematik=kinematik, **werte)
         if warnungen:
             hinweis += '\n\nPruefen:\n- ' + '\n- '.join(warnungen)
         ui.messageBox(hinweis, 'Gelenk Servo Original')
@@ -218,6 +260,34 @@ def _parameter_anlegen(design):
 
 
 # ---------------------------------------------------------------------------
+# Kinematik: Sperrlagen-Fenster und Nutzhub aus r, l und Achsversatz
+# ---------------------------------------------------------------------------
+def _fenster(w):
+    """Liefert (sperre_min, sperre_max, hub) - hub mit RESERVE_GRAD Abstand.
+
+    Schieberposition x(phi) = r cos(phi) + sqrt(l^2 - (e - r sin(phi))^2).
+    Die Wurzel existiert nur im Fenster asin((e-l)/r) .. 180-asin((e-l)/r);
+    ausserhalb steht das Gestaenge auf Block (Sperrlage).
+    """
+    r, l, e = w['hebel_laenge'], w['koppel_abstand'], w['achsversatz']
+    q = (e - l) / r
+    if q >= 1.0:
+        return None
+    lo = math.degrees(math.asin(max(-1.0, q)))
+    hi = 180.0 - lo
+    a, b = lo + RESERVE_GRAD, hi - RESERVE_GRAD
+    xs = []
+    for k in range(401):
+        phi = math.radians(a + (b - a) * k / 400.0)
+        rest = l * l - (e - r * math.sin(phi)) ** 2
+        if rest >= 0.0:
+            xs.append(r * math.cos(phi) + math.sqrt(rest))
+    if not xs:
+        return None
+    return lo, hi, max(xs) - min(xs)
+
+
+# ---------------------------------------------------------------------------
 # Plausibilitaet
 # ---------------------------------------------------------------------------
 def _pruefen(w):
@@ -225,11 +295,12 @@ def _pruefen(w):
     schlitz_h = w['koppel_dicke'] + w['schlitz_spiel']
 
     # Kinematik: Koppel muss den Gabelstift im ganzen Fenster erreichen
-    grenze = (ACHSVERSATZ - w['koppel_abstand']) / w['hebel_laenge']
+    grenze = (w['achsversatz'] - w['koppel_abstand']) / w['hebel_laenge']
     if grenze >= 1.0:
         warnungen.append(
             'Kurbel {:.1f} + Koppel {:.1f} erreichen den Achsversatz {:.1f} nicht - '
-            'Gestaenge unmoeglich.'.format(w['hebel_laenge'], w['koppel_abstand'], ACHSVERSATZ))
+            'Gestaenge unmoeglich.'.format(w['hebel_laenge'], w['koppel_abstand'],
+                                           w['achsversatz']))
     elif grenze > 0.95:
         warnungen.append(
             'Gestaenge nur knapp montierbar - hebel_laenge oder koppel_abstand '
@@ -252,7 +323,9 @@ def _pruefen(w):
     if w['horn_arm_l'] + w['horn_arm_b_spitze'] / 2.0 > w['hebel_laenge'] - w['kopf_d'] / 2.0:
         warnungen.append('Hornarm reicht bis in den Kurbelkopf - kuerzeres Horn oder '
                          'hebel_laenge pruefen.')
-    if abs(w['horn_loch_2'] - w['horn_loch_1']) < w['m2_kopf_d'] + 0.5:
+    # Leichte Ueberschneidung der Senkraender ist unkritisch - erst warnen,
+    # wenn sich die Schraubenkoepfe selbst in die Quere kommen
+    if abs(w['horn_loch_2'] - w['horn_loch_1']) < w['m2_kopf_d'] - 0.5:
         warnungen.append('Hornloecher zu dicht beieinander fuer die M2-Senkungen.')
 
     # Koppel
@@ -273,8 +346,8 @@ def _pruefen(w):
         warnungen.append(
             'Gabelkopf nur {:.1f} mm hoch bei Stangenbohrung Oe{:.1f} - wange erhoehen.'
             .format(hoehe, w['stange_bohrung']))
-    if w['gabel_breite'] - w['stift_bohrung'] < 4.0:
-        warnungen.append('Wand neben der Stiftbohrung unter 2 mm - gabel_breite '
+    if w['gabel_breite'] - w['gelenk_durchgang'] < 4.0:
+        warnungen.append('Wand neben der Gelenkbohrung unter 2 mm - gabel_breite '
                          'vergroessern.')
     if w['schlitz_tiefe'] - w['stift_abstand'] < w['koppel_auge_d'] / 2.0 + 0.5:
         warnungen.append(
@@ -283,9 +356,28 @@ def _pruefen(w):
     if w['gabel_laenge'] - w['schlitz_tiefe'] < 8.0:
         warnungen.append('Unter 8 mm Klemmlaenge auf der Stange - gabel_laenge '
                          'vergroessern.')
-    if w['stift_bohrung'] > w['stift_d'] + 0.15:
-        warnungen.append('Stiftbohrung deutlich groesser als der Stift - der wandert '
-                         'raus. Presssitz waehlen oder Stift verkleben.')
+
+    # Gelenkschraube: unten Gewindegriff, oben Durchgang
+    if w['stift_abstand'] - w['gelenk_durchgang'] / 2.0 < 2.0:
+        warnungen.append(
+            'Unter 2 mm Wand zwischen Gelenkbohrung und Vorderkante - '
+            'stift_abstand vergroessern.')
+    if w['gelenk_kernloch'] >= w['gelenk_schraube_d'] - 0.2:
+        warnungen.append(
+            'Kernloch Oe{:.1f} fast so gross wie die M{:.0f} - das selbstgeschnittene '
+            'Gewinde traegt nicht. Kernloch verkleinern oder auf Durchgang + Mutter '
+            'umstellen.'.format(w['gelenk_kernloch'], w['gelenk_schraube_d']))
+    if w['gelenk_durchgang'] < w['gelenk_schraube_d'] + 0.3:
+        warnungen.append(
+            'Durchgang Oe{:.1f} zu eng fuer die M{:.0f} - die Schraube klemmt in der '
+            'oberen Wange statt im Kernloch zu greifen.'
+            .format(w['gelenk_durchgang'], w['gelenk_schraube_d']))
+    if w['koppel_loch_stift'] < w['gelenk_schraube_d'] + 0.3:
+        warnungen.append(
+            'Koppelloch Gabelseite Oe{:.1f} dreht nicht frei auf der M{:.0f} - '
+            'auf mindestens {:.1f} aufweiten.'
+            .format(w['koppel_loch_stift'], w['gelenk_schraube_d'],
+                    w['gelenk_schraube_d'] + 0.4))
 
     return warnungen
 
@@ -464,14 +556,22 @@ def _koppel(root, w, NEU, SCHNEIDEN, xy):
 
 def _gabelkopf(root, w, NEU, VEREINEN, SCHNEIDEN, xy):
     """Wie Part-70, aber mit symmetrischen 4-mm-Wangen: Block auf der Stange,
-    vorn ein Schlitz quer durch das ganze Teil, vertikale Stiftbohrung.
+    vorn ein Schlitz quer durch das ganze Teil, vertikale Gelenkbohrung.
 
     Drucklage = Einbaulage: die Wangen liegen als Schichten UEBEREINANDER
     (Bauhoehe = 2*wange + Schlitz), der Schlitz ist ein innenliegender
-    horizontaler Spalt (3,4 mm Bridging - unkritisch) und die Stiftbohrung
+    horizontaler Spalt (3,4 mm Bridging - unkritisch) und die Gelenkbohrung
     steht senkrecht. Vorher lag das Teil auf der Seite - dann verlief der
-    Stift-Schnitt komplett durch den leeren Schlitz und am fertigen Koerper
+    Gelenk-Schnitt komplett durch den leeren Schlitz und am fertigen Koerper
     fehlte die Bohrung, die die Koppel anbindet.
+
+    Koppelachse: M3-Schraube von oben statt des Original-Stahlstifts Oe2.
+    Untere Wange Kernloch (Gewinde schneidet selbst), Schlitzbereich und
+    obere Wange Durchgang. Achtung: Kopf oben + Gewinde unten wirkt beim
+    Anziehen als Klemmung der Wangen gegen die Koppel - deshalb nur so weit
+    anziehen, dass die Koppel frei schwenkt (steht auch im Abschlussbericht).
+    Wer das Gelenk dauerhaft spielfrei will, steckt eine Distanzhuelse
+    (Laenge koppel_dicke + schlitz_spiel) mit durchs Koppelauge.
     """
     y0 = LAGE_GABEL_Y
     schlitz_h = w['koppel_dicke'] + w['schlitz_spiel']
@@ -499,16 +599,24 @@ def _gabelkopf(root, w, NEU, VEREINEN, SCHNEIDEN, xy):
     # Stangenbohrung: blind vom Heck bis zum Schlitzgrund, auf halber Hoehe
     _stangenbohrung(root, w, y0, hoehe / 2.0, SCHNEIDEN)
 
-    # Stiftbohrung (verbindet die Koppel!) und Klemmbohrung: beide stehen
-    # jetzt senkrecht und werden von der XY-Ebene aus durchgeschnitten.
-    # Der Stift durchdringt untere Wange -> Schlitz (Koppelauge) -> obere Wange.
+    # Gelenk-Kernloch (untere Wange, M3 schneidet selbst) und Klemmbohrung:
+    # beide stehen senkrecht und werden von der XY-Ebene aus durchgeschnitten.
     sk = root.sketches.addWithoutEdges(xy)
-    _benennen(sk, 'Gabel Stift + Klemme')
-    _kreis(sk, _pt(w['stift_abstand'], y0), w['stift_bohrung'])
+    _benennen(sk, 'Gabel Kernloch + Klemme')
+    _kreis(sk, _pt(w['stift_abstand'], y0), w['gelenk_kernloch'])
     # M3-Madenschraube: hinter dem Schlitz, kreuzt die Stangenbohrung
     klemm_x = (w['schlitz_tiefe'] + gl) / 2.0
     _kreis(sk, _pt(klemm_x, y0), w['klemm_bohrung'])
     _extrudieren(root, sk, hoehe_expr + ' + 2 mm', SCHNEIDEN)
+
+    # Gelenk-Durchgang: ab Schlitzboden nach oben aufweiten - der Schnitt
+    # laeuft durch den (leeren) Schlitz und die obere Wange. Die untere
+    # Wange behaelt das Kernloch, dort greift das Gewinde.
+    ebene_gelenk = _ebene(root, 'wange', 'Gelenk Durchgangsbeginn')
+    sk = root.sketches.addWithoutEdges(ebene_gelenk)
+    _benennen(sk, 'Gabel Gelenk-Durchgang')
+    _kreis(sk, _pt_g(sk, w['stift_abstand'], y0, w['wange']), w['gelenk_durchgang'])
+    _extrudieren(root, sk, 'koppel_dicke + schlitz_spiel + wange + 2 mm', SCHNEIDEN)
 
 
 def _stangenbohrung(root, w, y0, mitte_z, SCHNEIDEN):
