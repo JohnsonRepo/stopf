@@ -3,7 +3,7 @@
     "type": "script",
     "author": "Johnson",
     "description": {
-        "": "Servo-Gelenk nach Fraens-Original (Part-41/49/70): Kurbel mit Horntasche, Koppel und Gabelkopf mit Querschlitz und Oe2-Stift - drei druckfertige Koerper in einem Dokument."
+        "": "Servo-Gelenk nach Fraens-Original (Part-41/49/70): Kurbel mit Horntasche, Koppel und Gabelkopf mit Querschlitz - drei druckfertige Koerper in einem Dokument. Koppelachse als M3-Schraube statt Oe2-Stahlstift. Historischer Nachbau; empfohlen ist die Kulissen-Variante."
     },
     "supportedOS": "windows|mac",
     "editEnabled": true

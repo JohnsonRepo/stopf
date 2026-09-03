@@ -3,7 +3,7 @@
     "type": "script",
     "author": "Johnson",
     "description": {
-        "": "Parametrische Servo-Kurbel fuer den Huelsen-Schieber: Langloch-Grundkoerper, Tasche fuer ein Einarm-Servohorn, M2-Verschraubung, Gelenkbohrung mit Senkung."
+        "": "Parametrische Servo-Kurbel fuer den Huelsen-Schieber (Kulissen-Variante): Langloch-Grundkoerper, Tasche fuer ein Einarm-Servohorn mit M2-Verschraubung, am Hebelende ein stehendes Auge mit Oe4,9-Bohrung fuer den Oe5-Bolzen. Gegenstueck: MitnehmerSchubstange."
     },
     "supportedOS": "windows|mac",
     "editEnabled": true
