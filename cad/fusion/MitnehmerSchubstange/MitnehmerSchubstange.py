@@ -72,14 +72,14 @@ DEFAULTS = [
 
     # --- Block mit Querschlitz ---
     ('block_laenge',      13.0, 'mm', 'Laenge des Blocks in Schubrichtung'),
-    ('block_breite',      28.0, 'mm', 'Breite quer = Richtung der Schlitzlaenge'),
+    ('block_breite',      30.0, 'mm', 'Breite quer = Richtung der Schlitzlaenge'),
     ('block_hoehe',       12.0, 'mm', 'Hoehe = Fuehrungslaenge fuer den Bolzen'),
     ('bolzen_d',           5.0, 'mm', 'Durchmesser des Kurbelbolzens'),
     ('schlitz_breite',     5.2, 'mm', 'Schlitzbreite = Bolzen + Spiel'),
-    ('schlitz_laenge',    18.0, 'mm', 'nutzbare Schlitzlaenge quer'),
+    ('schlitz_laenge',    20.0, 'mm', 'nutzbare Schlitzlaenge quer'),
 
     # --- nur zur Kontrolle, geht nicht in die Geometrie ein ---
-    ('kurbel_radius',     27.0, 'mm', 'Kurbelradius der Servokurbel - prueft die Schlitzlaenge'),
+    ('kurbel_radius',     29.0, 'mm', 'Kurbelradius der Servokurbel - prueft die Schlitzlaenge'),
 ]
 
 # Servo-Schwenkbereich, identisch zum Kurbelskript.

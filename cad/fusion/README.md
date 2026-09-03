@@ -33,8 +33,8 @@ Scherung an den Schrauben.
 
 **Erzeugte Geometrie**
 
-- Langloch-Grundkörper von der Nabe zum Rohrauge, Hebellänge frei wählbar (Default 24 mm =
-  Ist-Maß, für Kinematik-Variante A auf 27 mm setzen)
+- Langloch-Grundkörper von der Nabe zum Rohrauge, Hebellänge frei wählbar (Default 29 mm =
+  45,7 mm Hub; 27 mm ergäbe 42,6 mm wie das Original)
 - 8 mm Plattendicke statt 3 mm — die Nabenhöhe ist der größte Hebel gegen Durchrutschen
 - Tasche für das Horn in der Unterseite: **runde Scheibe um die Welle + konischer Arm + runde
   Spitze**, 0,2 mm flacher als der Arm (die Kurbel liegt damit auf dem Horn auf und schleift
@@ -55,9 +55,9 @@ eines Mitnehmers**, der auf der Schubstange sitzt; darin läuft der Ø5-Bolzen d
 Gelenkachse muss dafür **parallel zur Servowelle** stehen — eine liegende Achse verspannt das
 Gestänge.
 
-Mit Kurbelradius 27 mm und 104° Servoweg ergibt das 42,6 mm Hub (entspricht dem Original) bei
-10,4 mm Querweg des Bolzens. Der Schlitz im Mitnehmer braucht also mindestens 17,5 mm nutzbare
-Länge bei 5,2 mm Breite, quer zur Schubrichtung, Mitte auf Höhe der Stangenachse. Das Skript
+Mit Kurbelradius 29 mm und 104° Servoweg ergibt das 45,7 mm Hub bei 11,1 mm Querweg des
+Bolzens. Der Schlitz im Mitnehmer braucht also mindestens 18 mm nutzbare Länge bei 5,2 mm
+Breite, quer zur Schubrichtung, Mitte auf Höhe der Stangenachse. Das Skript
 rechnet diese Werte bei jedem Lauf mit aus und zeigt sie an. Der Gegenpart ist das Skript
 **MitnehmerSchubstange** (unten).
 
@@ -71,16 +71,16 @@ Das Gegenstück zur Kurbel: sitzt hinten auf dem Messingrohr (der Schubstange) u
 - **Klemmnabe** Ø14 × 14 mm mit Ø4,9-Bohrung fürs Rohr, geschlitzt (1 mm), geklemmt mit
   M3 × 16 quer durch — kein Kleben, der Mitnehmer bleibt auf dem Rohr verschiebbar zum Justieren
 - zwei **Schlüsselflächen**, damit M3-Kopf und Mutter plan aufliegen
-- dahinter ein **Block 28 × 13 × 12 mm mit Querschlitz 5,2 × 18 mm** (Langloch, durchgehend)
+- dahinter ein **Block 30 × 13 × 12 mm mit Querschlitz 5,2 × 20 mm** (Langloch, durchgehend)
 
 **Warum der Schlitz hinter dem Rohrende liegt:** Die Rohrbohrung ist ein Sackloch — das Rohr
 stößt gegen die Blockvorderseite, der Schlitz dahinter liegt im vollen Material. So kann er die
 Rohrachse mittig kreuzen und die Schubkraft greift auf Achshöhe an. Läge der Schlitz über oder
 neben der Stange, würde die Kraft ein Moment erzeugen und die Stange im Gleitlager verkanten.
 
-**Einbau-Kennwerte** (rechnet das Skript bei jedem Lauf aus): Bei Kurbelradius 27 mm und 104°
-Servoweg — 42,6 mm Hub, 10,4 mm Querweg des Bolzens im Schlitz, und die Servoachse gehört
-**21,8 mm quer versetzt** zur Stangenachse. Nur mit diesem Versatz pendelt der Bolzen symmetrisch
+**Einbau-Kennwerte** (rechnet das Skript bei jedem Lauf aus): Bei Kurbelradius 29 mm und 104°
+Servoweg — 45,7 mm Hub, 11,1 mm Querweg des Bolzens im Schlitz, und die Servoachse gehört
+**23,4 mm quer versetzt** zur Stangenachse. Nur mit diesem Versatz pendelt der Bolzen symmetrisch
 um die Stangenmitte.
 
 **Montage:** Mitnehmer aufs Rohrende schieben, Kurbel in Mittelstellung bringen, Bolzen in den
@@ -91,8 +91,9 @@ vorher mit einem 5-mm-Bohrer von Hand durchziehen, wie bei der Kurbel.
 ### GelenkServoOriginal
 
 Der Nachbau des **Original-Gelenks** aus `Filling machine.STEP` (Part-41 / Part-49 / Part-70) —
-die Alternative zum Kulissen-Konzept der beiden Skripte oben. Ein Lauf erzeugt alle drei Teile
-nebeneinander in Drucklage:
+der **historische Nachbau**. Läuft in der Praxis schlechter als die Kulissen-Variante oben
+(drei spielbehaftete Gelenke, Koppel-Schräglauf bis 79°, Sperrlagen an beiden Hubenden) und
+ist deshalb nicht mehr die empfohlene Lösung. Ein Lauf erzeugt alle drei Teile in Drucklage:
 
 - **Kurbel** (Part-49): Hebel exakt 24,0 mm, Kopf mit Ø3,2 für M3
 - **Koppel** (Part-41): Knochenform, Lochabstand exakt 10,0 mm, Löcher Ø3,4 (dreht frei auf M3)
@@ -117,8 +118,8 @@ Wer diese Einschränkung nicht will, nimmt die Kulissen-Variante oben.
 
 ## Zusammenbau beider Teile (Kulissen-Variante)
 
-Beide Skripte sind aufeinander abgestimmt (Ø5-Bolzen, Kurbelradius 27 = `kurbel_radius` im
-Mitnehmer, Schlitz 5,2 für Bolzen Ø5). Die Höhenkette ist mit den Defaults durchgerechnet —
+Beide Skripte sind aufeinander abgestimmt (Ø5-Bolzen, Kurbelradius 29 = `kurbel_radius` im
+Mitnehmer, Schlitz 5,2 für Bolzen Ø5, Hub 45,7 mm bei 104° Servoweg). Die Höhenkette ist mit den Defaults durchgerechnet —
 **Referenz Z = 0 ist die Kurbel-Unterseite = Oberseite des Servohorns:**
 
 | Z | Was liegt hier |
@@ -134,13 +135,13 @@ Mitnehmer, Schlitz 5,2 für Bolzen Ø5). Die Höhenkette ist mit den Defaults du
 Daraus folgen die drei Einbaumaße für den Servo:
 
 1. **Höhe:** Servo so montieren, dass die Horn-Oberseite **20 mm unter der Stangenachse** liegt.
-2. **Quer:** Servoachse **21,8 mm neben der Stangenachse** (Seite frei wählbar — die Kurbel
-   zeigt bei Mittelstellung zur Stange hin und 5,2 mm darüber hinaus).
+2. **Quer:** Servoachse **23,4 mm neben der Stangenachse** (Seite frei wählbar — die Kurbel
+   zeigt bei Mittelstellung zur Stange hin und 5,6 mm darüber hinaus).
 3. **Längs (Schubrichtung):** Servoachse auf die Position, an der der Stopfkopf **halben Hub**
    hat. In Mittelstellung steht die Kurbel exakt quer zur Stange.
 
-Warum 21,8 und nicht 27: Die Kurbel schwenkt ±52° um die Querstellung. Der Bolzen pendelt
-dann zwischen quer 16,6 und 27 — symmetrisch ±5,2 um die Stangenachse bei 21,8. So bleibt die
+Warum 23,4 und nicht 29: Die Kurbel schwenkt ±52° um die Querstellung. Der Bolzen pendelt
+dann zwischen quer 17,9 und 29 — symmetrisch ±5,6 um die Stangenachse bei 23,4. So bleibt die
 Kraft mittig im Schlitz und der Bolzen läuft nie an ein Schlitzende.
 
 **Reihenfolge:**
@@ -153,7 +154,9 @@ Kraft mittig im Schlitz und der Bolzen läuft nie an ein Schlitzende.
 5. Servo am Rahmen ausrichten (drei Maße oben), Bolzen in den Schlitz einfädeln.
 6. Von Hand durchdrehen: der Bolzen muss über den ganzen Hub frei im Schlitz gleiten,
    nirgends klemmen und an keinem Ende anlaufen. Dann Mitnehmer-M3 festziehen.
-7. Endlagen in der Firmware einmessen (±52° um die Mittelstellung), Servo nach
+7. Endlagen in der Firmware einmessen: ±52° um die Mittelstellung — die aktuellen
+   Firmware-Winkel 5°/85° sind nur 80° Sweep und ergäben bloß 37 mm Hub statt 45,7.
+   Also z. B. HOME 38° / LOAD 142° (bzw. nach eigener Kalibrierung). Servo nach
    Erreichen der Endlage stromlos schalten.
 
 **Vor dem ersten Druck**

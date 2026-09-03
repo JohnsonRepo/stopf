@@ -81,7 +81,8 @@ import adsk.fusion
 # ---------------------------------------------------------------------------
 DEFAULTS = [
     # --- Kurbel selbst ---
-    ('hebel_laenge',      27.0, 'mm',  'Kurbelradius: Servowelle -> Bolzenachse (27 = Originalhub 42 mm)'),
+    ('hebel_laenge',      29.0, 'mm',  'Kurbelradius: Servowelle -> Bolzenachse. Hub = 2*r*sin(52): '
+                                       '27 -> 42,6 / 29 -> 45,7 / 31 -> 48,9 mm'),
     ('dicke',              8.0, 'mm',  'Plattendicke = Nabenhoehe (Original nur 3 mm - zu wenig)'),
     ('naben_d',           16.0, 'mm',  'Aussendurchmesser an der Nabe'),
     ('arm_breite',        10.0, 'mm',  'Breite des Hebelarms'),
@@ -94,16 +95,16 @@ DEFAULTS = [
 
     # --- Horn: alle Werte am eigenen Horn nachmessen ---
     ('horn_winkel',        0.0, 'deg', 'Winkel Hornarm gegen Hebelrichtung (0 = gleiche Richtung)'),
-    ('horn_scheibe_d',     7.2, 'mm',  'MESSEN: Oe der runden Scheibe am Horn (auf Armhoehe)'),
-    ('horn_kragen_d',      6.0, 'mm',  'MESSEN: Oe des erhabenen Kragens ueber der Scheibe'),
-    ('horn_arm_l',        15.5, 'mm',  'MESSEN: Wellenmitte -> Armspitze'),
-    ('horn_arm_b_wurzel',  6.0, 'mm',  'MESSEN: Armbreite am Uebergang zur Scheibe'),
-    ('horn_arm_b_spitze',  4.0, 'mm',  'MESSEN: Armbreite an der Spitze'),
-    ('horn_arm_dicke',     1.5, 'mm',  'MESSEN: Dicke des Hornarms'),
+    ('horn_scheibe_d',     7.4, 'mm',  'GEMESSEN am eigenen Horn: Oe der runden Scheibe'),
+    ('horn_kragen_d',      6.2, 'mm',  'GEMESSEN: Oe des erhabenen Kragens ueber der Scheibe'),
+    ('horn_arm_l',        15.6, 'mm',  'GEMESSEN: Wellenmitte -> Armspitze'),
+    ('horn_arm_b_wurzel',  7.0, 'mm',  'GEMESSEN: Armbreite am Uebergang zur Scheibe'),
+    ('horn_arm_b_spitze',  5.0, 'mm',  'GEMESSEN: Armbreite an der Spitze'),
+    ('horn_arm_dicke',     1.6, 'mm',  'GEMESSEN: Dicke des Hornarms'),
     # Bewusst NICHT zwei benachbarte Hornloecher: bei ~2,5 mm Lochteilung wuerden
     # die Schraubenkoepfe (und ihre Senkungen) ineinanderlaufen.
-    ('horn_loch_1',        7.0, 'mm',  'MESSEN: Abstand 2. Hornloch ab Wellenmitte'),
-    ('horn_loch_2',       12.0, 'mm',  'MESSEN: Abstand 4. (aeusserstes) Hornloch ab Wellenmitte'),
+    ('horn_loch_1',        9.0, 'mm',  'GEMESSEN: Abstand 2. Hornloch ab Wellenmitte'),
+    ('horn_loch_2',       13.0, 'mm',  'GEMESSEN: Abstand 4. (aeusserstes) Hornloch ab Wellenmitte'),
 
     # --- Passungen und Verschraubung ---
     ('spiel',             0.35, 'mm',  'Taschenspiel pro Seite (0,15 + 0,2 Druck-Toleranz)'),
@@ -260,7 +261,7 @@ def _pruefen(w):
 
     # --- Nabe und Horn ---
     abstand = abs(w['horn_loch_2'] - w['horn_loch_1'])
-    if abstand < w['kopf_d'] + 0.5:
+    if abstand < w['kopf_d'] - 0.5:
         warnungen.append(
             'Lochabstand {:.1f} mm ist zu klein fuer Senkungen Oe{:.1f} - die Koepfe '
             'laufen ineinander. Zwei weiter auseinanderliegende Hornloecher waehlen.'
