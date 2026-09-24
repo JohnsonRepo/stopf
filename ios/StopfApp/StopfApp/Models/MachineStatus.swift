@@ -1,6 +1,6 @@
 //
 //  MachineStatus.swift
-//  Spiegelt das MachineStatus-Schema des Pi-Backends (v0.3.0).
+//  Spiegelt das MachineStatus-Schema des Pi-Backends (Nano-Firmware v0.5.0).
 //
 
 import Foundation
@@ -36,6 +36,8 @@ struct MachineStatus: Codable, Equatable {
     var pushFront: Bool
     var pushRear: Bool
     var magazin: Bool
+    var sleeveHome: Bool   // Endschalter Hülsen-Schieber (A3)
+    var servo: Int         // kommandierter Servo-Winkel (Rampe)
     var sol1: Bool
     var sol2: Bool
     var hopper: Bool
@@ -51,6 +53,8 @@ struct MachineStatus: Codable, Equatable {
         case pushFront = "push_front"
         case pushRear = "push_rear"
         case magazin
+        case sleeveHome = "sleeve_home"
+        case servo
         case sol1
         case sol2
         case hopper
@@ -70,6 +74,8 @@ struct MachineStatus: Codable, Equatable {
         pushFront     = try c.decodeIfPresent(Bool.self, forKey: .pushFront) ?? false
         pushRear      = try c.decodeIfPresent(Bool.self, forKey: .pushRear) ?? false
         magazin       = try c.decodeIfPresent(Bool.self, forKey: .magazin) ?? false
+        sleeveHome    = try c.decodeIfPresent(Bool.self, forKey: .sleeveHome) ?? false
+        servo         = try c.decodeIfPresent(Int.self, forKey: .servo) ?? 0
         sol1          = try c.decodeIfPresent(Bool.self, forKey: .sol1) ?? false
         sol2          = try c.decodeIfPresent(Bool.self, forKey: .sol2) ?? false
         hopper        = try c.decodeIfPresent(Bool.self, forKey: .hopper) ?? false
@@ -81,12 +87,14 @@ struct MachineStatus: Codable, Equatable {
     static let disconnected = MachineStatus(
         connected: false, state: .idle, step: 0, error: nil,
         press: false, pushFront: false, pushRear: false, magazin: false,
+        sleeveHome: false, servo: 0,
         sol1: false, sol2: false, hopper: false, hopperEnabled: false, stepperPos: 0
     )
 
     /// Memberwise-Init (für Previews / Defaults), da custom decoder den default verdeckt.
     init(connected: Bool, state: MachineState, step: Int, error: String?,
          press: Bool, pushFront: Bool, pushRear: Bool, magazin: Bool,
+         sleeveHome: Bool, servo: Int,
          sol1: Bool, sol2: Bool, hopper: Bool, hopperEnabled: Bool, stepperPos: Int) {
         self.connected = connected
         self.state = state
@@ -96,6 +104,8 @@ struct MachineStatus: Codable, Equatable {
         self.pushFront = pushFront
         self.pushRear = pushRear
         self.magazin = magazin
+        self.sleeveHome = sleeveHome
+        self.servo = servo
         self.sol1 = sol1
         self.sol2 = sol2
         self.hopper = hopper
@@ -104,7 +114,8 @@ struct MachineStatus: Codable, Equatable {
     }
 }
 
-/// Klartext-Namen der 11 Stuff-Schritte (Index 1..11), gespiegelt zur Nano-Firmware.
+/// Klartext-Namen der 11 Stuff-Schritte (Index 1..11) und der Referenzfahrt
+/// (101..104), gespiegelt zur Nano-Firmware.
 enum StuffStep {
     static let names: [Int: String] = [
         1:  "Trommel weiterdrehen",
@@ -118,6 +129,10 @@ enum StuffStep {
         9:  "Auswurf vor (Zeit)",
         10: "Auswurf zurück (bis Sensor)",
         11: "Pause",
+        101: "Referenz: Hülsen-Schieber",
+        102: "Referenz: Pusher zurück",
+        103: "Referenz: Presse zurück",
+        104: "Referenz: Trommel",
     ]
 
     static func name(_ n: Int) -> String {

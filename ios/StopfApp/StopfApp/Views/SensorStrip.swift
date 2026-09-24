@@ -40,6 +40,7 @@ struct SensorStrip: View {
                 StatusDot(label: "Push V", active: s.pushFront)
                 StatusDot(label: "Push H", active: s.pushRear)
                 StatusDot(label: "Magazin", active: s.magazin, activeColor: .blue)
+                StatusDot(label: "Schieber", active: s.sleeveHome)
                 Divider().frame(height: 28)
                 StatusDot(label: "Sol 1", active: s.sol1, activeColor: .orange)
                 StatusDot(label: "Sol 2", active: s.sol2, activeColor: .orange)

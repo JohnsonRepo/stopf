@@ -23,7 +23,7 @@ flowchart LR
 
     BUCK -->|5 V min. 3 A| BUS5["5 V Bus"]
     BUS5 -->|GPIO Pin 2/6| PI["Raspberry Pi<br/>Zero 2 W"]
-    BUS5 -->|VCC + 470 uF| SERVO["SG90 Servo"]
+    BUS5 -->|VCC + 470 uF| SERVO["MG90S Servo"]
     BUS5 -->|optional| NANO_5V["Arduino Nano<br/>via USB vom Pi"]
 
     PI -->|USB Daten + 5 V| NANO["Arduino Nano"]
@@ -274,6 +274,7 @@ flowchart LR
         A0["A0 Init Press"]
         A1["A1 Init PushFront"]
         A2["A2 Init PushRear"]
+        A3["A3 Endschalter Schieber"]
         A4["A4 Solenoid1-MOSFET"]
         A5["A5 Magazin-Sensor"]
     end
@@ -290,7 +291,8 @@ flowchart LR
     D9 --> L298N_B
     D10 --> L298N_B
 
-    D11 --> SERVO["SG90 Servo<br/>Huelsen-Schieber (einziger Servo)"]
+    D11 --> SERVO["MG90S Servo<br/>Huelsen-Schieber (einziger Servo)<br/>Ritzel + Zahnstange"]
+    SW_HOME["KW12 Endschalter NO<br/>Schieber Home, gegen GND"] --> A3
 
     A4 --> MOS1["MOSFET IRLZ44N<br/>+ 1N5819 Flyback<br/>zu Solenoid Heschen HS-0530B (Front-Knock)"]
     D13 --> MOS2["MOSFET IRLZ44N<br/>+ 1N5819 Flyback<br/>zu Solenoid Heschen HS-0530B (Top-Druck)"]
@@ -715,7 +717,7 @@ internen L298N-Dioden. Für Dauerbetrieb 1N5819 (oder 1N4001–4007) nachrüsten
                               ╔═══════════════╗
    Buck 5 V ──────●──────────╣ VCC (rot)     ║
                   │           ║               ║
-                ║ ║           ║   SG90 Servo  ║
+                ║ ║           ║  MG90S Servo  ║
                 ║ ║ 470 µF    ║  (Hülsenschieber)║
                 ─ ─ ≥ 10 V    ║               ║
                   │           ║               ║
@@ -839,7 +841,8 @@ Tabak per Schwerkraft + Impuls — kein bewegtes Element dazwischen.
 
 > **Hinweis:** Frühere Versionen dieser Doku zeigten eine zusätzliche Servo-Tilt-
 > Wand. Die wurde durch die Doppel-Solenoid-Lösung ersetzt — der einzige Servo
-> im Aufbau ist der Hülsen-Schieber (D11). A3 ist frei (Reserve).
+> im Aufbau ist der Hülsen-Schieber (D11). A3 ist der Endschalter des
+> Hülsen-Schiebers (siehe [`huelsenschieber.md`](huelsenschieber.md)).
 
 ### Funktionsprinzip
 

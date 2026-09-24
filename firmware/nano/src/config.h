@@ -10,7 +10,11 @@
 #define SERIAL_BAUD 115200
 #endif
 #ifndef FIRMWARE_VERSION
-#define FIRMWARE_VERSION "0.4.0"   // v0.4.0: Auswurf-Schritte 9/10 (Kippe vom Stutzen zurück in
+#define FIRMWARE_VERSION "0.5.0"   // v0.5.0: Hülsen-Schieber mit Zahnstange: Servo-Rampe (servo_speed),
+                                   //         Endschalter A3 + Trommel-Verriegelung (sleeve_switch),
+                                   //         Referenzfahrt erst Linearachsen, dann Trommel,
+                                   //         EEPROM-Params v3 übernehmen die Werte aus v2
+                                   // v0.4.0: Auswurf-Schritte 9/10 (Kippe vom Stutzen zurück in
                                    //         die Trommel drücken) + Safety-Timeout Presse-Rückfahrt
                                    // v0.3.3: Stepper im Leerlauf stromlos (Halteström/Wärme sparen)
                                    // v0.3.2: press_fwd_timeout_ms bis 15000 ms
@@ -46,7 +50,17 @@ constexpr bool INIT_TRIGGERED_LEVEL = LOW;
 // Gabellichtschranke an der Trommel: Flagge blockt Licht → DO HIGH.
 constexpr bool MAGAZIN_TRIGGERED_LEVEL = HIGH;
 
-// --- Servo ---
-// Bewegungs-"Reisezeit": Servo bekommt write(), wir warten kooperativ,
-// bis er angekommen ist. Hardware-Eigenschaft, kein Tuning-Parameter.
+// --- Servo (Hülsen-Schieber) ---
+// Die Firmware fährt den Sollwinkel als Rampe mit params.servo_speed (°/s).
+// Der Servo hängt der Rampe etwas hinterher → nach Rampen-Ende noch kurz
+// nachlaufen lassen. Ohne Rampe (servo_speed = 0) springt der Sollwinkel,
+// dann gilt die volle Reisezeit. Hardware-Eigenschaften, keine Tuning-Parameter.
+constexpr unsigned long SERVO_SETTLE_MS     = 150;
 constexpr unsigned long SERVO_MOVE_DELAY_MS = 500;
+
+// --- Hülsen-Schieber-Endschalter (A3) ---
+// Schalter gedrückt (Schieber in Home) → LOW.
+constexpr bool SLEEVE_HOME_TRIGGERED_LEVEL = LOW;
+// So lange darf der Schalter nach Rampen-Ende auf sich warten lassen, sonst
+// Fehler sleeve_home_timeout (Schieber klemmt oder servo_home falsch).
+constexpr unsigned long SLEEVE_HOME_TIMEOUT_MS = 1000;

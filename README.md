@@ -45,6 +45,7 @@ stopfmaschine/
 ├── docs/                  # Schaltpläne & Referenzen
 │   ├── wiring.md          # Schaltpläne (Mermaid + ASCII-Detail)
 │   ├── pinout.md          # Pin-/Verdrahtungstabellen + Bestelllisten
+│   ├── huelsenschieber.md # Hülsen-Schieber: Servo + Zahnstange, Endschalter
 │   └── protocol.md        # Serial-Protokoll Pi ↔ Nano
 │
 └── app/                   # Mobile App (Flutter primär) — (geplant)

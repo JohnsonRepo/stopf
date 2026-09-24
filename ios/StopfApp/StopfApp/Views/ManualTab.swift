@@ -10,6 +10,7 @@ struct ManualTab: View {
     @Environment(AppState.self) private var app
 
     @State private var servoAngle: Double = 5
+    @State private var servoEditing = false
     @State private var knockCycles: Int = 8
     @State private var hopperTestMs: Double = 1500
     @State private var stepperSteps: Int = 200
@@ -60,6 +61,9 @@ struct ManualTab: View {
                 Divider()
                 SensorRow(name: "Magazin-Lichtschranke", pin: "A5",
                           active: s.magazin, activeColor: .blue, live: app.isLive)
+                Divider()
+                SensorRow(name: "Endschalter Hülsen-Schieber", pin: "A3",
+                          active: s.sleeveHome, live: app.isLive)
             }
         } label: {
             Label("Sensoren (live)", systemImage: "dot.radiowaves.left.and.right")
@@ -112,19 +116,25 @@ struct ManualTab: View {
                 Slider(value: $servoAngle, in: 0...180, step: 1) {
                     Text("Servo")
                 } onEditingChanged: { editing in
+                    servoEditing = editing
                     if !editing { app.fire { try await $0.servo(Int(servoAngle)) } }
                 }
                 .disabled(!ready)
+                // Home/Laden = kalibrierte Winkel aus den Parametern (servo_home/servo_load).
                 HStack(spacing: 12) {
                     ActionButton(title: "Home", tint: .gray, disabled: !ready) {
-                        servoAngle = 5
-                        app.fire { try await $0.servo(5) }
+                        app.fire { try await $0.servo(position: "home") }
                     }
                     ActionButton(title: "Laden", tint: .gray, disabled: !ready) {
-                        servoAngle = 85
-                        app.fire { try await $0.servo(85) }
+                        app.fire { try await $0.servo(position: "load") }
                     }
                 }
+                Text("Kalibrieren: langsam auf Home fahren, bis der Endschalter auslöst → Winkel als „Position Home“ speichern. Dann bis die Hülse ganz auf dem Rohr sitzt → „Position Laden“.")
+                    .font(.caption2).foregroundStyle(.secondary)
+            }
+            // Slider folgt der Live-Position (Rampe, Sequenz), außer beim Ziehen.
+            .onChange(of: app.status.servo) { _, angle in
+                if !servoEditing { servoAngle = Double(angle) }
             }
         } label: {
             Label("Servo (Hülsen-Schieber)", systemImage: "slider.horizontal.below.rectangle")
@@ -226,6 +236,8 @@ struct ManualTab: View {
                              tint: .brown, disabled: !ready) {
                     app.fire { try await $0.stepper(stepperSteps) }
                 }
+                Text("Dreht nur, wenn der Hülsen-Schieber in Home ist (Endschalter A3) — sonst „sleeve_not_home“.")
+                    .font(.caption2).foregroundStyle(.secondary)
             }
         } label: {
             Label("Trommel (Stepper)", systemImage: "circle.dotted")

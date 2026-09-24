@@ -28,7 +28,7 @@ from typing import Any
 # Felder, die als bool interpretiert werden sollen (Sensoren + Aktor-Pins).
 # Alles andere mit Zahl bleibt int.
 _BOOL_FIELDS = {
-    "press", "push_front", "push_rear", "magazin",
+    "press", "push_front", "push_rear", "magazin", "sleeve_home",
     "sol1", "sol2", "hopper", "hopper_enabled",
 }
 

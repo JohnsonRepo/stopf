@@ -17,7 +17,7 @@ Endpoints:
     POST /manual/stepper            {"steps": N}
     POST /manual/press              {"direction":"fwd|rev|stop"}
     POST /manual/pusher             {"direction":"fwd|rev|stop"}
-    POST /manual/servo              {"angle": 0..180}
+    POST /manual/servo              {"angle": 0..180} | {"position": "home|load"}
     POST /manual/solenoid/{1|2}     {"action":"off|pulse","ms":?}  (Dauer-ON deaktiviert)
     POST /manual/hopper             {"action":"on|off|test","ms":?}
     POST /manual/knock              {"cycles": ?}
@@ -243,7 +243,16 @@ async def m_pusher(req: MotorRequest):
 
 @app.post("/manual/servo", response_model=CommandResponse)
 async def m_servo(req: ServoRequest):
-    return await _send_cmd(f"servo {req.angle}")
+    angle = req.angle
+    if req.position is not None:
+        # Kalibrierte Position aus dem EEPROM holen statt fester Winkel in der
+        # App — mit Zahnstange hängt Home/Laden vom Einbau des Ritzels ab.
+        key = f"servo_{req.position}"
+        reply = await nano.send(f"get {key}")
+        angle = parse(reply).get(key)
+        if not isinstance(angle, int):
+            return CommandResponse(sent=f"get {key}", reply=reply, ok=False, parsed=parse(reply))
+    return await _send_cmd(f"servo {angle}")
 
 
 @app.post("/manual/solenoid/{which}", response_model=CommandResponse)

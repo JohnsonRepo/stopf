@@ -20,7 +20,7 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | D8 | `PIN_PRESS_IN2` | Presse Richtung B | L298N IN2 | rot | digital |
 | D9 | `PIN_PUSHER_IN3` | Pusher Richtung A | L298N IN3 | violett | digital (Servo killt hier nur PWM) |
 | D10 | `PIN_PUSHER_IN4` | Pusher Richtung B | L298N IN4 | blau | digital |
-| D11 | `PIN_SERVO` | Servo-Signal Hülsen-Schieber | SG90 (orange Litze) | orange | **PWM** (Servo-Library) |
+| D11 | `PIN_SERVO` | Servo-Signal Hülsen-Schieber | MG90S (orange Litze) | orange | **PWM** (Servo-Library), Ritzel + Zahnstange |
 | D12 | `PIN_HOPPER_MOTOR` | Hülsenmagazin-Motor | MOSFET-Gate (2N7000 / IRLZ44N) | grau | digital ON/OFF (5 V, ~40 mA Last) |
 | D13 | `PIN_SOLENOID_2` | Hubmagnet #2 (Top-Druck) | MOSFET-Gate (IRLZ44N) | weiß | digital ON/OFF, Heschen HS-0530B (12 V) |
 
@@ -31,9 +31,10 @@ Quelle der Pin-Nummern: [`firmware/nano/src/pins.h`](../firmware/nano/src/pins.h
 | A0 | `PIN_INIT_PRESS` | Initiator Press | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k Spannungsteiler | active LOW |
 | A1 | `PIN_INIT_PUSH_FRONT` | Initiator Pusher vorne | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
 | A2 | `PIN_INIT_PUSH_REAR` | Initiator Pusher hinten | LJ8A3-2-Z/BX (schwarz) | über 10 k + 7,5 k | active LOW |
-| A3 | – | **frei** (Reserve) | – | – | z. B. zukünftige Sensoren oder I²C-Display |
+| A3 | `PIN_SLEEVE_HOME` | Endschalter Hülsen-Schieber (Home) | KW12-Mikroschalter, Schließer (NO) | COM → GND, NO → A3, interner Pull-up | active LOW, verriegelt die Trommel |
 | A4 | `PIN_SOLENOID_1` | Hubmagnet #1 (Front-Knock) | MOSFET-Gate (IRLZ44N) | digital ON/OFF, Heschen HS-0530B (12 V) |
 | A5 | `PIN_MAGAZIN_SENSOR` | Magazin-Gabellichtschranke | Oniissy / Standard-Opto | direkt 5 V-Logik, kein Spannungsteiler |
+| A6 / A7 | – | **frei** (Reserve) | – | nur analog lesbar, keine internen Pull-ups | – |
 
 ### Versorgungs-Pins
 
@@ -118,16 +119,29 @@ Standard-Belegung (variiert pro Hersteller — mit Multimeter durchklingeln!):
 
 ---
 
-## SG90 Servo (Hülsen-Schieber — einziger Servo)
+## MG90S Servo (Hülsen-Schieber — einziger Servo)
 
 Im finalen Aufbau gibt es **nur einen Servo** (für das Aufschieben der Hülse).
 Die Tabak-Dosierung läuft komplett über 2 Solenoide ohne Servo.
+Antrieb über Ritzel (Modul 1, z = 24) + Zahnstange — Auslegung, Einbau und
+Kalibrierung: [`huelsenschieber.md`](huelsenschieber.md). MG90S statt SG90
+wegen Metallgetriebe, gleiche Bauform und Stecker.
 
 | Litzenfarbe | Funktion | Anschluss |
 |---|---|---|
 | rot | VCC 5 V | Buck-Out + 470 µF Elko lokal am Servo |
 | braun / schwarz | GND | GND-Sternpunkt |
 | orange / gelb | Signal (PWM) | Nano **D11** |
+
+### Endschalter Hülsen-Schieber (KW12, 1 Stück)
+
+| Kontakt | Anschluss | Anmerkung |
+|---|---|---|
+| COM | GND-Sternpunkt | – |
+| NO (Schließer) | Nano **A3** | gedrückt = Schieber in Home = LOW; Kabelbruch = „nicht Home“ (fail-safe) |
+
+Bei Kabel > 30 cm zusätzlich 10 kΩ Pull-up A3 → 5 V und 100 nF A3 → GND.
+Alternative: Hall-Sensor A3144 + Magnet am Schlitten (OUT an A3, gleiche Logik).
 
 ---
 
@@ -452,5 +466,6 @@ abfall-Probleme bei pulsenden Lasten (Schrittmotor, DC-Motor).
 
 - [`wiring.md`](wiring.md) — Schaltpläne und Spannungsteiler-Details
 - [`protocol.md`](protocol.md) — Serial-Befehle Pi ↔ Nano
+- [`huelsenschieber.md`](huelsenschieber.md) — Hülsen-Schieber: Servo + Zahnstange, Endschalter, Kalibrierung
 - [`../firmware/nano/src/pins.h`](../firmware/nano/src/pins.h) — Pin-Defines im Code
 - [`../firmware/nano/src/config.h`](../firmware/nano/src/config.h) — Konstanten (Speeds, Timeouts)

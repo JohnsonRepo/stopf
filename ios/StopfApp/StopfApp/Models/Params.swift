@@ -1,6 +1,6 @@
 //
 //  Params.swift
-//  Spiegelt die 19 EEPROM-Parameter der Nano-Firmware v0.4.0.
+//  Spiegelt die 21 EEPROM-Parameter der Nano-Firmware v0.5.0.
 //
 //  Backend liefert /params als flaches {key: Int}-Dictionary; wir halten es
 //  genauso (Dictionary statt Struct), damit neue Parameter in der Firmware
@@ -21,6 +21,9 @@ struct ParamSpec: Identifiable {
     let step: Int          // Schrittweite im UI-Stepper
 
     var id: String { key }
+
+    /// 0/1-Parameter werden als Schalter statt als Slider angezeigt.
+    var isToggle: Bool { minVal == 0 && maxVal == 1 }
 }
 
 enum ParamGroup: String, CaseIterable, Identifiable {
@@ -59,6 +62,8 @@ enum ParamCatalog {
         // Servo
         .init(key: "servo_home",            label: "Position Home",         group: .servo,  minVal: 0,   maxVal: 180,   unit: "°",     step: 1),
         .init(key: "servo_load",            label: "Position Laden",        group: .servo,  minVal: 0,   maxVal: 180,   unit: "°",     step: 1),
+        .init(key: "servo_speed",           label: "Geschwindigkeit (0 = Sprung)", group: .servo, minVal: 0, maxVal: 1000, unit: "°/s", step: 10),
+        .init(key: "sleeve_switch",         label: "Endschalter prüfen (A3)", group: .servo, minVal: 0,   maxVal: 1,     unit: "",      step: 1),
         // Knock
         .init(key: "knock_cycles",          label: "Anzahl Schläge",        group: .knock,  minVal: 1,   maxVal: 50,    unit: "×",     step: 1),
         .init(key: "knock_on_ms",           label: "Schlag-Dauer",          group: .knock,  minVal: 1,   maxVal: 1000,  unit: "ms",    step: 5),

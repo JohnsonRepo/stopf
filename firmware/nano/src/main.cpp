@@ -1,12 +1,14 @@
 // =====================================================
 // main.cpp
-// Stopfmaschine - Arduino Nano Firmware v0.3.0
+// Stopfmaschine - Arduino Nano Firmware v0.5.0
 //
 // Architektur:
 //   - Live-tunbare Parameter im EEPROM (params.h/cpp)
 //   - Kooperative State-Machine (home / stuff / step / idle / error)
 //   - Background-Hopper-Cycle parallel zur Hauptsequenz
 //   - Alle Sequenz-Befehle non-blocking — `stop` greift sofort
+//   - Hülsen-Schieber (Servo + Zahnstange): Winkel-Rampe mit servo_speed,
+//     Endschalter A3 verriegelt die Trommel (sleeve_switch)
 //
 // Befehle (115200 Baud):
 //   help                     - Liste
@@ -15,16 +17,18 @@
 //   params                   - alle EEPROM-Parameter
 //   get <key>                - einzelner Parameter
 //   set <key> <value>        - Parameter setzen (validiert + persistiert)
-//   home                     - Referenzfahrt (Trommel → Lichtschranke, Pusher → A2)
+//   home                     - Referenzfahrt (Schieber → A3, Pusher → A2, Presse,
+//                              zuletzt Trommel → Lichtschranke)
 //   stuff                    - Vollsequenz, läuft endlos bis `stop`
 //   step <n>                 - Einzelschritt (1..11 = Stuff-Steps)
 //   stop                     - Notaus, alles aus, Mode → IDLE
 //
 //   --- Manual (nur erlaubt wenn state=idle) ---
-//   stepper <steps>          - relative Stepper-Bewegung
+//   stepper <steps>          - relative Stepper-Bewegung (gesperrt, wenn der
+//                              Schieber nicht in Home ist und sleeve_switch=1)
 //   press fwd|rev|stop       - DC-Motor Presse (PWM aus params.press_pwm)
 //   pusher fwd|rev|stop      - DC-Motor Pusher (PWM aus params.pusher_pwm)
-//   servo <0..180>           - Hülsen-Schieber-Servo
+//   servo <0..180>           - Hülsen-Schieber-Servo (fährt als Rampe)
 //   solenoid 1|2 off|pulse <ms>   (Dauer-ON deaktiviert — Magnet-Schutz)
 //   hopper on|off|test <ms>  - on = Background-Cycle, test = einmaliger Run
 //   knock [<cycles>]         - läuft als Step (kann via stop abgebrochen werden)
@@ -69,10 +73,12 @@ constexpr uint8_t STEP_DELAY      = 11;
 constexpr uint8_t STUFF_STEP_MIN  = 1;
 constexpr uint8_t STUFF_STEP_MAX  = 11;
 
-constexpr uint8_t HOME_DRUM      = 101;
+// Reihenfolge: erst alle Linearachsen zurück, zuletzt die Trommel — sonst
+// dreht sie, während Stift oder Pusher noch in ihr stecken.
+constexpr uint8_t HOME_SERVO     = 101;
 constexpr uint8_t HOME_PUSH_REV  = 102;
-constexpr uint8_t HOME_SERVO     = 103;
-constexpr uint8_t HOME_PRESS_REV = 104;
+constexpr uint8_t HOME_PRESS_REV = 103;
+constexpr uint8_t HOME_DRUM      = 104;
 constexpr uint8_t HOME_DONE      = 105;
 
 Mode          currentMode    = MODE_IDLE;
@@ -90,6 +96,14 @@ uint8_t       knockTargetCycles = 0;  // für Manual-Knock mit eigener Cycle-Zah
 bool          hopperEnabled      = false;
 unsigned long hopperCycleStartMs = 0;
 unsigned long hopperManualUntil  = 0;  // für `hopper test <ms>` (Manual)
+
+// Servo-Rampe (Hülsen-Schieber). Der Sollwinkel springt nicht, sondern läuft
+// gradweise mit params.servo_speed (°/s) — so wird die Hülse sanft aufs Rohr
+// geschoben, statt dass der Servo mit Vollgas gegen sie schlägt.
+uint8_t       servoPos       = 0;   // aktuell kommandierter Winkel
+uint8_t       servoTarget    = 0;   // Zielwinkel der Rampe
+unsigned long servoLastUs    = 0;   // Zeitpunkt des letzten Rampen-Grads
+unsigned long servoArrivedMs = 0;   // wann die Rampe das Ziel erreicht hat
 
 // =====================================================
 // Hardware-Helpers
@@ -142,6 +156,67 @@ static void pusherDrive(const char* dir) {
     }
 }
 
+// --- Hülsen-Schieber (Servo + Zahnstange) ---
+
+// Startet die Rampe zum Zielwinkel (Servo wird bei Bedarf wieder angehängt).
+static void servoMoveTo(uint8_t angle) {
+    if (!tubeServo.attached()) tubeServo.attach(PIN_SERVO);
+    servoTarget = angle;
+    if (params.servo_speed == 0) {         // ohne Rampe: Sprung wie bis v0.4
+        servoPos = angle;
+        tubeServo.write(angle);
+    }
+    servoLastUs    = micros();
+    servoArrivedMs = millis();             // Rampe setzt das bei Ankunft neu
+}
+
+// Rampe am Ziel + Nachlauf abgewartet → Servo steht (ohne Rampe: Reisezeit).
+static bool servoSettled() {
+    if (servoPos != servoTarget) return false;
+    unsigned long settle = (params.servo_speed == 0) ? SERVO_MOVE_DELAY_MS : SERVO_SETTLE_MS;
+    return millis() - servoArrivedMs >= settle;
+}
+
+static void tickServo() {
+    if (servoPos == servoTarget) return;
+    if (params.servo_speed == 0) {         // Rampe mitten in der Fahrt abgeschaltet → direkt ans Ziel
+        servoPos = servoTarget;
+        tubeServo.write(servoPos);
+        servoArrivedMs = millis();
+        return;
+    }
+    unsigned long interval = 1000000UL / params.servo_speed;   // µs pro Grad
+    unsigned long now = micros();
+    // Nach einer Blockade (z. B. manueller Solenoid-Puls) nicht springen,
+    // sondern ab jetzt normal weiterrampen.
+    if (now - servoLastUs > interval + 100000UL) servoLastUs = now - interval;
+    uint8_t before = servoPos;
+    while (servoPos != servoTarget && now - servoLastUs >= interval) {
+        servoLastUs += interval;
+        if (servoTarget > servoPos) servoPos++; else servoPos--;
+    }
+    if (servoPos != before) tubeServo.write(servoPos);
+    if (servoPos == servoTarget) servoArrivedMs = millis();
+}
+
+// Stopp/Fehler/Watchdog: Rampe einfrieren und Servo stromlos schalten —
+// sonst drückt ein blockierter Schieber mit Blockierstrom weiter.
+static void servoRelease() {
+    servoTarget = servoPos;
+    tubeServo.detach();
+    digitalWrite(PIN_SERVO, LOW);          // detach() mitten im Puls lässt den Pin sonst HIGH
+}
+
+static bool sleeveHome() {
+    return digitalRead(PIN_SLEEVE_HOME) == SLEEVE_HOME_TRIGGERED_LEVEL;
+}
+
+// Trommel darf nur drehen, wenn der Stift sicher zurück ist. Ohne verbauten
+// Endschalter (sleeve_switch = 0) entfällt die Prüfung.
+static bool drumAllowed() {
+    return params.sleeve_switch == 0 || sleeveHome();
+}
+
 // =====================================================
 // State-Machine
 // =====================================================
@@ -151,6 +226,7 @@ static void setError(const char* msg) {
     errorMsg[sizeof(errorMsg) - 1] = '\0';
     currentMode = MODE_ERROR;
     allMotorsOff();
+    servoRelease();
     hopperEnabled = false;
     Serial.print(F("err sequence:")); Serial.println(errorMsg);
 }
@@ -174,10 +250,10 @@ static void advanceStep() {
     }
     if (currentMode == MODE_HOMING) {
         switch (currentStep) {
-            case HOME_DRUM:      enterStep(HOME_PUSH_REV);  break;
-            case HOME_PUSH_REV:  enterStep(HOME_SERVO);     break;
-            case HOME_SERVO:     enterStep(HOME_PRESS_REV); break;
-            case HOME_PRESS_REV:
+            case HOME_SERVO:     enterStep(HOME_PUSH_REV);  break;
+            case HOME_PUSH_REV:  enterStep(HOME_PRESS_REV); break;
+            case HOME_PRESS_REV: enterStep(HOME_DRUM);      break;
+            case HOME_DRUM:
                 currentMode = MODE_IDLE;
                 currentStep = 0;
                 Serial.println(F("ok home_done"));
@@ -193,17 +269,18 @@ static void enterStep(uint8_t step) {
     switch (step) {
         // ----- Stuff steps -----
         case STEP_DRUM:
+            if (!drumAllowed()) { setError("sleeve_not_home"); break; }
             enableStepper();
             stepper.setMaxSpeed(STEPPER_MAX_SPEED);
             stepper.move(params.drum_steps_per_pos);
             break;
 
         case STEP_SERVO_LOAD:
-            tubeServo.write(params.servo_load);
+            servoMoveTo(params.servo_load);
             break;
 
         case STEP_SERVO_HOME:
-            tubeServo.write(params.servo_home);
+            servoMoveTo(params.servo_home);
             break;
 
         case STEP_KNOCK:
@@ -248,6 +325,7 @@ static void enterStep(uint8_t step) {
 
         // ----- Home steps -----
         case HOME_DRUM:
+            if (!drumAllowed()) { setError("sleeve_not_home"); break; }
             enableStepper();
             stepper.setMaxSpeed(STEPPER_HOME_SPEED);
             // große Distanz in eine Richtung — wir stoppen über den Sensor
@@ -259,7 +337,7 @@ static void enterStep(uint8_t step) {
             break;
 
         case HOME_SERVO:
-            tubeServo.write(params.servo_home);
+            servoMoveTo(params.servo_home);
             break;
 
         case HOME_PRESS_REV:
@@ -302,9 +380,24 @@ static void tickStep() {
             break;
 
         case STEP_SERVO_LOAD:
+            // Stift vorne, Hülse sitzt auf dem Rohr. Mit Endschalter zusätzlich
+            // prüfen, dass der Schieber Home wirklich verlassen hat — sonst
+            // dreht der Servo leer (Ritzel rutscht am Horn) oder der Schieber klemmt.
+            if (servoSettled()) {
+                if (params.sleeve_switch && sleeveHome()) setError("sleeve_stuck");
+                else advanceStep();
+            }
+            break;
+
         case STEP_SERVO_HOME:
         case HOME_SERVO:
-            if (now - stepStartedMs >= SERVO_MOVE_DELAY_MS) advanceStep();
+            if (params.sleeve_switch == 0) {
+                if (servoSettled()) advanceStep();
+            } else if (servoPos == servoTarget) {
+                // Rampe fertig → auf den Endschalter warten
+                if (sleeveHome()) advanceStep();
+                else if (millis() - servoArrivedMs > SLEEVE_HOME_TIMEOUT_MS) setError("sleeve_home_timeout");
+            }
             break;
 
         case STEP_KNOCK:
@@ -439,13 +532,19 @@ static void startHome() {
     clearError();
     currentMode = MODE_HOMING;
     hopperEnabled = false;
-    enterStep(HOME_DRUM);
+    enterStep(HOME_SERVO);
     Serial.println(F("ok homing"));
 }
 
 static void startStuff() {
     if (currentMode != MODE_IDLE && currentMode != MODE_ERROR) {
         Serial.println(F("err busy"));
+        return;
+    }
+    // Die Sequenz beginnt mit der Trommel-Drehung → vorher prüfen, damit der
+    // Befehl genau EINE Antwortzeile bekommt (kein "err sequence" + "ok").
+    if (!drumAllowed()) {
+        Serial.println(F("err sleeve_not_home"));
         return;
     }
     clearError();
@@ -465,6 +564,10 @@ static void startStep(uint8_t n) {
         Serial.print(F("err step_range:1..")); Serial.println(STUFF_STEP_MAX);
         return;
     }
+    if (n == STEP_DRUM && !drumAllowed()) {
+        Serial.println(F("err sleeve_not_home"));
+        return;
+    }
     clearError();
     currentMode = MODE_STEP;
     enterStep(n);
@@ -473,6 +576,7 @@ static void startStep(uint8_t n) {
 
 static void doStop() {
     allMotorsOff();
+    servoRelease();
     stepper.stop();
     stepper.move(0);
     stepper.setMaxSpeed(STEPPER_MAX_SPEED);
@@ -513,6 +617,8 @@ static void printStatus() {
     Serial.print(F(" push_front="));      Serial.print(pushFront);
     Serial.print(F(" push_rear="));       Serial.print(pushRear);
     Serial.print(F(" magazin="));         Serial.print(magazin);
+    Serial.print(F(" sleeve_home="));     Serial.print(sleeveHome() ? 1 : 0);
+    Serial.print(F(" servo="));           Serial.print(servoPos);
     Serial.print(F(" sol1="));            Serial.print(digitalRead(PIN_SOLENOID_1));
     Serial.print(F(" sol2="));            Serial.print(digitalRead(PIN_SOLENOID_2));
     Serial.print(F(" hopper="));          Serial.print(digitalRead(PIN_HOPPER_MOTOR));
@@ -528,7 +634,7 @@ static void printHelp() {
     Serial.println(F("stepper <steps>"));
     Serial.println(F("press fwd|rev|stop  (PWM aus params.press_pwm)"));
     Serial.println(F("pusher fwd|rev|stop (PWM aus params.pusher_pwm)"));
-    Serial.println(F("servo <0..180>"));
+    Serial.println(F("servo <0..180>   (Rampe: servo_speed deg/s)"));
     Serial.println(F("solenoid 1|2 off|pulse <ms>   (Dauer-ON deaktiviert)"));
     Serial.println(F("hopper on|off|test <ms>   (on = 10s/20s Cycle)"));
     Serial.println(F("knock [<cycles>]"));
@@ -650,6 +756,7 @@ static void handleCommand(String cmd) {
     // --- Manual: nur im IDLE ---
     if (cmd.startsWith("stepper ")) {
         if (!requireIdle()) return;
+        if (!drumAllowed()) { Serial.println(F("err sleeve_not_home")); return; }
         long steps = cmd.substring(8).toInt();
         enableStepper();
         stepper.setMaxSpeed(STEPPER_MAX_SPEED);
@@ -673,8 +780,14 @@ static void handleCommand(String cmd) {
     }
     if (cmd.startsWith("servo ")) {
         if (!requireIdle()) return;
-        int angle = constrain(cmd.substring(6).toInt(), 0, 180);
-        tubeServo.write(angle);
+        String arg = cmd.substring(6); arg.trim();
+        // Nur Ziffern: "servo home" o. ä. wäre sonst toInt() = 0° und würde
+        // die Zahnstange gegen den Anschlag fahren.
+        bool numeric = arg.length() > 0 && arg.length() <= 3;
+        for (unsigned int i = 0; numeric && i < arg.length(); i++) numeric = isDigit(arg[i]);
+        if (!numeric) { Serial.print(F("err servo_angle:")); Serial.println(arg); return; }
+        int angle = constrain(arg.toInt(), 0, 180);
+        servoMoveTo(angle);
         Serial.print(F("ok servo ")); Serial.println(angle);
         return;
     }
@@ -749,12 +862,17 @@ void setup() {
     pinMode(PIN_INIT_PUSH_FRONT, INPUT);
     pinMode(PIN_INIT_PUSH_REAR, INPUT);
     pinMode(PIN_MAGAZIN_SENSOR, INPUT_PULLUP);
+    pinMode(PIN_SLEEVE_HOME, INPUT_PULLUP);
 
     stepper.setMaxSpeed(STEPPER_MAX_SPEED);
     stepper.setAcceleration(STEPPER_ACCEL);
 
-    tubeServo.attach(PIN_SERVO);
+    // Startwinkel VOR attach() setzen — sonst schickt Servo.h zuerst einen
+    // 1500-µs-Puls (90°) und der Schieber zuckt beim Boot Richtung Mitte.
+    // Die Ist-Position ist nach dem Reset unbekannt → hier ohne Rampe.
+    servoPos = servoTarget = params.servo_home;
     tubeServo.write(params.servo_home);
+    tubeServo.attach(PIN_SERVO);
 
     allMotorsOff();
     lastCommandMs = millis();
@@ -793,6 +911,9 @@ void loop() {
         digitalWrite(PIN_STEPPER_EN, HIGH);   // EN HIGH = Treiber/Strom aus
     }
 
+    // 2c) Servo-Rampe (Hülsen-Schieber)
+    tickServo();
+
     // 3) State-Machine (home/stuff/step) ticken
     tickStateMachine();
 
@@ -805,6 +926,7 @@ void loop() {
         (millis() - lastCommandMs > WATCHDOG_TIMEOUT_MS) &&
         lastCommandMs > 0) {
         allMotorsOff();
+        servoRelease();
         hopperEnabled = false;
         Serial.println(F("warn watchdog_timeout"));
         watchdogTripped = true;

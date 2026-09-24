@@ -142,6 +142,10 @@ struct APIClient {
     @discardableResult func servo(_ angle: Int) async throws -> CommandResponse {
         try await command("/manual/servo", body: ["angle": angle])
     }
+    /// Kalibrierte Position aus dem EEPROM ("home" / "load") anfahren.
+    @discardableResult func servo(position: String) async throws -> CommandResponse {
+        try await command("/manual/servo", body: ["position": position])
+    }
     @discardableResult func solenoid(_ which: Int, action: String, ms: Int? = nil) async throws -> CommandResponse {
         try await command("/manual/solenoid/\(which)", body: ActionBody(action: action, ms: ms))
     }

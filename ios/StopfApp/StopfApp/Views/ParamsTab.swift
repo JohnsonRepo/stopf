@@ -158,6 +158,22 @@ struct ParamRow: View {
     private var isDirty: Bool { store.dirtyKeys.contains(spec.key) }
 
     var body: some View {
+        if spec.isToggle {
+            Toggle(isOn: toggleBinding) {
+                HStack {
+                    Text(spec.label)
+                    if isDirty {
+                        Circle().fill(.orange).frame(width: 6, height: 6)
+                    }
+                }
+            }
+            .padding(.vertical, 2)
+        } else {
+            sliderRow
+        }
+    }
+
+    private var sliderRow: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(spec.label)
@@ -180,6 +196,13 @@ struct ParamRow: View {
             }
         }
         .padding(.vertical, 2)
+    }
+
+    private var toggleBinding: Binding<Bool> {
+        Binding(
+            get: { store.intValue(spec.key) != 0 },
+            set: { store.values[spec.key] = $0 ? 1 : 0 }
+        )
     }
 
     private var stepperBinding: Binding<Int> {

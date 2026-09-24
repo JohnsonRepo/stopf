@@ -15,7 +15,8 @@
 #include <Arduino.h>
 
 constexpr uint16_t PARAMS_MAGIC   = 0xC51F;   // "Stopfmaschine" Marker
-constexpr uint8_t  PARAMS_VERSION = 2;        // v2: + eject_fwd_ms (Auswurf-Vorstoß)
+constexpr uint8_t  PARAMS_VERSION = 3;        // v3: + servo_speed, sleeve_switch (v2-Werte werden übernommen)
+                                              // v2: + eject_fwd_ms (Auswurf-Vorstoß)
 
 struct Params {
     uint16_t magic;
@@ -25,9 +26,11 @@ struct Params {
     uint16_t drum_steps_per_pos;     // Schritte pro Hülsenposition
     uint16_t home_drum_timeout_ms;   // Watchdog: Lichtschranke muss bis dann triggern
 
-    // Servo (Hülsen-Schieber, D11)
-    uint8_t  servo_home;             // 0..180°
-    uint8_t  servo_load;             // 0..180°
+    // Servo (Hülsen-Schieber, D11 — Ritzel + Zahnstange)
+    uint8_t  servo_home;             // 0..180°, Stift ganz zurück (Endschalter gedrückt)
+    uint8_t  servo_load;             // 0..180°, Hülse ganz aufs Stopfrohr geschoben
+    uint16_t servo_speed;            // Rampe in °/s, 0 = Sprung ohne Rampe (wie bis v0.4)
+    uint8_t  sleeve_switch;          // 1 = Endschalter A3 prüfen (Trommel-Verriegelung), 0 = nicht verbaut
 
     // Knock (beide Solenoide synchron)
     uint16_t knock_on_ms;            // Pulsdauer pro Schlag
@@ -63,7 +66,8 @@ struct Params {
 
 extern Params params;
 
-// Beim Boot aufrufen: lädt aus EEPROM oder schreibt Defaults.
+// Beim Boot aufrufen: lädt aus EEPROM, übernimmt ein v2-Layout (Werte bleiben,
+// neue Felder bekommen Defaults) oder schreibt sonst Defaults.
 void paramsBegin();
 
 // Schreibt aktuelle Werte zurück ins EEPROM (mit frischer CRC).

@@ -32,8 +32,16 @@ constexpr uint8_t PIN_PRESS_IN2   = 8;    // digital
 constexpr uint8_t PIN_PUSHER_IN3  = 9;    // digital (Servo killt hier nur PWM)
 constexpr uint8_t PIN_PUSHER_IN4  = 10;   // digital
 
-// --- Servo Hülsen-Schieber ---
+// --- Servo Hülsen-Schieber (Ritzel + Zahnstange, siehe docs/huelsenschieber.md) ---
 constexpr uint8_t PIN_SERVO          = 11;
+
+// --- Endschalter Hülsen-Schieber (Home = Stift ganz zurück, aus der Trommel) ---
+// KW12-Mikroschalter als Schließer (COM → GND, NO → A3), interner Pull-up.
+// Schieber in Home → Schalter gedrückt → LOW.
+// Fail-safe: Kabelbruch → HIGH → "nicht Home" → Trommel bleibt gesperrt.
+// Alternativ Hall-Sensor A3144 (Open Collector, zieht bei Magnet nach LOW) —
+// gleiche Logik, keine Änderung im Code.
+constexpr uint8_t PIN_SLEEVE_HOME    = A3;
 
 // --- Hülsenmagazin-Motor (kleiner DC-Motor, 5 V, ~40 mA) ---
 // Verdrahtung: Nano D12 → 1 kΩ → Gate eines kleinen N-MOSFETs (2N7000 / IRLZ44N).
@@ -67,7 +75,8 @@ constexpr uint8_t PIN_INIT_PUSH_REAR  = A2;
 //   - Solenoid #2 siehe oben (D13), Solenoid #1 hier:
 constexpr uint8_t PIN_SOLENOID_1     = A4;  // → MOSFET → Heschen HS-0530B (Front-Knock)
 
-// A3 ist frei (Reserve — z. B. zukünftige Sensoren, I²C-Display etc.)
+// A3 ist der Hülsen-Schieber-Endschalter (siehe oben).
+// Frei: A6/A7 (nur analog lesbar, keine internen Pull-ups).
 
 // --- Magazin-Lichtschranke (Trommel-Index) ---
 constexpr uint8_t PIN_MAGAZIN_SENSOR = A5;  // Gabellichtschranke, direkt 5 V-Logik

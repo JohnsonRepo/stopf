@@ -1,11 +1,11 @@
 """
 schemas.py
-Pydantic-Modelle, gespiegelt zur Nano-Firmware v0.4.0.
+Pydantic-Modelle, gespiegelt zur Nano-Firmware v0.5.0.
 """
 from __future__ import annotations
 
 from typing import Literal, Optional
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 # -------- Maschinen-Status (gespiegelt aus Nano `status`) --------
@@ -24,6 +24,8 @@ class MachineStatus(BaseModel):
     push_front: bool = False
     push_rear: bool = False
     magazin: bool = False
+    sleeve_home: bool = False   # Endschalter Hülsen-Schieber (A3): Stift ganz zurück
+    servo: int = 0              # aktuell kommandierter Servo-Winkel (Rampe)
     sol1: bool = False
     sol2: bool = False
     hopper: bool = False
@@ -41,6 +43,8 @@ class Params(BaseModel):
     home_drum_timeout_ms:  Optional[int] = Field(None, ge=100, le=60000)
     servo_home:            Optional[int] = Field(None, ge=0,   le=180)
     servo_load:            Optional[int] = Field(None, ge=0,   le=180)
+    servo_speed:           Optional[int] = Field(None, ge=0,   le=1000)
+    sleeve_switch:         Optional[int] = Field(None, ge=0,   le=1)
     knock_on_ms:           Optional[int] = Field(None, ge=1,   le=1000)
     knock_off_ms:          Optional[int] = Field(None, ge=1,   le=2000)
     knock_cycles:          Optional[int] = Field(None, ge=1,   le=50)
@@ -78,7 +82,16 @@ class StepperRequest(BaseModel):
 
 
 class ServoRequest(BaseModel):
-    angle: int = Field(..., ge=0, le=180)
+    """Entweder fester Winkel oder eine der kalibrierten Positionen aus den
+    EEPROM-Parametern (servo_home / servo_load)."""
+    angle: Optional[int] = Field(None, ge=0, le=180)
+    position: Optional[Literal["home", "load"]] = None
+
+    @model_validator(mode="after")
+    def _angle_or_position(self) -> "ServoRequest":
+        if (self.angle is None) == (self.position is None):
+            raise ValueError("genau eins von 'angle' oder 'position' angeben")
+        return self
 
 
 class MotorRequest(BaseModel):

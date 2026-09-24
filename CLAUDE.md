@@ -79,7 +79,20 @@ Servo-Tilt-Wand wurde durch die Doppel-Solenoid-Anordnung ersetzt:
 - 2× 100 Ω Gate-Series-Widerstand
 
 > **Es gibt im ganzen Aufbau nur EINEN Servo** — den Hülsen-Schieber (D11). Kein
-> Tabak-Servo. A3 ist Reserve.
+> Tabak-Servo. A3 ist der Endschalter des Hülsen-Schiebers.
+
+### Hülsen-Schieber (Servo + Zahnstange)
+Details, Maße und Kalibrierung: `docs/huelsenschieber.md`.
+- **Antrieb:** MG90S (Metallgetriebe) → Ritzel Modul 1, z = 24 (Ø 24 mm),
+  **ans Original-Horn geschraubt** → Zahnstange M1 am Schlitten → Stift schiebt
+  die Hülse aus der Trommel aufs Stopfrohr
+- **Ersetzt** Hebel Part-49 + Koppel Part-41 (rutschte auf der Servo-Verzahnung,
+  Koppel verkantete den Schlitten, keine Rückmeldung)
+- **Hub** = 12 mm × Schwenkwinkel (rad) → 160° ≈ 33 mm; max. 160° nutzen
+- **Führung:** MGN7 oder 2× Ø4-Welle; keine harten Anschläge innerhalb des Hubs
+- **Endschalter KW12 (Schließer) an A3** meldet Home → Trommel dreht nur, wenn
+  der Stift zurück ist (Firmware-Verriegelung)
+- Modul 1 wie Pusher-Zahnstange Part-10 (120 mm) / Pusher-Ritzel Part-31 (z = 10)
 
 ### Hülsen-Standard (King Size)
 - 84mm × 8mm OD, ~7,5mm ID
@@ -104,7 +117,7 @@ Servo-Tilt-Wand wurde durch die Doppel-Solenoid-Anordnung ersetzt:
 ### Motoren / Aktoren
 - 1× NEMA 17 Schrittmotor (**Trommelmagazin-Drehung**, Belt 1:1 zur Drum)
 - 2× DC-Getriebemotor 12V (Presse + Pusher) — via L298N Standard-Modul mit ENA/ENB
-- **1× SG90 Servo** (Hülsen-Schieber, D11) — einziger Servo im Aufbau
+- **1× MG90S Servo** (Hülsen-Schieber, D11, Ritzel + Zahnstange) — einziger Servo im Aufbau
 - 2× **Heschen HS-0530B** Hubmagnet 12 V (Tabak-Front-Knock + Tabak-Top-Druck)
   via **MOSFETs** (IRLZ44N) — kein L298N-Mini, weil Halteströme (~1 A/Solenoid)
   und Spannungsabfall (~2,5 V) ihn überhitzen würden
@@ -119,6 +132,7 @@ Servo-Tilt-Wand wurde durch die Doppel-Solenoid-Anordnung ersetzt:
     - Für **ESP32 (3,3V Logik):** 10kΩ + 3,9kΩ Spannungsteiler
 - **1× Optosensor** (Oniissy Gabellichtschranke) für Trommelmagazin-Referenz (sauberer Bereich)
 - **Mikroschalter (KW12) als Backup-Endschalter** für staubige Bereiche (optional)
+- **1× Mikroschalter KW12 (Schließer) an A3** — Endschalter Hülsen-Schieber (Home), verriegelt die Trommel
 
 ### Steuerung (rein remote)
 - Manueller Drucktaster entfällt — komplette Steuerung erfolgt **remote** über den
@@ -151,9 +165,10 @@ D13 → MOSFET-Gate → Hubmagnet #2 (Top-Druck, Heschen HS-0530B)
 A0  → Initiator Press (über Spannungsteiler)
 A1  → Initiator Push-Front (über Spannungsteiler)
 A2  → Initiator Push-Rear (über Spannungsteiler)
-A3  → frei (Reserve — z. B. zukünftige Sensoren, I²C-Display)
+A3  → Endschalter Hülsen-Schieber (KW12 NO gegen GND, interner Pull-up)
 A4  → MOSFET-Gate → Hubmagnet #1 (Front-Knock, Heschen HS-0530B)
 A5  → Magazin-Lichtschranke (Gabellichtschranke, direkt 5 V)
+A6/A7 → frei (Reserve, nur analog lesbar)
 
 # Manueller Start-Taster: ENTFÄLLT (Steuerung remote über Pi)
 # Onboard-Status-LED: ENTFÄLLT (D13 jetzt MOSFET-Gate für Solenoid #2)
@@ -182,17 +197,19 @@ GPIO 39 → Magazin-Sensor
 
 ## Stopfsequenz (Programm-Logik)
 
-1. **Referenzfahrt** — Trommel per Schlitzsensor auf Startposition
+1. **Referenzfahrt** — erst Hülsen-Schieber (Endschalter), Pusher und Presse zurück, zuletzt Trommel per Schlitzsensor auf Startposition
 2. **Tabak dosieren („Knocking")** — ~8× wiederholt: Hubmagnet #1 schlägt seitlich gegen Trog (bricht Brücken), Hubmagnet #2 drückt von oben (beide synchron) → Tabak rieselt in Stopfrohr-Position
 3. **Pressen** — Presse-Motor verdichtet Tabak; Initiator Press signalisiert Endposition
-4. **Hülse aufsetzen** — Servo schiebt Hülse aufs Stopfrohr
+4. **Hülse aufsetzen** — Servo schiebt Hülse per Zahnstange aufs Stopfrohr (Rampe) und fährt zurück bis zum Endschalter
 5. **Stopfen** — Pusher-Motor schiebt Tabak in Hülse; Initiator Push-Front = Endposition
 6. **Pusher zurück** — bis Initiator Push-Rear auslöst
 7. **Trommel weiterdrehen** — fertige Zigarette fällt aus, neue Hülse vorrutschen
 8. **Repeat ab Schritt 2**
 
 ### Servo-Position (einziger Servo: Hülsen-Schieber)
-- Hülsen-Servo D11: 5° (HOME — Hülse fertig aufgeschoben) / 85° (LOAD — Hülse aufnehmen)
+- Hülsen-Servo D11: `servo_home` (Stift zurück, Endschalter gedrückt) / `servo_load` (Hülse ganz auf dem Rohr) —
+  EEPROM-Parameter (Default 5° / 85°), mit Zahnstange neu kalibrieren. Rampe: `servo_speed` (Default 150 °/s).
+  `sleeve_switch` = 0 schaltet die Endschalter-Prüfung ab, solange kein Schalter verbaut ist
 - Tabak-Dosierung läuft ohne Servo (siehe Tabak-Dosierung-Sektion)
 
 ---
@@ -257,7 +274,7 @@ Nano → Pi:
 ✅ Elektronik-Komponenten bestellt und angekommen
 ✅ Beide DC-Getriebemotoren verbaut (Presse, Pusher)
 ✅ NEMA 17 Schrittmotor verbaut
-✅ Servo SG90 für Hülsenschieber verbaut
+🔄 Hülsen-Schieber wird auf MG90S + Zahnstange + Endschalter A3 umgebaut (Firmware ab v0.5.0 bereit)
 🔲 Buck-Konverter bestellt, noch nicht da → ESP32 als Übergang
 🔲 Tabak-Magazin & Hülsen-Magazin folgen nach Tests
 🔲 Pi und Nano warten auf Buck-Konverter
@@ -274,7 +291,7 @@ Nano → Pi:
 6. **NEMA 17** isoliert testen (A4988 + Spindel + Pusher)
 7. **DC-Motor 1 Presse** mit L298N
 8. **DC-Motor 2 Pusher** mit L298N
-9. **Servo** zum Schluss
+9. **Servo** zum Schluss — Zahnstange: `servo_home`/`servo_load` kalibrieren, Endschalter A3 prüfen (`docs/huelsenschieber.md`)
 10. **Initiatoren** mit Spannungsteilern
 11. **Magazin-Lichtschranke** (Trommel-Index)
 12. **2× Solenoide** (MOSFET-Tests via `knock`-Befehl — synchrones Pulsen)
@@ -308,7 +325,7 @@ Nano → Pi:
 - **Plattenzuschnitt24.de** (per Mail, persönliche Betreuung)
 
 ### Elektronik
-- Amazon: A4988, L298N, Buck-Konverter, NEMA 17, Servo SG90, ESP32, Arduino Nano, Pi Zero 2 W
+- Amazon: A4988, L298N, Buck-Konverter, NEMA 17, Servo MG90S, ESP32, Arduino Nano, Pi Zero 2 W
 - Initiatoren: "LJ8A3-2-Z/BX" auf Amazon (~5€/Stück)
 - Hubmagnete: **Heschen HS-0530B** (12V, ~5mm Hub, ~4N, ~0,5A) — Amazon, ~8–12€/Stück, im 2er-Pack
 - MOSFETs (Treiber für Solenoide + Hülsenmagazin-Motor): **3× IRLZ44N** (Logic-Level, Reichelt ~0,30€/Stück) oder 2N7000/BS170 für kleinere Lasten

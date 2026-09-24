@@ -29,7 +29,7 @@ Ein Befehl pro Zeile, mit `\n` (LF) terminiert. Antworten zeilenweise.
 |---|---|---|
 | `ping` | `pong` | Verbindungstest. Pi sollte das nach Connect zuerst senden. |
 | `help` | mehrzeilige Hilfe | Liste aller Befehle (für manuelles Debuggen) |
-| `status` | `status press=B push_front=B push_rear=B magazin=B magazin_raw=B sol1=B sol2=B hopper=B stepper_pos=N` | Sensor-Snapshot (`B` = `0`/`1`, `N` = signed long) |
+| `status` | `status state=S step=N error=E press=B push_front=B push_rear=B magazin=B sleeve_home=B servo=N sol1=B sol2=B hopper=B hopper_enabled=B stepper_pos=N` | Zustand + Sensor-Snapshot (`B` = `0`/`1`, `N` = Zahl). `sleeve_home` = Endschalter Hülsen-Schieber (A3), `servo` = kommandierter Winkel der Rampe |
 
 ### Schrittmotor (Trommelmagazin-Drehung)
 
@@ -59,15 +59,26 @@ stepper 0        → no-op (aber Watchdog wird "gefüttert")
 > Mit dem großen L298N (ENA/ENB) ist die Drehzahl in **beide** Richtungen
 > geregelt — anders als beim Mini-Modul, wo Rückwärts fix volle Drehzahl war.
 
-### Servo (Hülsen-Schieber)
+### Servo (Hülsen-Schieber, Ritzel + Zahnstange)
 
 | Befehl | Antwort | Beschreibung |
 |---|---|---|
-| `servo <0..180>` | `ok servo <angle>` | Fährt Servo auf Winkel (geclamped 0–180). |
+| `servo <0..180>` | `ok servo <angle>` | Fährt als **Rampe** mit `servo_speed` °/s auf den Winkel (geclamped 0–180). Nur Ziffern, sonst `err servo_angle:<arg>`. |
 
-Wichtige Positionen (siehe `config.h`):
-- `servo 5` → Hülse fertig aufgeschoben (`SERVO_POS_HOME`)
-- `servo 85` → Hülse aufnehmen (`SERVO_POS_LOAD`)
+Positionen und Tempo sind EEPROM-Parameter (`set <key> <value>`, Details in
+[`huelsenschieber.md`](huelsenschieber.md)):
+- `servo_home` — Stift ganz zurück, Endschalter A3 gedrückt (Default 5)
+- `servo_load` — Hülse ganz aufs Stopfrohr geschoben (Default 85)
+- `servo_speed` — Rampe in °/s, `0` = Sprung ohne Rampe (Default 150)
+- `sleeve_switch` — `1` = Endschalter prüfen + Trommel verriegeln, `0` = kein Schalter verbaut (Default 1)
+
+**Verriegelung:** `stepper`, `stuff` und `step 1` antworten mit genau einer
+Zeile `err sleeve_not_home`, wenn `sleeve_switch=1` und der Endschalter nicht
+gedrückt ist. Spontane Sequenzfehler (`err sequence:<code>`) des Schiebers:
+`sleeve_not_home`, `sleeve_stuck`, `sleeve_home_timeout`.
+
+Referenzfahrt `home`: Schieber (101) → Pusher zurück (102) → Presse zurück
+(103) → zuletzt Trommel (104), dann `ok home_done`.
 
 ### Tabak-Dosierung (Tilt-Servo + 2 Solenoide via MOSFETs)
 
