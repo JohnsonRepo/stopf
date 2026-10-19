@@ -13,8 +13,14 @@ cad/
 ├── drawings/                     # Fertigungs-fertige Zeichnungen
 │   └── acryl_parts/              # Laser-Cut-DXFs für Acryl-Strukturteile (4 mm)
 ├── stl/                          # STL-Dateien für 3D-Druck (PETG/PLA)
-└── scad/                         # OpenSCAD-Quellen für eigene parametrische Anpassungen (leer)
+├── scad/                         # OpenSCAD-Quellen für eigene parametrische Anpassungen (leer)
+└── fusion/                       # Python-Skripte für Autodesk Fusion (je Ordner .py + .manifest)
+    └── Huelsenschieber_Kurbel/   # Kurbeltrieb SG90-Hülsenschieber (Hub 30 mm, 2 × Ø4-Stangen)
 ```
+
+**Fusion-Skripte:** Ordner nach `~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/Scripts/`
+kopieren, dann *Utilities → Scripts and Add-Ins* → Skript ausführen. Jeder Lauf legt ein neues
+Dokument an. Maße stehen oben im Skript (Block `MASSE`).
 
 **Hinweis:** Aktuell sind keine `.scad`-Dateien vorhanden. Der Ordner ist als Platzhalter angelegt
 (via `.gitkeep`), für künftige eigene OpenSCAD-Konstruktionen (z. B. parametrische Halter,

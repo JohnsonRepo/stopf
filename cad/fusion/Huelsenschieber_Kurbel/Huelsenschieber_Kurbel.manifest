@@ -1,0 +1,10 @@
+{
+    "autodeskProduct": "Fusion360",
+    "type": "script",
+    "author": "Johnson",
+    "description": {
+        "": "Kurbeltrieb für den SG90-Hülsenschieber: Grundplatte mit Servorahmen und Stangenhaltern, Kurbelscheibe (Hub 30 mm), Pleuel, Schlitten auf 2 × Ø4-Stangen"
+    },
+    "supportedOS": "windows|mac",
+    "editEnabled": true
+}
