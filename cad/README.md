@@ -15,7 +15,7 @@ cad/
 ├── stl/                          # STL-Dateien für 3D-Druck (PETG/PLA)
 ├── scad/                         # OpenSCAD-Quellen für eigene parametrische Anpassungen (leer)
 └── fusion/                       # Python-Skripte für Autodesk Fusion (je Ordner .py + .manifest)
-    └── Huelsenschieber_Kurbel/   # Kurbeltrieb SG90-Hülsenschieber (Hub 30 mm, 2 × Ø4-Stangen)
+    └── Huelsenschieber_Kurbel/   # Kurbel + Pleuel + Rohrklemme für den Hülsenschieber (Totpunkt in HOME)
 ```
 
 **Fusion-Skripte:** Ordner nach `~/Library/Application Support/Autodesk/Autodesk Fusion 360/API/Scripts/`
