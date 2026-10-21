@@ -1,5 +1,7 @@
 # Huelsenschieber_Kurbel.py — Kurbeltrieb für den Hülsenschieber (SG90)
 #
+# Rev. 3: Pleuel dreht sich auf Messinghülsen (5×1), die M3-Schrauben klemmen
+# die Hülsen nur fest – kein Gewinde läuft im Lager.
 # Rev. 2: passt zum vorhandenen Aufbau. Das Messingrohr (Ø5) bleibt im
 # Gleitlager, das ist die einzige Führung. Der Servo bleibt seitlich neben dem
 # Rohr. Ersetzt werden nur Hornarm und Hebel:
@@ -13,15 +15,15 @@
 # bei y = SEITLICH, Z = 0 = Grundplatte. Gebaut in HOME-Stellung.
 #
 # Alle Maße stehen im Block MASSE. Die Bohrungs-Passungen lassen sich nach dem
-# Testdruck live im Parameter-Dialog ändern (spiel_*, gelenk_loch_d, kopf_d,
-# rohr_d). Alles andere: Wert im Block ändern und Skript neu ausführen.
+# Testdruck live im Parameter-Dialog ändern (spiel_*, gelenk_loch_d,
+# pleuel_loch_d, kopf_d, rohr_d). Alles andere: Wert im Block ändern und Skript neu ausführen.
 #
 # Daneben gehört die gleichnamige .manifest-Datei.
 
 import adsk.core, adsk.fusion, traceback, math
 
 SKRIPT_NAME = 'Huelsenschieber_Kurbel'   # = Dateiname des Skripts
-REVISION = 2                             # bei jeder Änderung hochzählen
+REVISION = 3                             # bei jeder Änderung hochzählen
 
 # ============================== MASSE (mm) ==================================
 # [?] = Datenblatt-/Erfahrungswert, am eigenen Teil mit dem Messschieber prüfen.
@@ -42,14 +44,20 @@ SPIEL_PRESS = 0.05          # diametral: Rohr in der Klemme
 SPIEL_LOCKER = 0.4          # diametral: Schraubenköpfe
 
 # --- Gelenke (M3) ---
-GELENK_LOCH_D = 2.8         # gedruckt; mit 3,0-mm-Bohrer aufreiben
+# Aufbau von unten: Schraube, Kurbelscheibe bzw. Klemme, U-Scheibe, Messinghülse
+# (im Pleuel), U-Scheibe, Stoppmutter fest. Die Hülse ist etwas länger als das
+# Pleuel -> die Schraube klemmt nur die Hülse, das Pleuel dreht frei darauf.
+GELENK_LOCH_D = 2.8         # Kurbelscheibe/Klemme, gedruckt; mit 3,0 aufreiben
 KOPF_D = 5.5                # M3 DIN 912 Kopf-Ø
 KOPF_T = 3.0                # M3 DIN 912 Kopfhöhe
-GELENK_AUFBAU = 2.9         # Mutter (2,4) + U-Scheibe (0,5) zwischen Teil und Pleuel
+U_SCHEIBE_T = 0.5           # M3 DIN 125
 STOPPMUTTER_T = 4.0         # M3 DIN 985
+HUELSE_D = 5.0              # Messingrohr 5×1 als Lagerhülse
+HUELSE_UEBERSTAND = 0.25    # Hülse länger als das Pleuel = axiales Spiel
+PLEUEL_LOCH_D = 4.8         # gedruckt; mit 5,0 aufreiben, Hülse läuft darin
 
 # --- Pleuel ---
-PLEUEL_B = 8.0
+PLEUEL_B = 10.0             # 2,5 mm Wand um die Ø5-Hülse
 PLEUEL_T = 4.0
 
 # --- Kurbelscheibe ---
@@ -218,7 +226,8 @@ def geometrie():
     g['taschen_t'] = HORN_T - 0.3                    # Scheibe 0,3 über Hornunterseite
     g['z_sch_u'] = HORN_OBEN - g['taschen_t']
     g['z_sch_o'] = g['z_sch_u'] + SCHEIBE_T
-    g['z_pl_u'] = g['z_sch_o'] + GELENK_AUFBAU
+    g['z_pl_u'] = g['z_sch_o'] + U_SCHEIBE_T
+    g['huelse_l'] = PLEUEL_T + HUELSE_UEBERSTAND
     g['senk_horn_t'] = SCHEIBE_T - g['taschen_t'] - UNTER_KOPF
     g['rest_unter_kopf'] = SCHEIBE_T - (KOPF_T + 0.3)
 
@@ -230,8 +239,8 @@ def geometrie():
     # Servo-Referenz: Gehäuse unter dem Horn, Welle am Gehäuseende Richtung -X
     g['z_servo_o'] = HORN_OBEN - HORN_T - HORN_LUFT
 
-    # Schraubenlängen (unter Kopf): Kopf -> Mutter, U-Scheibe, Pleuel, U-Scheibe, Stoppmutter
-    stapel = GELENK_AUFBAU + PLEUEL_T + 0.5 + STOPPMUTTER_T
+    # Schraubenlängen (unter Kopf): Teil, U-Scheibe, Hülse, U-Scheibe, Stoppmutter
+    stapel = U_SCHEIBE_T + g['huelse_l'] + U_SCHEIBE_T + STOPPMUTTER_T
     g['schraube_kurbel_min'] = g['rest_unter_kopf'] + stapel
     g['schraube_klemme_min'] = (g['z_kl_o'] - g['z_kl_u']) + stapel
     for key in ('kurbel', 'klemme'):
@@ -271,6 +280,8 @@ def parameter_anlegen(design):
     up.add('rohr_d', vs('{} mm'.format(ROHR_D)), 'mm', 'Ø Messingrohr (gemessen)')
     up.add('gelenk_loch_d', vs('{} mm'.format(GELENK_LOCH_D)), 'mm',
            'Gelenklöcher gedruckt, auf 3,0 aufreiben')
+    up.add('pleuel_loch_d', vs('{} mm'.format(PLEUEL_LOCH_D)), 'mm',
+           'Pleuellöcher gedruckt, auf 5,0 aufreiben (Messinghülse)')
     up.add('kopf_d', vs('{} mm'.format(KOPF_D)), 'mm', 'Kopf-Ø M3 DIN 912')
 
 def komponente(root, name):
@@ -517,7 +528,7 @@ def run(context):
 
         sk = skizze(cp, 'Gelenkloecher')
         for x in (0.0, L):
-            kreis(sk, P(x, 0), GELENK_LOCH_D, 'gelenk_loch_d')
+            kreis(sk, P(x, 0), PLEUEL_LOCH_D, 'pleuel_loch_d')
         cut_durch(cp, sk, pleuel)
 
         # ---------------- Schieber: Rohrklemme + Messingrohr ----------------
@@ -582,11 +593,11 @@ def run(context):
                zylinder(rohr, (0, SEITLICH, ROHR_Z), X, ROHR_D / 2.0),
                'schieb', 'Rohr_Gleitlager', hinweise)
         gelenk(root, occ_pleuel, occ_kurbel,
-               zylinder(pleuel, (0, 0, 0), Z, GELENK_LOCH_D / 2.0),
+               zylinder(pleuel, (0, 0, 0), Z, PLEUEL_LOCH_D / 2.0),
                'dreh', 'Pleuel_Kurbel', hinweise)
         # zylindrisch statt Drehgelenk, damit die geschlossene Kette nicht überbestimmt ist
         gelenk(root, occ_pleuel, occ_schieber,
-               zylinder(pleuel, (L, 0, 0), Z, GELENK_LOCH_D / 2.0),
+               zylinder(pleuel, (L, 0, 0), Z, PLEUEL_LOCH_D / 2.0),
                'zyl', 'Pleuel_Klemme', hinweise)
 
         # ---------------- Bericht ----------------
@@ -606,12 +617,14 @@ def run(context):
             '(Rohr am weitesten vorn); LOAD = ca. {:.0f}° weiter, Kurbel schwenkt zum Rohr hin'.format(
                 k['servoweg'] if k else 0),
             'Schrauben DIN 912: Kurbel M3×{}, Klemme M3×{} (quer durchs Rohr); '
-            'je 1 Mutter + 2 U-Scheiben + Stoppmutter'.format(
+            'je 2 U-Scheiben + Stoppmutter, fest anziehen'.format(
                 g['schraube_kurbel'], g['schraube_klemme']),
+            'Lagerhülsen: 2 × Messingrohr 5×1, je {:.2f} mm lang ({:.2f} mm länger als das Pleuel) – '
+            'Pleuel muss nach dem Festziehen frei drehen'.format(g['huelse_l'], HUELSE_UEBERSTAND),
             'Rohr: Klemme in HOME-Lage aufschieben, durch das Gelenkloch 3 mm quer durchbohren',
             '[?] Horn-Maße und SEITLICH/AXIAL_HOME/HORN_OBEN prüfen (Block MASSE)',
-            'Druck: Kurbelscheibe mit Horntasche nach oben, Pleuel und Klemme flach '
-            '(Rohrbohrung ggf. mit 5,0 nachbohren)',
+            'Druck: Kurbelscheibe mit Horntasche nach oben, Pleuel und Klemme flach; '
+            'Pleuellöcher mit 5,0 aufreiben (Rohrbohrung der Klemme ggf. auch)',
             'Nicht drucken: SG90 (Referenz), Horn (Referenz), Messingrohr (Referenz)',
             'Prüfen: Gelenk "Kurbel" rechtsklicken -> Gelenk antreiben',
         ]
